@@ -53,6 +53,7 @@ export interface EditableField {
 	 */
 	pattern?: string;
 	uniqueScope?: string;
+	nonBlank?: boolean;
 	/** UI-only: the field's type at load time, used to detect in-session type switches. */
 	originalType?: FieldDef['type'];
 	/**
@@ -442,6 +443,7 @@ export function fieldFromDef(def: FieldDef, existing: boolean): EditableField {
 		default: def.default,
 		pattern: def.pattern,
 		uniqueScope: def.unique_scope,
+		nonBlank: def.non_blank,
 		originalType: def.type,
 		originalDefault: def.default,
 		// Both existing and template fields start with keyTouched=true so

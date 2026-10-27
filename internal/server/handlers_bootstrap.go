@@ -176,6 +176,7 @@ type bootstrapFieldDef struct {
 	AbandonedOptions []string        `json:"abandoned_options,omitempty"`
 	Default          json.RawMessage `json:"default,omitempty"`
 	Required         bool            `json:"required,omitempty"`
+	NonBlank         bool            `json:"non_blank,omitempty"`
 	Computed         bool            `json:"computed,omitempty"`
 	Collection       string          `json:"collection,omitempty"`
 	Suffix           string          `json:"suffix,omitempty"`

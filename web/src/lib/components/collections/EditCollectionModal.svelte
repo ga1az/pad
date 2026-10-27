@@ -491,6 +491,7 @@
 				// yet expose. See field-editor-types.ts:EditableField.
 				pattern: f.pattern,
 				uniqueScope: f.unique_scope,
+				nonBlank: f.non_blank,
 				// Snapshot the load-time type AND default so the save path
 				// can detect in-session type switches and default mutations
 				// (used for the unsupported-type default preservation
@@ -752,6 +753,7 @@
 				// the modal mustn't drop server-side validation rules.
 				if (f.pattern) def.pattern = f.pattern;
 				if (f.uniqueScope) def.unique_scope = f.uniqueScope;
+				if (f.nonBlank) def.non_blank = f.nonBlank;
 				// Default-value handling for existing fields:
 				//
 				// - If the active type has UI-editable defaults, run through

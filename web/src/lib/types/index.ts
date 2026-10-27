@@ -482,6 +482,8 @@ export interface FieldDef {
 	pattern?: string;
 	/** "workspace_collection" enforces uniqueness within a collection (non-empty values only). */
 	unique_scope?: string;
+	/** Fork ga1az/pad: with required, a blank string or empty list counts as missing. */
+	non_blank?: boolean;
 }
 
 export interface CollectionSchema {

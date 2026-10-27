@@ -164,6 +164,7 @@ func ValidateFieldsDetailedWithDrops(
 	schema models.CollectionSchema,
 ) (issues []FieldIssue, droppedDefaults []string) {
 	normalizeEmptyRelationLists(fields, schema, false)
+	normalizeBlankRequired(fields, schema, false)
 
 	for _, def := range schema.Fields {
 		val, exists := fields[def.Key]
@@ -310,6 +311,49 @@ func normalizeEmptyRelationLists(fields map[string]any, schema models.Collection
 	}
 }
 
+// normalizeBlankRequired (fork ga1az/pad) makes `required` mean "has content"
+// for fields that opt in with `non_blank`: a whitespace-only string or an empty
+// list is rewritten into the same spelling of "no value" that
+// normalizeEmptyRelationLists uses — an absent key on a FULL write (the
+// required-field branch then refuses it, or injects the schema default) and
+// the deletion sentinel (nil) on a PARTIAL write (ValidatePartialFields then
+// refuses deleting a required key). Fields without `non_blank` keep the
+// upstream rule, where a required select may store "" (BUG-3043).
+func normalizeBlankRequired(fields map[string]any, schema models.CollectionSchema, partial bool) {
+	if len(fields) == 0 {
+		return
+	}
+	for _, def := range schema.Fields {
+		if !def.Required || !def.NonBlank {
+			continue
+		}
+		val, exists := fields[def.Key]
+		if !exists || !isBlankValue(val) {
+			continue
+		}
+		if partial {
+			fields[def.Key] = nil
+			continue
+		}
+		delete(fields, def.Key)
+	}
+}
+
+// isBlankValue reports whether val carries no content: a whitespace-only
+// string or an empty list. nil is not "blank" here — it already has its own
+// meaning on both write shapes.
+func isBlankValue(val any) bool {
+	switch v := val.(type) {
+	case string:
+		return strings.TrimSpace(v) == ""
+	case []any:
+		return len(v) == 0
+	case []string:
+		return len(v) == 0
+	}
+	return false
+}
+
 // ValidatePartialFields validates ONLY the keys present in `patch` against
 // the schema (TASK-2022, field-level PATCH / IDEA-1480). Unlike
 // ValidateFields it does NOT enforce required-field presence and does NOT
@@ -322,6 +366,7 @@ func normalizeEmptyRelationLists(fields map[string]any, schema models.Collection
 // are skipped here since there's no value to type-check.
 func ValidatePartialFields(patch map[string]any, schema models.CollectionSchema) error {
 	normalizeEmptyRelationLists(patch, schema, true)
+	normalizeBlankRequired(patch, schema, true)
 	// Index declared fields by key for O(1) lookup.
 	defByKey := make(map[string]models.FieldDef, len(schema.Fields))
 	for _, def := range schema.Fields {

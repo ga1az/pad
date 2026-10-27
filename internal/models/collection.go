@@ -22,11 +22,15 @@ type FieldDef struct {
 	AbandonedOptions []string `json:"abandoned_options,omitempty"`
 	Default          any      `json:"default,omitempty"`
 	Required         bool     `json:"required,omitempty"`
-	Computed         bool     `json:"computed,omitempty"`
-	Collection       string   `json:"collection,omitempty"`   // for relation type
-	Suffix           string   `json:"suffix,omitempty"`       // for number type display
-	Pattern          string   `json:"pattern,omitempty"`      // optional ECMAScript-style regex applied to text values; empty = no pattern check
-	UniqueScope      string   `json:"unique_scope,omitempty"` // "workspace_collection" enforces uniqueness within a collection (non-empty values only); empty = no uniqueness
+	// NonBlank (fork ga1az/pad) tightens Required: a whitespace-only string or
+	// an empty list counts as missing. Opt-in per field, because upstream
+	// Required deliberately accepts "" (the board's Uncategorized lane).
+	NonBlank    bool   `json:"non_blank,omitempty"`
+	Computed    bool   `json:"computed,omitempty"`
+	Collection  string `json:"collection,omitempty"`   // for relation type
+	Suffix      string `json:"suffix,omitempty"`       // for number type display
+	Pattern     string `json:"pattern,omitempty"`      // optional ECMAScript-style regex applied to text values; empty = no pattern check
+	UniqueScope string `json:"unique_scope,omitempty"` // "workspace_collection" enforces uniqueness within a collection (non-empty values only); empty = no uniqueness
 }
 
 // RelationFieldTypes is every field type whose VALUE names other items
