@@ -181,6 +181,11 @@ type Notification struct {
 	// nothing, and any future opt-in re-addressing (a per-watch flag, a
 	// config key) needs it in place to be a consumer-side change only.
 	AssignedUserID string
+	// ActorUserID is the acting user's id, when a producer knows it. The
+	// agent inbox (SPEC-15) reads it so an agent is not told about its own
+	// comment or status change. Not part of watchEventPayload's wire shape;
+	// a producer that leaves it empty is never mistaken for an agent.
+	ActorUserID string
 	// TargetUserID is IDEA-2544's generalized addressed-to field:
 	// populated on Kind == KindPush with the user the push is addressed
 	// to (Phase 1 always sets this to the pushing user's own ID —

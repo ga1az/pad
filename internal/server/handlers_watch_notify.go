@@ -16,7 +16,9 @@ import (
 // assignment notification, matching the two independent facets a single
 // mutation signal can carry.
 //
-// No-op when s.watchEvents is nil (feature disabled) or LastMutation is
+// With s.watchEvents nil (feature disabled) the bus publish is a no-op, but
+// the agent inbox still records (publishWatchNotification, SPEC-15). No-op
+// when LastMutation is
 // nil (this particular mutation touched neither the done-field nor
 // assigned_user_id — e.g. a title rename, a tag change, a content edit).
 //
@@ -60,8 +62,8 @@ import (
 // them. Assignment no longer delivers that way, so the remaining burst
 // requires 50 items the caller explicitly watched — noise they opted
 // into, one notification per fact they asked to hear about.
-func (s *Server) publishWatchNotifications(workspaceID string, updated *models.Item, actor, actorName string) {
-	if s.watchEvents == nil || updated == nil || updated.LastMutation == nil {
+func (s *Server) publishWatchNotifications(workspaceID string, updated *models.Item, actor, actorName, actorUserID string) {
+	if updated == nil || updated.LastMutation == nil {
 		return
 	}
 	sig := updated.LastMutation
@@ -75,6 +77,7 @@ func (s *Server) publishWatchNotifications(workspaceID string, updated *models.I
 			Kind:           watchevents.KindStatusChange,
 			Actor:          actor,
 			ActorName:      actorName,
+			ActorUserID:    actorUserID,
 			Summary:        fmt.Sprintf("%s → %s", orNoneLabel(sig.FromStatus), orNoneLabel(sig.ToStatus)),
 			StatusFieldKey: sig.StatusFieldKey,
 			ToStatus:       sig.ToStatus,
@@ -98,6 +101,7 @@ func (s *Server) publishWatchNotifications(workspaceID string, updated *models.I
 			Kind:           watchevents.KindAssignment,
 			Actor:          actor,
 			ActorName:      actorName,
+			ActorUserID:    actorUserID,
 			Summary:        summary,
 			AssignedUserID: sig.ToAssignedUserID,
 		})
@@ -154,6 +158,9 @@ func orNoneLabel(status string) string {
 //
 // Also absorbs the nil-bus check every one of those sites was repeating.
 func (s *Server) publishWatchNotification(n watchevents.Notification) {
+	// The agent inbox is durable and does not depend on the bus, so it is
+	// recorded first and even when watch events are off (SPEC-15, TASK-17).
+	s.recordAgentEvent(n)
 	if s.watchEvents == nil {
 		return
 	}

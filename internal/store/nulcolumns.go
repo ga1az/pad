@@ -320,6 +320,17 @@ var nulColumns = []nulColumn{
 	{"conversation_messages", "author_agent_key", classText},
 	{"conversation_messages", "op_key", classText},
 	{"conversation_messages", "deleted_by_agent_key", classText},
+
+	// agents that join through a link (TASK-16, SPEC-15): the label, display
+	// name, icon and request ids arrive in requests; an inbox payload and a
+	// replayed response carry comment bodies and titles.
+	{"agent_join_links", "label", classText},
+	{"workspace_agents", "display_name", classText},
+	{"workspace_agents", "icon", classText},
+	{"workspace_agents", "register_request_id", classText},
+	{"agent_inbox", "payload", classJSON},
+	{"agent_requests", "request_id", classText},
+	{"agent_requests", "response", classJSON},
 }
 
 // nulTriggerMigrations are the generated trigger files, in migration order.
@@ -349,6 +360,7 @@ var nulTriggerMigrations = []string{
 	"152_nul_invariant_triggers_post151.sql",
 	"156_nul_invariant_triggers_post155.sql",
 	"159_nul_invariant_triggers_post158.sql",
+	"161_nul_invariant_triggers_post160.sql",
 }
 
 // nulColumnTriggerFile assigns a column to a trigger file other than the
@@ -388,6 +400,14 @@ var nulColumnTriggerFile = map[string]string{
 	"conversation_messages.author_agent_key":     "159_nul_invariant_triggers_post158.sql",
 	"conversation_messages.op_key":               "159_nul_invariant_triggers_post158.sql",
 	"conversation_messages.deleted_by_agent_key": "159_nul_invariant_triggers_post158.sql",
+	// 160 introduced the tables (TASK-16).
+	"agent_join_links.label":               "161_nul_invariant_triggers_post160.sql",
+	"workspace_agents.display_name":        "161_nul_invariant_triggers_post160.sql",
+	"workspace_agents.icon":                "161_nul_invariant_triggers_post160.sql",
+	"workspace_agents.register_request_id": "161_nul_invariant_triggers_post160.sql",
+	"agent_inbox.payload":                  "161_nul_invariant_triggers_post160.sql",
+	"agent_requests.request_id":            "161_nul_invariant_triggers_post160.sql",
+	"agent_requests.response":              "161_nul_invariant_triggers_post160.sql",
 }
 
 // nulTriggerFileFor names the trigger file a column's triggers are rendered

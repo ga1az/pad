@@ -1754,6 +1754,45 @@ func (c *Client) GetLibraryEntry(title string) (*LibraryEntryResponse, error) {
 	return &result, c.get("/library/entry?"+params.Encode(), &result)
 }
 
+// --- Agents that join through a link (SPEC-15) ---
+
+// CreateAgentJoinLink mints a join link; the response is the only time its
+// code and URL are shown.
+func (c *Client) CreateAgentJoinLink(wsSlug, label string) (*models.AgentJoinLinkWithCode, error) {
+	var result models.AgentJoinLinkWithCode
+	return &result, c.post("/workspaces/"+url.PathEscape(wsSlug)+"/agent-links", map[string]string{"label": label}, &result)
+}
+
+// ListAgentJoinLinks lists a workspace's join links.
+func (c *Client) ListAgentJoinLinks(wsSlug string) ([]models.AgentJoinLink, error) {
+	var result struct {
+		Links []models.AgentJoinLink `json:"links"`
+	}
+	return result.Links, c.get("/workspaces/"+url.PathEscape(wsSlug)+"/agent-links", &result)
+}
+
+// RevokeAgentJoinLink revokes a link and every agent it registered.
+func (c *Client) RevokeAgentJoinLink(wsSlug, linkID string) error {
+	return c.delete("/workspaces/" + url.PathEscape(wsSlug) + "/agent-links/" + url.PathEscape(linkID))
+}
+
+// ListWorkspaceAgents lists the agents registered in a workspace.
+func (c *Client) ListWorkspaceAgents(wsSlug string, all bool) ([]models.WorkspaceAgent, error) {
+	var result struct {
+		Agents []models.WorkspaceAgent `json:"agents"`
+	}
+	path := "/workspaces/" + url.PathEscape(wsSlug) + "/agents"
+	if all {
+		path += "?all=true"
+	}
+	return result.Agents, c.get(path, &result)
+}
+
+// RevokeWorkspaceAgent revokes one agent and its tokens.
+func (c *Client) RevokeWorkspaceAgent(wsSlug, agentID string) error {
+	return c.delete("/workspaces/" + url.PathEscape(wsSlug) + "/agents/" + url.PathEscape(agentID))
+}
+
 // --- Webhooks ---
 
 // ListWebhooks returns all webhooks for a workspace.

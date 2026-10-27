@@ -3372,6 +3372,47 @@ export interface WorkspaceApp {
 	role: string;
 }
 
+// ── Agents that join through a link (SPEC-15, TASK-20) ───────────────────
+
+/**
+ * An owner-minted agent join link (GET/POST /workspaces/{ws}/agent-links).
+ * Expired once `expires_at` is past; `agent_count` counts agents not revoked.
+ */
+export interface AgentJoinLink {
+	id: string;
+	workspace_id: string;
+	label: string;
+	created_by?: string;
+	max_agents: number;
+	agent_count: number;
+	expires_at: string;
+	revoked_at?: string;
+	created_at: string;
+}
+
+/** The create response: the only time `code` and `url` are shown. */
+export interface AgentJoinLinkWithCode extends AgentJoinLink {
+	code: string;
+	url: string;
+}
+
+/**
+ * An agent registered through a join link. It acts as the bot user
+ * `user_id`, an editor member of the workspace, so assigning a task to it
+ * sets the item's assigned user to `user_id`.
+ */
+export interface WorkspaceAgent {
+	id: string;
+	workspace_id: string;
+	user_id: string;
+	link_id?: string;
+	display_name: string;
+	icon?: string;
+	created_at: string;
+	last_seen_at?: string;
+	revoked_at?: string;
+}
+
 // ── In-app tutorials (TASK-3452) ─────────────────────────────────────────
 
 export interface TutorialChapter {

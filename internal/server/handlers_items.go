@@ -1146,6 +1146,7 @@ func (s *Server) createItemChecked(r *http.Request, workspaceID string, coll *mo
 			Kind:           watchevents.KindAssignment,
 			Actor:          actor,
 			ActorName:      actorNameForCreate,
+			ActorUserID:    currentUserID(r),
 			Summary:        fmt.Sprintf("assigned to %s on creation", name),
 			AssignedUserID: *item.AssignedUserID,
 		})
@@ -2875,7 +2876,7 @@ func (s *Server) updateItem(w http.ResponseWriter, r *http.Request, b *builtinIt
 	}
 	actorNameForUpdate := actorNameFromRequest(r)
 	s.publishItemEventWithName(sseItemUpdated, workspaceID, updated.ID, updated.Title, updated.CollectionSlug, actor, actorNameForUpdate, source, updated.Seq)
-	s.publishWatchNotifications(workspaceID, updated, actor, actorNameForUpdate)
+	s.publishWatchNotifications(workspaceID, updated, actor, actorNameForUpdate, currentUserID(r))
 
 	// If a comment was attached to this update (e.g. explaining a status change),
 	// create a comment linked to the activity entry. The comment reads its
@@ -2936,6 +2937,7 @@ func (s *Server) updateItem(w http.ResponseWriter, r *http.Request, b *builtinIt
 				Kind:         watchevents.KindComment,
 				Actor:        actor,
 				ActorName:    actorNameForUpdate,
+				ActorUserID:  currentUserID(r),
 				Summary:      truncateForSummary(comment.Body, 120),
 			})
 		}
@@ -3594,7 +3596,7 @@ func (s *Server) handleMoveItem(w http.ResponseWriter, r *http.Request) {
 	// Publish events for both old and new collections
 	actorNameForMove := actorNameFromRequest(r)
 	s.publishItemEventWithName(sseItemMoved, workspaceID, moved.ID, moved.Title, targetColl.Slug, actor, actorNameForMove, source, moved.Seq)
-	s.publishWatchNotifications(workspaceID, moved, actor, actorNameForMove)
+	s.publishWatchNotifications(workspaceID, moved, actor, actorNameForMove, currentUserID(r))
 
 	// The visibility checked before the write (BUG-3334).
 	if err := s.enrichItemForResponse(r, moved, targetVisibleIDs); err != nil {

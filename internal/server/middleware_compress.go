@@ -80,7 +80,12 @@ func compressSkips(r *http.Request) bool {
 		strings.HasSuffix(p, "/claim-code"), strings.HasSuffix(p, "/members") || strings.HasSuffix(p, "/members/"),
 		// A share view can carry signed, short-lived attachment references
 		// (an exp and a signature each; codex r5's exhaustive GET sweep).
-		strings.HasPrefix(p, "/api/v1/s/"):
+		strings.HasPrefix(p, "/api/v1/s/"),
+		// The agent API (SPEC-15): a GET register answers with a padagt_
+		// token, and every URL it hands back carries that token in its query.
+		// Its responses are small. The owner's /agent-links and /agents lists
+		// carry no secret (a link's code is shown only by its create).
+		strings.HasPrefix(p, agentAPIPrefix+"/"):
 		return true
 	}
 	return false

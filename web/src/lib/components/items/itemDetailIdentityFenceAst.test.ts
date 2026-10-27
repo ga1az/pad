@@ -95,6 +95,11 @@ const COLLAB_SAVE_CODE =
 // refusedRawDraftOffer out) and, through that type, the new component-level
 // `let refusedDraftSlot` declaration. Measured by diffing each unit's coverage
 // segments against the previous head; nothing those units run changed.
+// TASK-20: loadData re-reviewed after the members fetch became one awaited
+// Promise.all of members and the joined agents (listAssignableAgents never
+// rejects); the commits still sit after the same myGen fence, and the cache-hit
+// arm adds one synchronous assignment. Its continuations' rows re-hashed only
+// because their enclosing loadData did; none of their own code changed.
 const ASYNC_FUNCTIONS: Record<string, Row> = {
 	adoptOrConvergeToLiveCollection: { reviewed: '5a647061f75f', why: 'myGen against loadGeneration before adopting' },
 	reconcileCollectionSegment: { reviewed: 'ad1522369e6a', why: 'identityHeld after the list fetch; retags and navigates only under it' },
@@ -105,7 +110,7 @@ const ASYNC_FUNCTIONS: Record<string, Row> = {
 	// Re-reviewed for BUG-3473: the index await is skipped when the index is
 	// already ready; it adds no await and commits nothing, and every fence
 	// after the Promise.all is unchanged.
-	loadData: { reviewed: '62c3159ac13c', why: 'IS the load: myGen against loadGeneration after every await; the BUG-3198 re-read of a changed item runs after the install, keyed on the installed item id, and fences itself on itemGen' },
+	loadData: { reviewed: '88e4f14978c6', why: 'IS the load: myGen against loadGeneration after every await; the BUG-3198 re-read of a changed item runs after the install, keyed on the installed item id, and fences itself on itemGen' },
 	startEditTitle: { reviewed: '17f04352d420', why: 'focuses and sizes the input it opened synchronously', may: ['el', 'titleInputEl.focus', 'titleInputEl.setSelectionRange'] },
 	// Re-reviewed for BUG-2836: saveTitle's own lines are unchanged (the diff
 	// touches only a $derived beside titleDraft and the textarea's aria
@@ -272,16 +277,16 @@ const CONTINUATIONS: SignedRow[] = [
 	},
 	// TASK-3537: re-reviewed; this continuation's body is unchanged. It re-hashed because the $lib/types import line it names lost getTerminalOptions (the dead terminalStatuses feed).
 	{ call: /^setTimeout\($/, body: /copied = false/, why: 'copy-flag reset: switchedAway', reviewed: 'ae1b50ad6010' },
-	{ call: /api\.items\.get\(wsSlug, itemSlug\)\.catch\($/, body: /./, why: 'loadData item fetch: sets a flag local to that load and re-throws', reviewed: 'bc8fad55e73a' },
+	{ call: /api\.items\.get\(wsSlug, itemSlug\)\.catch\($/, body: /./, why: 'loadData item fetch: sets a flag local to that load and re-throws', reviewed: '1e1b93750f5a' },
 	// BUG-3473: the background index catch-up on an already-populated index.
-	{ call: /indexBoot\.catch\($/, body: /^/, why: 'background index catch-up: swallows its failure and commits nothing', reviewed: 'fb0c62e64590' },
+	{ call: /indexBoot\.catch\($/, body: /^/, why: 'background index catch-up: swallows its failure and commits nothing', reviewed: '4e28ecd35807' },
 	// TASK-2228: loadData issues progress and links together and settles each
 	// into a plain result object; loadData's own myGen checks after each await
 	// fence the use of those results.
-	{ call: /api\.items\.progress\(wsSlug, itemData\.slug\)\.then\(\s*$/, body: /ok: true/, why: 'loadData progress read, value arm: builds a result object and commits nothing', reviewed: '71efa629de24' },
-	{ call: /api\.items\.progress\(wsSlug, itemData\.slug\)\.then\([\s\S]*ok: true[\s\S]*,\s*$/, body: /ok: false/, why: 'loadData progress read, failure arm: builds a result object and commits nothing', reviewed: 'eca6b2652f2b' },
-	{ call: /api\.links\.list\(wsSlug, itemData\.slug\)\.then\(\s*$/, body: /ok: true/, why: 'loadData links read, value arm: builds a result object and commits nothing', reviewed: '71efa629de24' },
-	{ call: /api\.links\.list\(wsSlug, itemData\.slug\)\.then\([\s\S]*ok: true[\s\S]*,\s*$/, body: /ok: false/, why: 'loadData links read, failure arm: builds a result object and commits nothing', reviewed: 'eca6b2652f2b' },
+	{ call: /api\.items\.progress\(wsSlug, itemData\.slug\)\.then\(\s*$/, body: /ok: true/, why: 'loadData progress read, value arm: builds a result object and commits nothing', reviewed: '03f4aea494af' },
+	{ call: /api\.items\.progress\(wsSlug, itemData\.slug\)\.then\([\s\S]*ok: true[\s\S]*,\s*$/, body: /ok: false/, why: 'loadData progress read, failure arm: builds a result object and commits nothing', reviewed: '0a4c7ac360cc' },
+	{ call: /api\.links\.list\(wsSlug, itemData\.slug\)\.then\(\s*$/, body: /ok: true/, why: 'loadData links read, value arm: builds a result object and commits nothing', reviewed: '03f4aea494af' },
+	{ call: /api\.links\.list\(wsSlug, itemData\.slug\)\.then\([\s\S]*ok: true[\s\S]*,\s*$/, body: /ok: false/, why: 'loadData links read, failure arm: builds a result object and commits nothing', reviewed: '0a4c7ac360cc' },
 	{
 		call: /^setTimeout\($/,
 		body: /staleConnecting = true/,

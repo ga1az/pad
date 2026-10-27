@@ -206,6 +206,9 @@ func agentCmd() *cobra.Command {
 		agentGuideCmd(),
 		agentUpdateCmd(),
 		agentStatusCmd(),
+		agentLinkCmd(),
+		agentListCmd(),
+		agentRevokeCmd(),
 	)
 	return cmd
 }

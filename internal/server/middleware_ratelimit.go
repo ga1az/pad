@@ -443,6 +443,13 @@ type RateLimiters struct {
 	// code can spend another install's bucket. It bounds secret churn from a
 	// stream of reissued codes.
 	AppRedeemInstall *ipRateLimiter
+
+	// AgentRegisterAddr caps agent registration through a join link
+	// (/api/agent/v1/join/register, SPEC-15 TASK-16) per address: 10/min,
+	// burst 10. A join code is 256 random bits, so like AppRedeemAddr this is
+	// defense in depth on an unauthenticated route, charged before the code
+	// is looked up.
+	AgentRegisterAddr *ipRateLimiter
 }
 
 // NewRateLimiters creates rate limiters with sensible defaults.
@@ -662,6 +669,10 @@ func NewRateLimiters() *RateLimiters {
 			Rate:  rate.Limit(5.0 / 60.0),
 			Burst: 5,
 		}),
+		AgentRegisterAddr: newIPRateLimiter(rateLimitConfig{
+			Rate:  rate.Limit(10.0 / 60.0),
+			Burst: 10,
+		}),
 	}
 }
 
@@ -705,6 +716,7 @@ func (rls *RateLimiters) Stop() {
 		rls.OAuthClaim,
 		rls.AppRedeemAddr,
 		rls.AppRedeemInstall,
+		rls.AgentRegisterAddr,
 	} {
 		rl.Stop() // nil-safe via the receiver guard in (*ipRateLimiter).Stop
 	}

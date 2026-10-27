@@ -175,6 +175,7 @@ func (s *Server) handleCreateComment(w http.ResponseWriter, r *http.Request) {
 		Kind:         watchevents.KindComment,
 		Actor:        actor,
 		ActorName:    actorNameFromRequest(r),
+		ActorUserID:  currentUserID(r),
 		Summary:      truncateForSummary(comment.Body, 120),
 	})
 
@@ -474,6 +475,7 @@ func (s *Server) handleCreateReply(w http.ResponseWriter, r *http.Request) {
 		Kind:         watchevents.KindComment,
 		Actor:        actor,
 		ActorName:    actorNameFromRequest(r),
+		ActorUserID:  currentUserID(r),
 		Summary:      truncateForSummary(comment.Body, 120),
 	})
 

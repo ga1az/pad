@@ -89,6 +89,12 @@
 	import { titleEditError, titleLengthState } from '$lib/items/titleLimit';
 	import { editorStore } from '$lib/stores/editor.svelte';
 	import type { Item, Collection, CollectionSettings, QuickAction, ItemLink, AgentRole, PaneTarget, ResolvedItemIdentity, ItemCopyResult } from '$lib/types';
+	// Agents in the assignee picker (SPEC-15, TASK-20). Their own statements, so
+	// units that only use the imports above keep their reviewed hash.
+	import type { WorkspaceAgent } from '$lib/types';
+	import { BotIcon } from '@hugeicons/core-free-icons';
+	import { assigneeGroups, assigneeName } from '$lib/agent/joinedAgents';
+	import { listAssignableAgents } from '$lib/agent/assignableAgents';
 	import { parseFields, parseSchema, parseSettings, parseTags, formatItemRef, itemUrlId, type ItemIndexRow } from '$lib/types';
 	import ItemPicker from './ItemPicker.svelte';
 	import QuickActionsMenu from '$lib/components/common/QuickActionsMenu.svelte';
@@ -421,6 +427,8 @@
 		| { user_id: string; user_name: string; user_email: string; role: string }[]
 		| null = null;
 	let cachedMembersWs: string | null = null;
+	// The joined agents (SPEC-15, TASK-20), fetched and cached with the members.
+	let cachedAgents: WorkspaceAgent[] | null = null;
 	let cachedRoles: AgentRole[] | null = null;
 	let cachedRolesWs: string | null = null;
 
@@ -842,6 +850,18 @@
 	 */
 	const linksRetry = createLinksRetry((target) => retryLinks(target));
 	let workspaceMembers = $state<{ user_id: string; user_name: string; user_email: string; role: string }[]>([]);
+	// Agents that joined through a link (SPEC-15, TASK-20): assignable as their
+	// bot user, offered apart from the people.
+	let workspaceAgents = $state<WorkspaceAgent[]>([]);
+	let assignees = $derived(
+		assigneeGroups(workspaceMembers, workspaceAgents, {
+			user_id: item?.assigned_user_id,
+			user_name: item?.assigned_user_name,
+		})
+	);
+	let assignedToAgent = $derived(
+		!!item?.assigned_user_id && assignees.agents.some((a) => a.user_id === item!.assigned_user_id)
+	);
 	// The History tab's feed, mirrored out of a HEADLESS <ItemTimeline> that
 	// fetches only HISTORY_KINDS (PLAN-2348 U3). The comments <ItemTimeline>
 	// on Details fetches only comments. They were one feed (IDEA-2843), and a
@@ -2357,14 +2377,22 @@
 			// a newer load started.
 			if (cachedMembersWs === wsSlug && cachedMembers) {
 				workspaceMembers = cachedMembers;
+				workspaceAgents = cachedAgents ?? [];
 			} else {
 				try {
-					const membersData = await api.members.list(wsSlug);
+					// listAssignableAgents never rejects, so an agents failure
+					// costs only the agents, never the members.
+					const [membersData, agentsData] = await Promise.all([
+						api.members.list(wsSlug),
+						listAssignableAgents(wsSlug),
+					]);
 					if (myGen !== loadGeneration) return;
 					workspaceMembers = membersData.members ?? [];
+					workspaceAgents = agentsData;
 					cachedMembers = workspaceMembers;
+					cachedAgents = agentsData;
 					cachedMembersWs = wsSlug;
-				} catch { if (myGen !== loadGeneration) return; workspaceMembers = []; }
+				} catch { if (myGen !== loadGeneration) return; workspaceMembers = []; workspaceAgents = []; }
 			}
 			if (cachedRolesWs === wsSlug && cachedRoles) {
 				agentRoles = cachedRoles;
@@ -7351,10 +7379,10 @@
 				</div>
 
 				<!-- Assignment: user + role -->
-				{#if workspaceMembers.length > 0 || agentRoles.length > 0}
+				{#if workspaceMembers.length > 0 || workspaceAgents.length > 0 || agentRoles.length > 0}
 					<div class="fields-header" style="margin-top: var(--space-4)">Assignment</div>
 				{/if}
-				{#if workspaceMembers.length > 0}
+				{#if workspaceMembers.length > 0 || workspaceAgents.length > 0}
 					<div class="field-row">
 						<span class="field-label">Assigned to</span>
 						<div class="field-value">
@@ -7368,17 +7396,38 @@
 									}}
 								>
 									<option value="">Unassigned</option>
-									{#each workspaceMembers as member (member.user_id)}
-										<option value={member.user_id}>{member.user_name}</option>
-									{/each}
+									{#if assignees.other}
+										<option value={assignees.other.user_id}>{assignees.other.name}</option>
+									{/if}
+									{#snippet peopleOptions()}
+										{#each assignees.people as member (member.user_id)}
+											<option value={member.user_id}>{member.name}</option>
+										{/each}
+									{/snippet}
+									<!-- People are listed as they always were; only when agents
+									     joined (SPEC-15, TASK-20) do the two get their own groups. -->
+									{#if assignees.agents.length > 0}
+										<optgroup label="People">{@render peopleOptions()}</optgroup>
+										<optgroup label="Agents">
+											{#each assignees.agents as agent (agent.user_id)}
+												<option value={agent.user_id}>{agent.name} (agent)</option>
+											{/each}
+										</optgroup>
+									{:else}
+										{@render peopleOptions()}
+									{/if}
 								</select>
+								{#if assignedToAgent}
+									<span class="assignment-agent" title="Assigned to an agent"><Icon icon={BotIcon} /></span>
+								{/if}
 							{:else}
 								<!-- Read-only display (PLAN-1100 / TASK-1105). Assignment
 								     mutations go through api.items.update which is
 								     server-gated on edit permission. -->
 								<span class="assignment-readonly">
 									{#if item?.assigned_user_id}
-										{workspaceMembers.find(m => m.user_id === item!.assigned_user_id)?.user_name ?? '—'}
+										{#if assignedToAgent}<Icon icon={BotIcon} />{/if}
+										{assigneeName(assignees, item.assigned_user_id) ?? '—'}
 									{:else}
 										Unassigned
 									{/if}
@@ -9054,6 +9103,10 @@
 	}
 	.assignment-select:hover {
 		border-color: var(--accent-blue);
+	}
+	.assignment-agent {
+		margin-left: var(--space-1);
+		color: var(--text-secondary);
 	}
 	.assignment-select:focus {
 		outline: 2px solid var(--accent-blue);

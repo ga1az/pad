@@ -1732,6 +1732,9 @@ func (s *Server) setupRouter() {
 	// The installed-app API (SPEC-6 U6a): its own router, outside TokenAuth
 	// and RequireAuth, like the MCP mount above.
 	s.registerAppAPIRoutes(r)
+	// Agents that joined through a link (SPEC-15): /api/agent/v1, outside
+	// TokenAuth like the app router, with its own padagt_ token step.
+	s.registerAgentAPIRoutes(r)
 	s.registerChatGPTMCPRoutes(r)
 
 	// OAuth 2.1 authorization-server flow endpoints (PLAN-943
@@ -2493,6 +2496,19 @@ func (s *Server) setupRouter() {
 					// U8b2: upgrade an install.
 					r.Post("/apps/{installID}/upgrade/preview", s.handleAppUpgradePreview)
 					r.Post("/apps/{installID}/upgrade/confirm", s.handleAppUpgradeConfirm)
+
+					// Agents that join through a link (SPEC-15, TASK-16). Links are
+					// owner-only; the agent list is readable by any member, who may
+					// assign work to an agent.
+					r.Route("/agent-links", func(r chi.Router) {
+						r.Get("/", s.handleListAgentJoinLinks)
+						r.Post("/", s.handleCreateAgentJoinLink)
+						r.Delete("/{linkID}", s.handleRevokeAgentJoinLink)
+					})
+					r.Route("/agents", func(r chi.Router) {
+						r.Get("/", s.handleListWorkspaceAgents)
+						r.Delete("/{agentID}", s.handleRevokeWorkspaceAgent)
+					})
 
 					// Webhooks
 					r.Route("/webhooks", func(r chi.Router) {

@@ -106,6 +106,9 @@ import type {
 	ImportArtifactResult,
 	ItemAppAction,
 	WorkspaceApp,
+	AgentJoinLink,
+	AgentJoinLinkWithCode,
+	WorkspaceAgent,
 	TutorialsResponse,
 	UIDismissalKey,
 	UIDismissalsResponse,
@@ -3522,6 +3525,33 @@ export const api = {
 	// (Claude Desktop, Cursor, …) and lets them revoke one. Cloud-mode-
 	// only — the route returns 404 outside cloud mode, the page hides
 	// the nav link in self-host.
+
+	// Agents that join through a link (SPEC-15, TASK-20). Links are
+	// owner-only; any member may list the agents (to assign work to one),
+	// and `all` (revoked agents too) is owner-only.
+	agentLinks: {
+		list: (ws: string) =>
+			request<{ links: AgentJoinLink[] | null }>(`/workspaces/${encodeURIComponent(ws)}/agent-links`),
+		create: (ws: string, label?: string) =>
+			request<AgentJoinLinkWithCode>(`/workspaces/${encodeURIComponent(ws)}/agent-links`, {
+				method: 'POST',
+				body: JSON.stringify(label ? { label } : {})
+			}),
+		revoke: (ws: string, id: string) =>
+			request<void>(`/workspaces/${encodeURIComponent(ws)}/agent-links/${encodeURIComponent(id)}`, {
+				method: 'DELETE'
+			})
+	},
+	agents: {
+		list: (ws: string, opts?: { all?: boolean }) =>
+			request<{ agents: WorkspaceAgent[] | null }>(
+				`/workspaces/${encodeURIComponent(ws)}/agents${opts?.all ? '?all=true' : ''}`
+			),
+		revoke: (ws: string, id: string) =>
+			request<void>(`/workspaces/${encodeURIComponent(ws)}/agents/${encodeURIComponent(id)}`, {
+				method: 'DELETE'
+			})
+	},
 
 	// Installed apps, owner-only (SPEC-6 U8/U9a, TASK-3413).
 	apps: {

@@ -122,6 +122,16 @@ func (s *Store) applyAppPrincipalCeilingQ(q Queryer, workspaceID, userID string,
 		return visible, nil
 	}
 	if installID == "" {
+		// An agent that joined through a link (SPEC-15) has no install: it
+		// reads what its editor membership shows, the scope its owner granted
+		// by minting the link. Revoked, it falls back to the rule below.
+		agent, err := s.isLiveWorkspaceAgentQ(q, workspaceID, userID)
+		if err != nil {
+			return nil, err
+		}
+		if agent {
+			return visible, nil
+		}
 		return []string{}, nil // a bot with no install sees nothing
 	}
 	ceiling, err := s.InstallReadCeilingQ(q, installID)

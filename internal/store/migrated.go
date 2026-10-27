@@ -195,6 +195,12 @@ var migratedRefusalTables = []string{
 	"conversations",
 	"conversation_members",
 	"conversation_messages",
+	// Agents that joined through a link (TASK-16, SPEC-15): the link, the
+	// agent and the inbox it has not read yet are workspace state the bundle
+	// does not carry, the class app_installs is in.
+	"agent_join_links",
+	"workspace_agents",
+	"agent_inbox",
 	"comment_reactions",
 	"views",
 	"agent_roles",
@@ -251,6 +257,8 @@ var migratedExcludedTables = map[string]string{
 	"users":                       "auth",
 	"sessions":                    "auth",
 	"api_tokens":                  "auth",
+	"agent_tokens":                "auth",
+	"agent_requests":              "bookkeeping",
 	"oauth_access_tokens":         "auth",
 	"oauth_authorization_codes":   "auth",
 	"oauth_clients":               "auth",
