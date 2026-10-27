@@ -14,6 +14,7 @@
   PLAN-1542 / TASK-1554.
 -->
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
 	import { adminFetch, type AdminUser } from '$lib/stores/admin.svelte';
 	import { agentNameFromMetadata } from '$lib/utils/agentActor';
 	import { appendUnique, type ActivityCursor } from '$lib/utils/activityPaging';
@@ -313,7 +314,7 @@
 	<ul class="activity-list" aria-label="Activity feed">
 		{#each events as ev (ev.id)}
 			<li class="activity-row">
-				<span class="activity-icon" aria-hidden="true">{iconFor(ev.action)}</span>
+				<span class="activity-icon" aria-hidden="true"><Icon icon={iconFor(ev.action)} /></span>
 				<div class="activity-main">
 					<div class="activity-summary">
 						<span class="activity-action">{describe(ev)}</span>

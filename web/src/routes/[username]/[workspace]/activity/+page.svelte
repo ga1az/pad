@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
 	import { page } from '$app/state';
 	import { goto, replaceState } from '$app/navigation';
 	import { browser } from '$app/env';
@@ -550,7 +551,7 @@
 			<select id="filter-collection" class="filter-select" bind:value={filterCollection}>
 				<option value="">All collections</option>
 				{#each collections as coll (coll.id)}
-					<option value={coll.slug}>{coll.icon} {coll.name}</option>
+					<option value={coll.slug}>{coll.name}</option>
 				{/each}
 			</select>
 		</div>
@@ -635,7 +636,7 @@
 									class="entry-icon"
 									style="color: {actionColor(activity.action)}"
 								>
-									{activityIcon(activity.action)}
+									<Icon icon={activityIcon(activity.action)} />
 								</span>
 								<div class="entry-content">
 									<div class="entry-main">

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
 	import { safeText } from '$lib/fields/fieldShape';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
@@ -638,7 +639,7 @@
 				{#if itemData.collection_name}
 					<div class="item-collection-badge">
 						{#if itemData.collection_icon}
-							<span class="collection-icon">{itemData.collection_icon}</span>
+							<span class="collection-icon"><Icon icon={itemData.collection_icon} /></span>
 						{/if}
 						<span>{itemData.collection_name}</span>
 						{#if itemData.item_ref}
@@ -688,7 +689,7 @@
 							title={`${bv.label} view`}
 							onclick={() => selectBaseView(bv.value)}
 						>
-							<span class="toggle-icon" aria-hidden="true">{bv.icon}</span>
+							<span class="toggle-icon" aria-hidden="true"><Icon icon={bv.icon} /></span>
 							<span class="toggle-label">{bv.label}</span>
 						</button>
 					{/each}

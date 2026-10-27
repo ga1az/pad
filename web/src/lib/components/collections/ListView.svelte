@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
+	import { Archive01Icon } from '@hugeicons/core-free-icons';
 	import { viewport } from '$lib/stores/breakpoint.svelte';
 	import { relationGroupingRefusal, relationGroupingRefusalMessage } from '$lib/collections/relationGroups';
 	import type { Item, Collection } from '$lib/types';
@@ -621,7 +623,7 @@
 									title="Archive all {formatLaneLabel(groupName).toLowerCase()} items"
 									aria-label="Archive all {formatLaneLabel(groupName).toLowerCase()} items"
 									onclick={(e) => { e.stopPropagation(); confirmArchiveGroup = groupName; }}
-								>&#128451;</button>
+								><Icon icon={Archive01Icon} /></button>
 							{/if}
 						{/if}
 						{#if hasGroupVerbs && itemCount(grpItems) > 0}

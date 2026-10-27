@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
+	import { Alert02Icon } from '@hugeicons/core-free-icons';
 	import { api } from '$lib/api/client';
 	import { workspaceStore } from '$lib/stores/workspace.svelte';
 	import { authStore } from '$lib/stores/auth.svelte';
@@ -83,7 +85,7 @@
 
 {#if visible}
 	<div class="partial-import-banner" role="status" data-testid="partial-import-banner">
-		<span class="pi-icon" aria-hidden="true">⚠</span>
+		<span class="pi-icon" aria-hidden="true"><Icon icon={Alert02Icon} /></span>
 		<div class="pi-body">
 			<p class="pi-title">This workspace was only partly imported.</p>
 			{#if isOwner}

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { Tag01Icon } from '@hugeicons/core-free-icons';
+	import Icon from '$lib/icons/Icon.svelte';
 	import { page } from '$app/state';
 	import { titleStore } from '$lib/stores/title.svelte';
 	import { untrack } from 'svelte';
@@ -218,7 +220,7 @@
 <div class="tag-page">
 	<div class="page-header">
 		<div class="page-header-left">
-			<a class="back-link" href="/{page.params.username}/{wsSlug}/tags">🏷 Tags</a>
+			<a class="back-link" href="/{page.params.username}/{wsSlug}/tags"><Icon icon={Tag01Icon} /> Tags</a>
 			<span class="crumb-sep">/</span>
 			<h1>{tag}</h1>
 			<span class="item-count">{fetchedItems.length} item{fetchedItems.length !== 1 ? 's' : ''}</span>
@@ -273,13 +275,13 @@
 	{:else if fetchedItems.length === 0}
 		{#if showCompleted}
 			<EmptyState
-				icon="🏷"
+				icon={Tag01Icon}
 				title={`No items tagged “${tag}”`}
 				message="Add this tag to an item from its detail page to group it here."
 			/>
 		{:else}
 			<EmptyState
-				icon="🏷"
+				icon={Tag01Icon}
 				title={`No open items tagged “${tag}”`}
 				message="Completed items are hidden. Turn on “Show completed” to see them."
 			/>
@@ -292,7 +294,7 @@
 			{#each groupedItems as group (group.collection.id)}
 				<div class="board-lane">
 					<div class="lane-header">
-						<span class="group-icon">{group.collection.icon || '📁'}</span>
+						<span class="group-icon"><Icon icon={group.collection.icon || '📁'} /></span>
 						<span class="group-name">{group.collection.name}</span>
 						<span class="group-count">{group.items.length}</span>
 					</div>
@@ -309,7 +311,7 @@
 			{#each groupedItems as group (group.collection.id)}
 				<div class="collection-group">
 					<div class="group-header">
-						<span class="group-icon">{group.collection.icon || '📁'}</span>
+						<span class="group-icon"><Icon icon={group.collection.icon || '📁'} /></span>
 						<span class="group-name">{group.collection.name}</span>
 						<span class="group-count">{group.items.length}</span>
 					</div>

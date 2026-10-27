@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
+	import { Alert02Icon } from '@hugeicons/core-free-icons';
 	/**
 	 * Compact, read-only row of an item's attachments — rendered between the
 	 * Properties panel and the editor in ItemDetail (PLAN-2382 / TASK-2383).
@@ -1272,7 +1274,7 @@
 		{:else}
 			{#if loadFailed}
 				<div class="att-error" role="status">
-					<span class="att-error-mark" aria-hidden="true">⚠</span>
+					<span class="att-error-mark" aria-hidden="true"><Icon icon={Alert02Icon} /></span>
 					<span>Couldn't load attachments.</span>
 					<button type="button" class="att-retry" onclick={retryLoad}>Retry</button>
 				</div>

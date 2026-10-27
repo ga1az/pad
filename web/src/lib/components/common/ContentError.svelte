@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
+	import { Alert02Icon } from '@hugeicons/core-free-icons';
 	interface Props {
 		title?: string;
 		detail?: string;
@@ -18,7 +20,7 @@
 </script>
 
 <div class="content-error" role="alert">
-	<div class="error-icon" aria-hidden="true">⚠️</div>
+	<div class="error-icon" aria-hidden="true"><Icon icon={Alert02Icon} /></div>
 	<p class="error-title">{title}</p>
 	{#if detail}
 		<p class="error-detail">{detail}</p>

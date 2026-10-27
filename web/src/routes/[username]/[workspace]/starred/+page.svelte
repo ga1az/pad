@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { StarIcon } from '@hugeicons/core-free-icons';
+	import Icon from '$lib/icons/Icon.svelte';
 	import { page } from '$app/state';
 	import { titleStore } from '$lib/stores/title.svelte';
 	import { onMount, untrack } from 'svelte';
@@ -172,7 +174,7 @@
 </svelte:head>
 
 <div class="starred-page">
-	<PageHeader title="Starred" icon="⭐" count={items.length}>
+	<PageHeader title="Starred" icon={StarIcon} count={items.length}>
 		{#snippet actions()}
 			<label class="terminal-toggle">
 				<input type="checkbox" bind:checked={includeTerminal} />
@@ -207,7 +209,7 @@
 			{#each groupedItems as group (group.collection.id)}
 				<div class="collection-group">
 					<div class="group-header">
-						<span class="group-icon">{group.collection.icon || '📁'}</span>
+						<span class="group-icon"><Icon icon={group.collection.icon || '📁'} /></span>
 						<span class="group-name">{group.collection.name}</span>
 						<span class="group-count">{group.items.length}</span>
 					</div>

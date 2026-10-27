@@ -123,7 +123,7 @@
 
 	function collLabel(slug: string): string {
 		const c = collections.find((x) => x.slug === slug);
-		return c ? `${c.icon} ${c.name}` : slug;
+		return c ? c.name : slug;
 	}
 
 	// ── Derived chart data (same projections as the Insights page) ─────────────

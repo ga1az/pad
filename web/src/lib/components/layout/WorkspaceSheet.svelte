@@ -10,6 +10,7 @@
 	only. The bottom-nav slot keeps its "Workspace" label and avatar.
 -->
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
 	import { page } from '$app/state';
 	import { goto, afterNavigate } from '$app/navigation';
 	import { workspaceStore } from '$lib/stores/workspace.svelte';
@@ -67,7 +68,7 @@
 					type="button"
 					onclick={() => navigate(dest.href)}
 				>
-					<span class="tile-icon" aria-hidden="true">{dest.icon}</span>
+					<span class="tile-icon" aria-hidden="true"><Icon icon={dest.icon} /></span>
 					<span class="tile-label">{dest.label}</span>
 				</button>
 			{/each}
@@ -84,7 +85,7 @@
 						type="button"
 						onclick={() => navigate(`${wsPrefix}/${coll.slug}`)}
 					>
-						<span class="coll-icon" aria-hidden="true">{coll.icon}</span>
+						<span class="coll-icon" aria-hidden="true"><Icon icon={coll.icon} /></span>
 						<span class="coll-name">{coll.name}</span>
 					</button>
 				{/each}
@@ -95,7 +96,7 @@
 						type="button"
 						onclick={() => navigate(`${wsPrefix}/${coll.slug}`)}
 					>
-						<span class="coll-icon" aria-hidden="true">{coll.icon}</span>
+						<span class="coll-icon" aria-hidden="true"><Icon icon={coll.icon} /></span>
 						<span class="coll-name">{coll.name}</span>
 					</button>
 				{/each}

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
+	import { SparklesIcon } from '@hugeicons/core-free-icons';
 	/**
 	 * Setup launchpad — the render-mode the workspace dashboard switches to
 	 * while `needs_onboarding` is true (PLAN-1847, Phase 2 / TASK-1852).
@@ -69,7 +71,7 @@
 
 <div class="launchpad">
 	<header class="lp-header">
-		<span class="lp-icon" aria-hidden="true">✨</span>
+		<span class="lp-icon" aria-hidden="true"><Icon icon={SparklesIcon} /></span>
 		<h1 class="lp-title">Let's set up {workspaceName}</h1>
 		<p class="lp-subtitle">
 			Pad works best when your AI agent sets it up for you — it'll ask a few

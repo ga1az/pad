@@ -1,5 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import Icon from '$lib/icons/Icon.svelte';
+	import type { IconSvgElement } from '@hugeicons/svelte';
 	import { ownValue } from '$lib/utils/ownValue';
 	import type { Collection } from '$lib/types';
 	import Button from '$lib/components/common/Button.svelte';
@@ -12,7 +14,7 @@
 		wsSlug?: string;
 		oncreate?: () => void;
 		/** Generic mode: leading icon/emoji. */
-		icon?: string;
+		icon?: string | IconSvgElement;
 		/** Generic mode: bold headline above the message. */
 		title?: string;
 		/** Generic mode: muted body text. */
@@ -72,7 +74,7 @@
 
 <div class="empty-state">
 	{#if collection}
-		<div class="empty-icon">{collection.icon || ''}</div>
+		<div class="empty-icon"><Icon icon={collection.icon} /></div>
 		<p class="empty-message">{message}</p>
 		{#if oncreate}
 			<div class="create-btn-wrap">
@@ -88,7 +90,7 @@
 			</button>
 		</div>
 	{:else}
-		{#if icon}<div class="empty-icon">{icon}</div>{/if}
+		{#if icon}<div class="empty-icon"><Icon {icon} /></div>{/if}
 		{#if title}<p class="empty-title">{title}</p>{/if}
 		{#if message}<p class="empty-message">{message}</p>{/if}
 		{#if actions}

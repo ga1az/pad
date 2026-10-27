@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
+	import { WavingHand01Icon } from '@hugeicons/core-free-icons';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { api, PadApiError } from '$lib/api/client';
@@ -352,7 +354,7 @@
 
 		{#if !setupRequired && step !== '2fa' && lastMethod && !oauthBanner}
 			<div class="last-used-banner" role="status" aria-live="polite">
-				<span class="last-used-emoji" aria-hidden="true">👋</span>
+				<span class="last-used-emoji" aria-hidden="true"><Icon icon={WavingHand01Icon} /></span>
 				<span class="last-used-text">
 					{#if lastMethod === 'github'}
 						Last time, you used <strong>GitHub</strong> to sign in.

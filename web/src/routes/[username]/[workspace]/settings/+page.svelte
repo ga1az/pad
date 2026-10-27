@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
 	import { page } from '$app/state';
 	import { titleStore } from '$lib/stores/title.svelte';
 	import { goto } from '$app/navigation';
@@ -1025,7 +1026,7 @@
 					tabindex={activeTab === tab.id ? 0 : -1}
 					onclick={() => switchTab(tab.id)}
 				>
-					<span class="tab-icon">{tab.icon}</span>
+					<span class="tab-icon"><Icon icon={tab.icon} /></span>
 					{tab.label}
 				</button>
 			{/each}
@@ -1230,7 +1231,7 @@
 																checked={accessCollectionIds.includes(coll.id)}
 																onchange={() => toggleAccessCollection(coll.id)}
 															/>
-															<span class="access-coll-icon">{coll.icon || '#'}</span>
+															<span class="access-coll-icon"><Icon icon={coll.icon || '#'} /></span>
 															<span class="access-coll-name">{coll.name}</span>
 														</label>
 													{/each}
@@ -1241,7 +1242,7 @@
 																checked={accessCollectionIds.includes(coll.id)}
 																onchange={() => toggleAccessCollection(coll.id)}
 															/>
-															<span class="access-coll-icon">{coll.icon || '#'}</span>
+															<span class="access-coll-icon"><Icon icon={coll.icon || '#'} /></span>
 															<span class="access-coll-name">{coll.name}</span>
 															<Chip size="sm" color="var(--accent-gray)">system</Chip>
 														</label>
@@ -1360,7 +1361,7 @@
 							{@const schema = parseSchema(coll)}
 							{#snippet collCardBody()}
 								<div class="coll-header">
-									<span class="coll-icon">{coll.icon || '#'}</span>
+									<span class="coll-icon"><Icon icon={coll.icon || '#'} /></span>
 									<span class="coll-name">{coll.name}</span>
 									<span class="coll-slug mono">/{coll.slug}</span>
 									<span class="coll-count">{coll.item_count ?? 0} items</span>

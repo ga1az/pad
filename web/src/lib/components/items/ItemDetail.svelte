@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
+	import { Attachment01Icon, Delete02Icon, Globe02Icon, HierarchySquare01Icon, MultiplicationSignIcon, Tick02Icon, Tree06Icon } from '@hugeicons/core-free-icons';
 	import { viaAppTitle } from '$lib/utils/viaApp';
 	import ItemAppActions from './ItemAppActions.svelte';
 	import { LINK_DIRECTIONS, linkDirection, linkEnds, linkSentence } from '$lib/items/linkDirections';
@@ -6506,7 +6508,7 @@
 				onclick={() => onClose?.()}
 				title="Close pane"
 				aria-label="Close pane"
-			>✕</button>
+			><Icon icon={MultiplicationSignIcon} /></button>
 		</div>
 	</header>
 {/if}
@@ -6547,7 +6549,7 @@
 						<a href="/{username}/{wsSlug}/{item.parent_collection_slug}/{item.parent_slug}">{item.parent_ref || item.parent_title}</a>
 						<span class="sep">/</span>
 					{:else}
-						<a href="/{username}/{wsSlug}/{effectiveCollSlug}">{collection.icon} {collection.name}</a>
+						<a href="/{username}/{wsSlug}/{effectiveCollSlug}"><Icon icon={collection.icon} /> {collection.name}</a>
 						<span class="sep">/</span>
 					{/if}
 					<span class="current">{formatItemRef(item) || item.title}</span>
@@ -6624,7 +6626,7 @@
 						onclick={() => onClose?.()}
 						title="Close pane"
 						aria-label="Close pane"
-					>✕</button>
+					><Icon icon={MultiplicationSignIcon} /></button>
 				</div>
 			</header>
 			<!-- Structural parent breadcrumb (PLAN-2154 Architecture C / D3,
@@ -6805,14 +6807,14 @@
 						disabled={refreshing}
 						onclick={refreshFromSource}
 					>
-						<span class="source-chip-icon" aria-hidden="true">🌐</span>
+						<span class="source-chip-icon" aria-hidden="true"><Icon icon={Globe02Icon} /></span>
 						<span class="source-chip-label">
 							{refreshing ? 'Refreshing…' : 'Refresh from source'}
 						</span>
 					</button>
 				{:else}
 					<span class="source-chip source-chip-readonly" title={fields.pad_source_url}>
-						<span class="source-chip-icon" aria-hidden="true">🌐</span>
+						<span class="source-chip-icon" aria-hidden="true"><Icon icon={Globe02Icon} /></span>
 						<span class="source-chip-label">Imported from URL</span>
 					</span>
 				{/if}
@@ -6844,7 +6846,7 @@
 			<span class="meta-sep">·</span>
 			<span title={new Date(item.updated_at).toLocaleString()}>Updated {relativeTime(item.updated_at)}</span>
 			<span class="save-status" class:saving={saveStatus === 'saving'} class:saved={saveStatus === 'saved'} class:visible={saveStatus !== 'idle'}>
-				{#if saveStatus === 'saving'}Saving...{:else}✓ Saved{/if}
+				{#if saveStatus === 'saving'}Saving...{:else}<Icon icon={Tick02Icon} /> Saved{/if}
 			</span>
 			{#if collabProvider}
 				<!-- Pending-sync indicator (TASK-1264). Visible only while
@@ -7023,7 +7025,7 @@
 					aria-label="Jump to Children — {childDone} of {childTotal} done"
 					onclick={() => jumpToSection('relationships', 'item-children')}
 				>
-					🌳 {childDone}/{childTotal}
+					<Icon icon={Tree06Icon} /> {childDone}/{childTotal}
 				</button>
 			{/if}
 			{#if backlinksCount > 0}
@@ -7042,7 +7044,7 @@
 					title="Mentioned in {backlinksCount} other item{backlinksCount === 1 ? '' : 's'}"
 					onclick={() => jumpToSection('relationships', 'item-backlinks')}
 				>
-					📎 {backlinksCount}
+					<Icon icon={Attachment01Icon} /> {backlinksCount}
 				</button>
 			{/if}
 			<!-- Pane ⋯ overflow (PLAN-2290 Phase 4 PR B): graph / move / share /
@@ -7079,7 +7081,7 @@
 				>
 					{#if paneMenuView === 'root'}
 						{#if graphFocusRef}
-							<MenuItem icon="🕸" onclick={() => { paneMenuOpen = false; openGraph(); }}>
+							<MenuItem icon={HierarchySquare01Icon} onclick={() => { paneMenuOpen = false; openGraph(); }}>
 								Dependency graph
 							</MenuItem>
 						{/if}
@@ -7131,7 +7133,7 @@
 							     'delete' sub-view of THIS panel (PLAN-2326 DR-6), so
 							     the menu stays open and Menu's focusKey hands focus
 							     to the sub-view's first row. -->
-							<MenuItem icon="🗑" danger hint="›" onclick={() => (paneMenuView = 'delete')}>
+							<MenuItem icon={Delete02Icon} danger hint="›" onclick={() => (paneMenuView = 'delete')}>
 								Delete…
 							</MenuItem>
 						{/if}
@@ -7177,7 +7179,7 @@
 						<MenuItem icon="‹" onclick={() => (paneMenuView = 'root')}>Cancel</MenuItem>
 						<div class="menu-divider" role="separator"></div>
 						<MenuItem
-							icon="🗑"
+							icon={Delete02Icon}
 							danger
 							describedBy="delete-confirm-note-{uid}"
 							disabled={deleting || !canEdit}
@@ -7400,7 +7402,7 @@
 								>
 									<option value="">No role</option>
 									{#each agentRoles as role (role.id)}
-										<option value={role.id}>{role.icon ? role.icon + ' ' : ''}{role.name}</option>
+										<option value={role.id}>{role.name}</option>
 									{/each}
 								</select>
 							{:else}
@@ -8265,8 +8267,8 @@
 		></div>
 		<aside class="graph-drawer" aria-label="Dependency graph">
 			<header class="graph-drawer-header">
-				<span class="graph-drawer-title">🕸 {graphFocusRef} — dependency graph</span>
-				<button class="action-btn" onclick={closeGraph}>Close ✕</button>
+				<span class="graph-drawer-title"><Icon icon={HierarchySquare01Icon} /> {graphFocusRef} — dependency graph</span>
+				<button class="action-btn" onclick={closeGraph}>Close <Icon icon={MultiplicationSignIcon} /></button>
 			</header>
 			<div class="graph-drawer-body">
 				{#if graphLoadError}

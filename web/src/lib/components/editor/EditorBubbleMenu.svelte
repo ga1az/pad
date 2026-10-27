@@ -409,7 +409,7 @@
 				<div class="form-row">
 					<select aria-label="Collection" class="coll-select" bind:value={selectedCollectionSlug}>
 						{#each sortedCollections as coll (coll.id)}
-							<option value={coll.slug}>{coll.icon} {coll.name}</option>
+							<option value={coll.slug}>{coll.name}</option>
 						{/each}
 					</select>
 					<button class="btn-create" onclick={handleCreate} disabled={creating || !title.trim()}>

@@ -43,7 +43,7 @@ describe('ItemActionsMenu card mode (TASK-2244)', () => {
 				card: { starred: true, onToggleStar: () => {}, onCopyRef: () => {} },
 			},
 		});
-		const entries = (await openAndList()).map((e) => e.replace(/^\S+\s*/, ''));
+		const entries = (await openAndList()).map((e) => e.replace(/^[^\p{L}\s]+\s*/u, ''));
 		expect(entries).toEqual(['Unstar', 'Copy item ID', 'Move to top', 'Move up', 'Move down', 'Move to bottom']);
 	});
 
@@ -51,7 +51,7 @@ describe('ItemActionsMenu card mode (TASK-2244)', () => {
 		render(ItemActionsMenu, {
 			props: { item, label: 'One', card: { starred: false, onToggleStar: () => {} } },
 		});
-		const entries = (await openAndList()).map((e) => e.replace(/^\S+\s*/, ''));
+		const entries = (await openAndList()).map((e) => e.replace(/^[^\p{L}\s]+\s*/u, ''));
 		expect(entries).toEqual(['Star']);
 	});
 
@@ -78,7 +78,7 @@ describe('ItemActionsMenu card mode (TASK-2244)', () => {
 		render(ItemActionsMenu, { props: { item, label: 'One', onReorder: () => {} } });
 		const trigger = screen.getByRole('button', { name: 'Reorder One' });
 		expect(trigger.textContent?.trim()).toBe('⋮');
-		const entries = (await openAndList()).map((e) => e.replace(/^\S+\s*/, ''));
+		const entries = (await openAndList()).map((e) => e.replace(/^[^\p{L}\s]+\s*/u, ''));
 		expect(entries).toEqual(['Move to top', 'Move up', 'Move down', 'Move to bottom']);
 	});
 

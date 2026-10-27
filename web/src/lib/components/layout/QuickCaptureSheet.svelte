@@ -151,7 +151,7 @@
 		{:else}
 		<select class="capture-collection" bind:value={selectedSlug} aria-label="Collection">
 			{#each collections as c (c.id)}
-				<option value={c.slug}>{c.icon} {c.name}</option>
+				<option value={c.slug}>{c.name}</option>
 			{/each}
 		</select>
 		<textarea aria-label="New item title"

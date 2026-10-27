@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
 	import { onDestroy, untrack } from 'svelte';
 	import { ownValue } from '$lib/utils/ownValue';
 	import { page } from '$app/state';
@@ -461,7 +462,7 @@
 			{#each categories as category (category.name)}
 				<section class="category">
 					<div class="category-header">
-						<span class="category-icon">{categoryIcons[category.name] ?? '\u{1F4E6}'}</span>
+						<span class="category-icon"><Icon icon={categoryIcons[category.name] ?? '\u{1F4E6}'} /></span>
 						<div>
 							<h2>{category.name}</h2>
 							{#if category.description}
@@ -552,7 +553,7 @@
 			{#each playbookCategories as category (category.name)}
 				<section class="category">
 					<div class="category-header">
-						<span class="category-icon">{categoryIcons[category.name] ?? '\u{1F4D8}'}</span>
+						<span class="category-icon"><Icon icon={categoryIcons[category.name] ?? '\u{1F4D8}'} /></span>
 						<div>
 							<h2>{category.name}</h2>
 							{#if category.description}

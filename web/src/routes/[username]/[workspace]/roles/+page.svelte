@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { MultiplicationSignIcon, PencilEdit01Icon, UserGroupIcon, UserIcon } from '@hugeicons/core-free-icons';
+	import Icon from '$lib/icons/Icon.svelte';
 	import { viewport } from '$lib/stores/breakpoint.svelte';
 	import { roleIcon } from '$lib/utils/roleIcon';
 	import { page } from '$app/state';
@@ -910,7 +912,7 @@
 	     column flex and carries the mobile padding the page previously put on
 	     .page-header (the page itself drops to padding: 0 on mobile). -->
 	<div class="header-wrap">
-		<PageHeader title="Role Board" icon="🎭" count={loading ? undefined : totalItems}>
+		<PageHeader title="Role Board" icon={UserGroupIcon} count={loading ? undefined : totalItems}>
 			{#snippet actions()}
 				<button
 					class="toggle-btn"
@@ -944,12 +946,12 @@
 		{#if !newItemCollectionSlug}
 			<div class="dialog-header">
 				<h2 id="new-item-dialog-title">New Item</h2>
-				<button type="button" class="dialog-close" onclick={closeNewItem} aria-label="Close" title="Close"><span aria-hidden="true">✕</span></button>
+				<button type="button" class="dialog-close" onclick={closeNewItem} aria-label="Close" title="Close"><span aria-hidden="true"><Icon icon={MultiplicationSignIcon} /></span></button>
 			</div>
 			<div class="collection-grid">
 				{#each eligibleCollections as coll (coll.id)}
 					<button class="collection-pick" onclick={() => selectCollection(coll.slug)}>
-						<span class="collection-pick-icon">{coll.icon || '📦'}</span>
+						<span class="collection-pick-icon"><Icon icon={coll.icon || '📦'} /></span>
 						<span class="collection-pick-name">{coll.name}</span>
 					</button>
 				{/each}
@@ -958,8 +960,8 @@
 			{@const selectedColl = eligibleCollections.find(c => c.slug === newItemCollectionSlug)}
 			<div class="dialog-header">
 				<button class="back-btn" onclick={() => { newItemCollectionSlug = ''; newItemTitle = ''; }} title="Back">←</button>
-				<h2 id="new-item-dialog-title">New {selectedColl?.icon} {selectedColl?.name?.replace(/s$/, '') ?? 'Item'}</h2>
-				<button type="button" class="dialog-close" onclick={closeNewItem} aria-label="Close" title="Close"><span aria-hidden="true">✕</span></button>
+				<h2 id="new-item-dialog-title">New <Icon icon={selectedColl?.icon} /> {selectedColl?.name?.replace(/s$/, '') ?? 'Item'}</h2>
+				<button type="button" class="dialog-close" onclick={closeNewItem} aria-label="Close" title="Close"><span aria-hidden="true"><Icon icon={MultiplicationSignIcon} /></span></button>
 			</div>
 			<div class="new-item-form">
 				<input aria-label="New item title"
@@ -995,7 +997,7 @@
 	<div class="dialog-content">
 		<div class="dialog-header">
 			<h2 id="roles-dialog-title">{dialogMode === 'edit' ? 'Edit Role' : 'New Role'}</h2>
-			<button type="button" class="dialog-close" onclick={closeModal} aria-label="Close" title="Close"><span aria-hidden="true">✕</span></button>
+			<button type="button" class="dialog-close" onclick={closeModal} aria-label="Close" title="Close"><span aria-hidden="true"><Icon icon={MultiplicationSignIcon} /></span></button>
 		</div>
 
 		<div class="dialog-body">
@@ -1056,13 +1058,13 @@
 	{:else if orderedLanes.length === 0}
 		{#if highlightMine}
 			<EmptyState
-				icon="👤"
+				icon={UserIcon}
 				title="No items assigned to you"
 				message="Turn off &quot;My Work&quot; to see all items, or assign items to yourself from the item detail page."
 			/>
 		{:else}
 			<EmptyState
-				icon="🎭"
+				icon={UserGroupIcon}
 				title="No roles configured"
 				message="Agent roles let you organize work by what kind of thinking it requires — planning, implementing, reviewing, etc."
 			>
@@ -1099,14 +1101,14 @@
 								{#if canReorderLanes}
 									<span class="lane-drag-handle" title="Drag to reorder">⠿</span>
 								{/if}
-								<span class="lane-icon">{roleIcon(lane.role.icon)}</span>
+								<span class="lane-icon"><Icon icon={roleIcon(lane.role.icon)} /></span>
 								<span class="lane-name">{lane.role.name}</span>
 							{:else}
 								<span class="lane-name unassigned-name">Unassigned</span>
 							{/if}
 							<span class="lane-count">{lane.items.length}</span>
 							{#if lane.role && isOwner}
-								<button class="lane-edit-btn" title="Edit role" onclick={() => lane.role && openEditModal(lane.role)}>✎</button>
+								<button class="lane-edit-btn" title="Edit role" onclick={() => lane.role && openEditModal(lane.role)}><Icon icon={PencilEdit01Icon} /></button>
 							{/if}
 						</div>
 						{#if lane.role?.tools}

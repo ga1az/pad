@@ -202,6 +202,8 @@ const POPULATION: string[] = [
 	'lib/components/ShareDialog.svelte',
 	'lib/components/items/CopyItemDialog.svelte',
 	'lib/components/items/PushToAgentDialog.svelte',
+	// No requests and no awaits; renders a Hugeicons SVG (or an emoji) it is given.
+	'lib/icons/Icon.svelte',
 ];
 
 /**

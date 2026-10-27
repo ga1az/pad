@@ -1,10 +1,14 @@
 <script lang="ts">
+	import { Tick02Icon } from '@hugeicons/core-free-icons';
 	import type { Snippet } from 'svelte';
+	import Icon from '$lib/icons/Icon.svelte';
+	import type { IconSvgElement } from '@hugeicons/svelte';
 
 	interface Props {
-		/** Leading icon/emoji. Interpolated as TEXT — markup would render
-		 *  literally; pass `iconSnippet` for an SVG icon instead. */
-		icon?: string;
+		/** Leading icon as an emoji, rendered through `Icon` (its Hugeicons
+		 *  equivalent, or the emoji itself as TEXT when it has none — markup
+		 *  would render literally; pass `iconSnippet` for any other SVG). */
+		icon?: string | IconSvgElement;
 		/** Leading icon as markup (an SVG icon component). Wins over `icon`
 		 *  when both are set; the slot is decorative either way (PLAN-2392
 		 *  DR-3b). */
@@ -83,11 +87,11 @@
 	{#if iconSnippet}
 		<span class="mi-icon" aria-hidden="true">{@render iconSnippet()}</span>
 	{:else if icon}
-		<span class="mi-icon" aria-hidden="true">{icon}</span>
+		<span class="mi-icon" aria-hidden="true"><Icon {icon} /></span>
 	{/if}
 	<span class="mi-label">{@render children()}</span>
 	{#if hint}<span class="mi-hint">{hint}</span>{/if}
-	{#if checked}<span class="mi-check" aria-hidden="true">✓</span>{/if}
+	{#if checked}<span class="mi-check" aria-hidden="true"><Icon icon={Tick02Icon} /></span>{/if}
 {/snippet}
 
 {#if asAnchor}

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
+	import { Settings01Icon } from '@hugeicons/core-free-icons';
 	import { confirmSignOut, signOutLogout } from '$lib/stores/signOutGuard.svelte';
 	import PasswordRuleHint from '$lib/components/auth/PasswordRuleHint.svelte';
 	import { isPasswordRuleError, localPasswordProblem, passwordDescribedBy } from '$lib/auth/passwordRule';
@@ -640,7 +642,7 @@
 	<!-- TASK-2255 (C59): the workspace's own settings are a different page. -->
 	<p class="page-note">
 		Your profile, password and sign-in, in every workspace. A workspace's name, members and
-		collections are in its own Workspace settings (⚙ in that workspace's sidebar).
+		collections are in its own Workspace settings (<Icon icon={Settings01Icon} /> in that workspace's sidebar).
 	</p>
 
 	{#if loading}

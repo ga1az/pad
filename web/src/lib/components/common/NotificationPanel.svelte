@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Notification03Icon } from '@hugeicons/core-free-icons';
 	import { fly, fade } from 'svelte/transition';
 	import { toastStore } from '$lib/stores/toast.svelte';
 	import type { HistoryEntry } from '$lib/stores/toast.svelte';
@@ -114,7 +115,7 @@
 
 		<div class="panel-body">
 			{#if toastStore.history.length === 0}
-				<EmptyState icon="🔔" message="No notifications yet" />
+				<EmptyState icon={Notification03Icon} message="No notifications yet" />
 			{:else}
 				{#each toastStore.history as entry (entry.id)}
 					{#if entry.link}

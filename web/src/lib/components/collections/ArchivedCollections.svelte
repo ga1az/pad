@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
 	// TASK-2189: the workspace's archived collections, each restorable with its
 	// items (an archive never deleted them). Owner-only, like the archive; the
 	// caller renders it only for owners and the server enforces it.
@@ -69,7 +70,7 @@
 		<ul class="archived-list">
 			{#each archived as a (a.id)}
 				<li class="archived-row">
-					<span class="archived-icon" aria-hidden="true">{a.icon || '#'}</span>
+					<span class="archived-icon" aria-hidden="true"><Icon icon={a.icon || '#'} /></span>
 					<span class="archived-name">{a.name}</span>
 					<span class="archived-slug mono">/{a.slug}</span>
 					<span class="archived-count">{a.item_count} {a.item_count === 1 ? 'item' : 'items'}</span>

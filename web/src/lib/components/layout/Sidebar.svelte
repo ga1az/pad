@@ -26,6 +26,19 @@
 	import { isBlockedByModal } from '$lib/a11y/viewerBackdrop';
 	import Modal from '$lib/components/common/Modal.svelte';
 	import { coveredPage } from '$lib/stores/coveredPage.svelte';
+	import Icon from '$lib/icons/Icon.svelte';
+	import {
+		ChartLineData01Icon,
+		ClipboardIcon,
+		DashboardSquare01Icon,
+		HierarchySquare01Icon,
+		LibraryIcon,
+		Search01Icon,
+		Settings01Icon,
+		StarIcon,
+		Tag01Icon,
+		UserGroupIcon
+	} from '@hugeicons/core-free-icons';
 
 	let notificationPanelOpen = $state(false);
 	let showCreateCollection = $state(false);
@@ -578,7 +591,7 @@
 					class:active={isDashboardPage}
 					onclick={() => uiStore.onNavigate()}
 				>
-					<span class="nav-icon">📊</span>
+					<span class="nav-icon"><Icon icon={DashboardSquare01Icon} /></span>
 					<span class="nav-label">Dashboard</span>
 				</a>
 				<a
@@ -587,7 +600,7 @@
 					class:active={isInsightsPage}
 					onclick={() => uiStore.onNavigate()}
 				>
-					<span class="nav-icon">📈</span>
+					<span class="nav-icon"><Icon icon={ChartLineData01Icon} /></span>
 					<span class="nav-label">Insights</span>
 				</a>
 				<a
@@ -596,7 +609,7 @@
 					class:active={isGraphPage}
 					onclick={() => uiStore.onNavigate()}
 				>
-					<span class="nav-icon">🕸</span>
+					<span class="nav-icon"><Icon icon={HierarchySquare01Icon} /></span>
 					<span class="nav-label">Graph</span>
 				</a>
 				<a
@@ -605,7 +618,7 @@
 					class:active={isRolesPage}
 					onclick={() => uiStore.onNavigate()}
 				>
-					<span class="nav-icon">🎭</span>
+					<span class="nav-icon"><Icon icon={UserGroupIcon} /></span>
 					<span class="nav-label">Roles</span>
 				</a>
 				<a
@@ -614,7 +627,7 @@
 					class:active={isActivityPage}
 					onclick={() => uiStore.onNavigate()}
 				>
-					<span class="nav-icon">📋</span>
+					<span class="nav-icon"><Icon icon={ClipboardIcon} /></span>
 					<span class="nav-label">Activity</span>
 				</a>
 				<a
@@ -623,7 +636,7 @@
 					class:active={isStarredPage}
 					onclick={() => uiStore.onNavigate()}
 				>
-					<span class="nav-icon">⭐</span>
+					<span class="nav-icon"><Icon icon={StarIcon} /></span>
 					<span class="nav-label">Starred</span>
 				</a>
 				<a
@@ -632,7 +645,7 @@
 					class:active={isTagsPage}
 					onclick={() => uiStore.onNavigate()}
 				>
-					<span class="nav-icon">🏷</span>
+					<span class="nav-icon"><Icon icon={Tag01Icon} /></span>
 					<span class="nav-label">Tags</span>
 				</a>
 				{/if}
@@ -687,7 +700,7 @@
 								{#if !isGuest}
 									<span class="drag-handle" title="Drag to reorder">⠿</span>
 								{/if}
-								<span class="nav-icon">{collection.icon}</span>
+								<span class="nav-icon"><Icon icon={collection.icon} /></span>
 								<span class="nav-label">{collection.name}</span>
 								{#if collection.item_count != null && collection.item_count > 0}
 									<span class="nav-count">{collection.active_item_count}</span>
@@ -718,7 +731,7 @@
 							class:active={activeCollectionSlug === collection.slug}
 							onclick={() => uiStore.onNavigate()}
 						>
-							<span class="nav-icon">{collection.icon}</span>
+							<span class="nav-icon"><Icon icon={collection.icon} /></span>
 							<span class="nav-label">{collection.name}</span>
 							{#if collection.item_count != null}
 								<span class="nav-count">{collection.item_count}</span>
@@ -736,7 +749,7 @@
 							class:active={activeKey === 'library'}
 							onclick={() => uiStore.onNavigate()}
 						>
-							<span class="nav-icon">📚</span>
+							<span class="nav-icon"><Icon icon={LibraryIcon} /></span>
 							<span class="nav-label">Library</span>
 						</a>
 					{/if}
@@ -757,12 +770,12 @@
 
 		<div class="sidebar-footer">
 			<button class="search-btn" onclick={() => { uiStore.openSearch(); uiStore.onNavigate(); }}>
-				🔍 Search <kbd>{modKeyLabel('K')}</kbd>
+				<span class="search-label"><Icon icon={Search01Icon} /> Search</span> <kbd>{modKeyLabel('K')}</kbd>
 			</button>
 			<div class="footer-row">
 				{#if wsSlug && !isGuest}
 					<a href="{wsPrefix}/settings" class="settings-btn" onclick={() => uiStore.onNavigate()}>
-						⚙ Settings
+						<Icon icon={Settings01Icon} /> Settings
 					</a>
 				{/if}
 				{#if !uiStore.isMobile}
@@ -884,7 +897,7 @@
 					aria-label="Choose collection"
 					disabled={!canSwitchCollection || quickAddSubmitting}
 				>
-					<span class="quick-add-icon">{quickAddCollection.icon}</span>
+					<span class="quick-add-icon"><Icon icon={quickAddCollection.icon} /></span>
 					<span class="quick-add-label">New {quickAddCollection.name.replace(/s$/, '')}</span>
 					{#if canSwitchCollection}
 						<span class="quick-add-caret" aria-hidden="true">▾</span>
@@ -909,7 +922,7 @@
 								onclick={() => selectCollection(coll)}
 								onmouseenter={() => { pickerHighlight = i; }}
 							>
-								<span class="quick-add-picker-icon">{coll.icon}</span>
+								<span class="quick-add-picker-icon"><Icon icon={coll.icon} /></span>
 								<span class="quick-add-picker-name">New {coll.name.replace(/s$/, '')}</span>
 							</button>
 						{/each}
@@ -1195,7 +1208,9 @@
 	.nav-icon {
 		flex-shrink: 0;
 		width: 1.25em;
-		text-align: center;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 	}
 	.nav-label {
 		flex: 1;
@@ -1447,6 +1462,11 @@
 		border-radius: var(--radius);
 		color: var(--text-muted);
 		font-size: 0.85em;
+	}
+	.search-label {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
 	}
 	.search-btn:hover { background: var(--bg-hover); color: var(--text-secondary); }
 	/*

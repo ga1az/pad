@@ -445,15 +445,16 @@ describe('a child instance mounted under the previous identity cannot commit thr
 		expect(fresh, 'the child was not remounted by the identity change').not.toBe(old);
 		((which === 'old' ? old : fresh).onCountChange as (n: number) => void)(7);
 		await settle();
-		return r.container.textContent ?? '';
+		// The count renders after an SVG icon, so read it from the button's title.
+		return r.container.querySelector('button[title="Mentioned in 7 other items"]');
 	}
 
 	it('REFUSAL: the previous identity\'s instance reporting a count is ignored', async () => {
-		expect(await countFrom('old')).not.toContain('📎 7');
+		expect(await countFrom('old')).toBeNull();
 	});
 
 	it('CONTROL: the remounted instance reporting the same count lands', async () => {
-		expect(await countFrom('new')).toContain('📎 7');
+		expect(await countFrom('new')).not.toBeNull();
 	});
 });
 

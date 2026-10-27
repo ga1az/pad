@@ -45,7 +45,8 @@ describe('MenuItem.svelte', () => {
 		expect(el.getAttribute('type')).toBe('button');
 		expect(el.getAttribute('role')).toBe('menuitem');
 		expect(el.classList.contains('danger')).toBe(true);
-		expect(el.querySelector('.mi-icon')?.textContent).toBe('🗑');
+		// 🗑 has a Hugeicons equivalent, so it renders as that SVG, not as text.
+		expect(el.querySelector('.mi-icon svg')).not.toBeNull();
 		expect(el.querySelector('.mi-hint')?.textContent).toBe('›');
 		expect(el.hasAttribute('href')).toBe(false);
 
@@ -61,7 +62,7 @@ describe('MenuItem.svelte', () => {
 		expect(el.getAttribute('role')).toBe('menuitemradio');
 		expect(el.getAttribute('aria-checked')).toBe('true');
 		expect(el.getAttribute('aria-describedby')).toBe('desc-1');
-		expect(el.querySelector('.mi-check')?.textContent).toBe('✓');
+		expect(el.querySelector('.mi-check svg')).not.toBeNull();
 	});
 
 	it('renders an icon snippet as markup, not as literal angle brackets', async () => {

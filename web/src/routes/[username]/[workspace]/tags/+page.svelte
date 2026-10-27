@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Tag01Icon } from '@hugeicons/core-free-icons';
 	import { untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { titleStore } from '$lib/stores/title.svelte';
@@ -76,7 +77,7 @@
 </svelte:head>
 
 <div class="tags-page">
-	<PageHeader title="Tags" icon="🏷" count={tags.length} />
+	<PageHeader title="Tags" icon={Tag01Icon} count={tags.length} />
 
 	{#if loading}
 		<div class="tag-cloud">
@@ -93,7 +94,7 @@
 		/>
 	{:else if tags.length === 0}
 		<EmptyState
-			icon="🏷"
+			icon={Tag01Icon}
 			title="No tags yet"
 			message="Add tags to an item from its detail page. Tags span collections, so one tag can group items of any type — a useful way to view related work together."
 		/>

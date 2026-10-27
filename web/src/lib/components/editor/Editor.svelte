@@ -11,6 +11,8 @@
 </script>
 
 <script lang="ts">
+	import { Attachment01Icon, MultiplicationSignIcon } from '@hugeicons/core-free-icons';
+	import Icon from '$lib/icons/Icon.svelte';
 	import { promptOnPlanLimit, PLAN_LIMIT_PROMPTED } from '$lib/billing/planLimitToast';
 	import { onMount, onDestroy, untrack } from 'svelte';
 	import { page } from '$app/state';
@@ -1634,7 +1636,7 @@
 		<button class="mt-btn" class:active={_tick >= 0 && editor.isActive('codeBlock')} aria-pressed={_tick >= 0 && editor.isActive('codeBlock')} aria-label="Code block" onclick={() => editor?.chain().focus().toggleCodeBlock().run()}>&lt;&gt;</button>
 		<button class="mt-btn" class:active={_tick >= 0 && editor.isActive('blockquote')} aria-pressed={_tick >= 0 && editor.isActive('blockquote')} aria-label="Quote" onclick={() => editor?.chain().focus().toggleBlockquote().run()}>❝</button>
 		<span class="mt-sep"></span>
-		<button class="mt-btn" onclick={triggerAttachPicker} title="Attach file" aria-label="Attach file">📎</button>
+		<button class="mt-btn" onclick={triggerAttachPicker} title="Attach file" aria-label="Attach file"><Icon icon={Attachment01Icon} /></button>
 	</div>
 {/if}
 
@@ -1667,7 +1669,7 @@
 				<button class="tt-btn" onclick={() => editor?.chain().focus().deleteRow().run()} title="Delete row">− Row</button>
 				<button class="tt-btn" onclick={() => editor?.chain().focus().deleteColumn().run()} title="Delete column">− Col</button>
 				<span class="tt-sep"></span>
-				<button class="tt-btn tt-btn-danger" onclick={() => editor?.chain().focus().deleteTable().run()} title="Delete table">✕</button>
+				<button class="tt-btn tt-btn-danger" onclick={() => editor?.chain().focus().deleteTable().run()} title="Delete table"><Icon icon={MultiplicationSignIcon} /></button>
 			</div>
 		{/if}
 	{/if}
@@ -1687,7 +1689,7 @@
 				onmouseenter={() => slashIdx = i}
 				onclick={() => execSlash(item.id)}
 			>
-				<span class="slash-icon">{item.icon}</span>
+				<span class="slash-icon"><Icon icon={item.icon} /></span>
 				<span class="slash-title">{item.label}</span>
 			</button>
 		{/each}
@@ -1705,7 +1707,7 @@
 				onmouseenter={() => linkIdx = i}
 				onclick={() => execLink(doc)}
 			>
-				<span class="slash-icon">{doc.collection_icon ?? '📄'}</span>
+				<span class="slash-icon"><Icon icon={doc.collection_icon ?? '📄'} /></span>
 				{#if formatItemRef(doc)}
 					<span class="slash-ref">{formatItemRef(doc)}</span>
 				{/if}
