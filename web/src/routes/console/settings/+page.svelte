@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
+	import { Settings01Icon } from '@hugeicons/core-free-icons';
 	import { confirmSignOut, signOutLogout } from '$lib/stores/signOutGuard.svelte';
 	import PasswordRuleHint from '$lib/components/auth/PasswordRuleHint.svelte';
 	import { isPasswordRuleError, localPasswordProblem, passwordDescribedBy } from '$lib/auth/passwordRule';
@@ -11,6 +13,7 @@
 	import { exportAndDownloadAccountData } from '$lib/utils/artifacts';
 	import Button from '$lib/components/common/Button.svelte';
 	import Modal from '$lib/components/common/Modal.svelte';
+	import NotificationSettings from '$lib/components/settings/NotificationSettings.svelte';
 	import CharacterShortcutsToggle from '$lib/components/common/CharacterShortcutsToggle.svelte';
 	import type { User, APIToken, APITokenWithSecret, TOTPSetupResponse } from '$lib/types';
 	import { describeTokenScopes } from '$lib/settings/tokenScopes';
@@ -639,7 +642,7 @@
 	<!-- TASK-2255 (C59): the workspace's own settings are a different page. -->
 	<p class="page-note">
 		Your profile, password and sign-in, in every workspace. A workspace's name, members and
-		collections are in its own Workspace settings (⚙ in that workspace's sidebar).
+		collections are in its own Workspace settings (<Icon icon={Settings01Icon} /> in that workspace's sidebar).
 	</p>
 
 	{#if loading}
@@ -683,6 +686,15 @@
 				<CharacterShortcutsToggle />
 			</div>
 		</section>
+
+		{#if authStore.pushAvailable}
+			<section class="card" id="notifications">
+				<h2 class="card-title">Notifications</h2>
+				<div class="card-body">
+					<NotificationSettings />
+				</div>
+			</section>
+		{/if}
 
 		<!-- Password -->
 		<section class="card">

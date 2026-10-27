@@ -36,6 +36,7 @@ import (
 	"github.com/PerpetualSoftware/pad/internal/logging"
 	mcpserver "github.com/PerpetualSoftware/pad/internal/mcp"
 	"github.com/PerpetualSoftware/pad/internal/metrics"
+	"github.com/PerpetualSoftware/pad/internal/notify"
 	"github.com/PerpetualSoftware/pad/internal/redisdial"
 	"github.com/PerpetualSoftware/pad/internal/redisns"
 	"github.com/PerpetualSoftware/pad/internal/server"
@@ -55,6 +56,11 @@ func serveCmd() *cobra.Command {
 		Short:   "Start the Pad API server",
 		Example: `  pad server start --port 7777`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// BUG-4066: a relative data dir warns once, through slog (the
+			// server's log), not as a bare stderr line. Logging is set up
+			// below from the config, so the line is held until then.
+			var relativeDataDirWarning string
+			config.SetRelativeDataDirWarningSink(func(msg string) { relativeDataDirWarning = msg })
 			cfg := getConfig()
 
 			// Initialize structured logging
@@ -67,6 +73,9 @@ func serveCmd() *cobra.Command {
 				logFormat = "text"
 			}
 			logging.Setup(logLevel, logFormat)
+			if relativeDataDirWarning != "" {
+				slog.Warn(relativeDataDirWarning)
+			}
 
 			if cmd.Flags().Changed("host") {
 				cfg.Host = host
@@ -224,6 +233,15 @@ func serveCmd() *cobra.Command {
 			} else if !rb.Skipped {
 				slog.Debug("Relation-link backfill found nothing to index",
 					"items_scanned", rb.ItemsScanned)
+			}
+
+			// comment_mentions for comments written before the table existed
+			// (TASK-3917). Non-fatal: a missing index row means a missed
+			// mention routing, not a broken database.
+			if mb, err := s.BackfillCommentMentions(); err != nil {
+				slog.Warn("comment-mention backfill failed; non-fatal", "error", err)
+			} else if !mb.Skipped {
+				slog.Info("Comment-mention backfill complete", "comments_scanned", mb.CommentsScanned)
 			}
 
 			// Classify op-log rows written before migration 091 (BUG-3124), so
@@ -965,6 +983,9 @@ func serveCmd() *cobra.Command {
 			bypassEnv := os.Getenv("PAD_BYPASS_SETUP_TOKEN")
 			bypassSetupToken := bypassEnv == "true" || bypassEnv == "1"
 			srv.SetBypassSetupToken(bypassSetupToken && !cfg.IsCloudServer())
+			if err := configurePush(srv, cfg); err != nil {
+				return err
+			}
 			if userCount, ucErr := s.UserCount(); ucErr != nil {
 				slog.Warn("could not check user count for bootstrap token wiring", "error", ucErr)
 			} else if userCount > 0 {
@@ -1508,4 +1529,60 @@ func bootPlanBackfill(s *store.Store, cloud bool) error {
 		slog.Warn("failed to set self-hosted plans", "error", err)
 	}
 	return nil
+}
+
+// configurePush wires the push gateway from cfg and, when one is configured,
+// starts the push dispatcher (TASK-3939 B2c). A gateway URL with no usable
+// secret is refused before anything starts. So is a malformed or non-positive
+// PAD_PUSH_DISPATCH_* knob, or a combination whose lease is shorter than the
+// send timeout plus margin, or whose margin overflows that sum (TASK-3939
+// part C, rulings 77a8fae7 and 37e3eafa; the refusal names both
+// PAD_PUSH_DISPATCH_LEASE and _LEASE_MARGIN and states the resolved values,
+// since either can be the cause): a bad knob is
+// an operator error whether or not a gateway is set, so it is checked first
+// and never falls back to the default. The knobs are applied before
+// StartPushDispatch because the interval is read once, at Start. With no URL the server offers no
+// push and no dispatcher runs: no new device can register. Rows are still
+// queued for devices registered while a gateway was configured; they stay
+// pending, and once a gateway is configured again the dispatcher expires any
+// past the expiry age instead of sending them. Shutdown stops the dispatcher
+// with the server's other background loops.
+func configurePush(srv *server.Server, cfg *config.Config) error {
+	timings, err := cfg.PushDispatchTimings()
+	if err != nil {
+		return err
+	}
+	// Applied here, before any Start and whether or not a gateway is set, so a
+	// combination the setter refuses (lease shorter than the send timeout plus
+	// margin) refuses startup the same way a malformed value does.
+	// sendTimeout is 0 (keep notify.SendTimeout): it has no knob.
+	if err := srv.SetPushDispatchConfig(timings.Interval, timings.Settle, timings.Lease, timings.LeaseMargin, 0); err != nil {
+		// The setter's error carries the resolved lease and margin, which is
+		// what tells the operator which of the two knobs to change.
+		return fmt.Errorf("PAD_PUSH_DISPATCH_LEASE must be at least the send timeout plus PAD_PUSH_DISPATCH_LEASE_MARGIN; change either knob (%w)", err)
+	}
+	srv.SetPushGateway(cfg.PushGatewayURL)
+	if cfg.PushGatewayURL == "" {
+		return nil
+	}
+	pushSecret := resolvePushGatewaySecret(cfg)
+	if pushSecret == "" {
+		return fmt.Errorf("PAD_PUSH_GATEWAY_URL is set but none of PAD_PUSH_GATEWAY_SECRET, PAD_CLOUD_OUTBOUND_SECRET or PAD_CLOUD_SECRET supplies a usable secret")
+	}
+	srv.SetPushGatewayClient(notify.NewGateway(cfg.PushGatewayURL, pushSecret))
+	srv.StartPushDispatch()
+	return nil
+}
+
+// resolvePushGatewaySecret is the secret to send the push gateway: the
+// explicit PAD_PUSH_GATEWAY_SECRET, else what pad already sends pad-cloud
+// (PAD_CLOUD_OUTBOUND_SECRET, else the last PAD_CLOUD_SECRET entry). Empty
+// when none is set; startup refuses that while a gateway URL is configured.
+// Lives here so internal/config does not import internal/billing.
+func resolvePushGatewaySecret(c *config.Config) string {
+	explicit := c.PushGatewaySecret
+	if strings.TrimSpace(explicit) == "" {
+		explicit = c.CloudOutboundSecret
+	}
+	return billing.ResolveOutboundSecret(explicit, c.CloudSecret)
 }

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
 	import { fly, fade } from 'svelte/transition';
 	import { goto } from '$app/navigation';
 	import { toastStore } from '$lib/stores/toast.svelte';
@@ -72,7 +73,7 @@
 			}
 		}}
 	>
-		<span class="toast-icon">{iconForType(toast.type)}</span>
+		<span class="toast-icon"><Icon icon={iconForType(toast.type)} /></span>
 		<span class="toast-message">{toast.message}{#if toast.link}<span class="toast-link-hint"> →</span>{/if}</span>
 		{#if toast.action}
 			<button
@@ -176,6 +177,8 @@
 		flex: 1;
 		min-width: 0;
 		line-height: 1.4;
+		/* A multi-line message keeps its lines (TASK-3842's dropped values). */
+		white-space: pre-line;
 	}
 
 	.toast-action {

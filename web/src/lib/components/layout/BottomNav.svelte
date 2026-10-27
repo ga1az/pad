@@ -14,6 +14,8 @@
 	Toggles `body.has-bottom-nav` so app.css reflows .main-content.
 -->
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
+	import { ClipboardIcon, Search01Icon, UserIcon } from '@hugeicons/core-free-icons';
 	import { onDestroy } from 'svelte';
 	import { page } from '$app/state';
 	import { workspaceStore } from '$lib/stores/workspace.svelte';
@@ -114,7 +116,7 @@
 			aria-haspopup="dialog"
 			aria-expanded={uiStore.searchOpen}
 		>
-			<span class="bn-icon" aria-hidden="true">🔍</span>
+			<span class="bn-icon" aria-hidden="true"><Icon icon={Search01Icon} /></span>
 			<span class="bn-label">Search</span>
 		</button>
 
@@ -139,7 +141,7 @@
 				uiStore.onNavigate();
 			}}
 		>
-			<span class="bn-icon" aria-hidden="true">📋</span>
+			<span class="bn-icon" aria-hidden="true"><Icon icon={ClipboardIcon} /></span>
 			<span class="bn-label">Activity</span>
 		</a>
 
@@ -151,7 +153,7 @@
 			aria-haspopup="dialog"
 			aria-expanded={youOpen}
 		>
-			<span class="bn-icon" aria-hidden="true">👤</span>
+			<span class="bn-icon" aria-hidden="true"><Icon icon={UserIcon} /></span>
 			<span class="bn-label">You</span>
 		</button>
 	</nav>

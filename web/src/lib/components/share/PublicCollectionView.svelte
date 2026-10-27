@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
 	// Public read-only collection view (TASK-1679 / PLAN-1677).
 	//
 	// The single entry point for rendering a shared collection on the `/s/[token]`
@@ -72,7 +73,7 @@
 
 <div class="public-collection">
 	<header class="collection-header">
-		{#if coll.icon}<span class="collection-icon">{coll.icon}</span>{/if}
+		{#if coll.icon}<span class="collection-icon"><Icon icon={coll.icon} /></span>{/if}
 		<h1 class="collection-name">{coll.name}</h1>
 	</header>
 	{#if coll.description}
@@ -81,7 +82,7 @@
 
 	{#if list.length === 0}
 		<div class="collection-empty" role="status">
-			<span class="empty-icon" aria-hidden="true">{coll.icon || '📭'}</span>
+			<span class="empty-icon" aria-hidden="true"><Icon icon={coll.icon || '📭'} /></span>
 			<p class="empty-title">Nothing here yet</p>
 			<p class="empty-hint">This collection has no items to show.</p>
 		</div>

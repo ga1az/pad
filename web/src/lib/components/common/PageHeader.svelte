@@ -1,10 +1,12 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import Icon from '$lib/icons/Icon.svelte';
+	import type { IconSvgElement } from '@hugeicons/svelte';
 
 	interface Props {
 		title: string;
 		/** Optional leading icon/emoji. */
-		icon?: string;
+		icon?: string | IconSvgElement;
 		/** Count pill after the title (rendered when >= 0). */
 		count?: number;
 		/** One-line description under the title row. */
@@ -21,7 +23,7 @@
 <header class="page-header">
 	<div class="header-row">
 		<h1>
-			{#if icon}<span class="header-icon" aria-hidden="true">{icon}</span>{/if}
+			{#if icon}<span class="header-icon" aria-hidden="true"><Icon {icon} /></span>{/if}
 			{title}
 			{#if count !== undefined && count >= 0}<span class="count">{count}</span>{/if}
 		</h1>

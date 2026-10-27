@@ -10,6 +10,8 @@
 	UserMenuResources link list (pure content) restyled to match.
 -->
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
+	import { Comment01Icon, CreditCardIcon, Folder01Icon, Moon02Icon, PlugSocketIcon, Settings01Icon, Shield01Icon, SunIcon } from '@hugeicons/core-free-icons';
 	import { confirmSignOut, signOutLogout } from '$lib/stores/signOutGuard.svelte';
 	import { onMount } from 'svelte';
 	import { goto, afterNavigate } from '$app/navigation';
@@ -17,6 +19,7 @@
 	import { authStore } from '$lib/stores/auth.svelte';
 	import { api } from '$lib/api/client';
 	import { avatarColor, avatarInitial } from '$lib/utils/avatar';
+	import ChatLink from '$lib/components/chat/ChatLink.svelte';
 	import DockedSheet from '$lib/components/layout/DockedSheet.svelte';
 	import UserMenuResources from '$lib/components/layout/UserMenuResources.svelte';
 	import ConnectWorkspaceModal from '$lib/components/ConnectWorkspaceModal.svelte';
@@ -88,7 +91,7 @@
 			<div class="rows">
 				<!-- Theme toggle -->
 				<button class="row" type="button" onclick={toggleTheme}>
-					<span class="row-icon" aria-hidden="true">{currentTheme === 'dark' ? '🌙' : '☀️'}</span>
+					<span class="row-icon" aria-hidden="true"><Icon icon={currentTheme === 'dark' ? Moon02Icon : SunIcon} /></span>
 					<span class="row-label">Dark mode</span>
 					<span class="toggle" class:on={currentTheme === 'dark'} aria-hidden="true">
 						<span class="knob"></span>
@@ -96,26 +99,30 @@
 				</button>
 
 				<a class="row" href="/console/settings" onclick={onclose}>
-					<span class="row-icon" aria-hidden="true">⚙️</span>
+					<span class="row-icon" aria-hidden="true"><Icon icon={Settings01Icon} /></span>
 					<span class="row-label">Account settings</span>
 					<span class="row-chev" aria-hidden="true">›</span>
 				</a>
+				<ChatLink class="row" onclick={onclose}>
+					{#snippet lead()}<span class="row-icon" aria-hidden="true"><Icon icon={Comment01Icon} /></span>{/snippet}
+					{#snippet trail()}<span class="row-chev" aria-hidden="true">›</span>{/snippet}
+				</ChatLink>
 				<a class="row" href="/console" onclick={onclose}>
-					<span class="row-icon" aria-hidden="true">🗂️</span>
+					<span class="row-icon" aria-hidden="true"><Icon icon={Folder01Icon} /></span>
 					<span class="row-label">Workspaces</span>
 					<span class="row-chev" aria-hidden="true">›</span>
 				</a>
 				<!-- Hidden in the mobile apps: no purchase path there (PLAN-3291 DR-3). -->
 				{#if authStore.commerceAllowed}
 					<a class="row" href="/console/billing" onclick={onclose}>
-						<span class="row-icon" aria-hidden="true">💳</span>
+						<span class="row-icon" aria-hidden="true"><Icon icon={CreditCardIcon} /></span>
 						<span class="row-label">Billing</span>
 						<span class="row-chev" aria-hidden="true">›</span>
 					</a>
 				{/if}
 				{#if authStore.user?.role === 'admin'}
 					<a class="row" href="/console/admin" onclick={onclose}>
-						<span class="row-icon" aria-hidden="true">🛡️</span>
+						<span class="row-icon" aria-hidden="true"><Icon icon={Shield01Icon} /></span>
 						<span class="row-label">Admin</span>
 						<span class="row-chev" aria-hidden="true">›</span>
 					</a>
@@ -129,7 +136,7 @@
 							connectOpen = true;
 						}}
 					>
-						<span class="row-icon" aria-hidden="true">🔌</span>
+						<span class="row-icon" aria-hidden="true"><Icon icon={PlugSocketIcon} /></span>
 						<span class="row-label">Connect a project…</span>
 					</button>
 				{/if}
@@ -208,7 +215,8 @@
 		flex-direction: column;
 		gap: 2px;
 	}
-	.row {
+	.row,
+	.rows :global(.row) {
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
@@ -224,7 +232,8 @@
 		font-size: 0.98em;
 		font-family: var(--font-ui);
 	}
-	.row:hover {
+	.row:hover,
+	.rows :global(.row:hover) {
 		background: var(--bg-hover);
 		color: var(--text-primary);
 	}

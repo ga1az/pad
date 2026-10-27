@@ -661,7 +661,7 @@
 								<option value="">— pick a collection —</option>
 								{#each collections as c (c.slug)}
 									<option value={c.slug}>
-										{c.icon ? `${c.icon} ` : ''}{c.name}
+										{c.name}
 									</option>
 								{/each}
 							</select>

@@ -221,6 +221,11 @@ func (s *Server) sessionStatePayload(authenticated bool, user *models.User) map[
 	s.addBillingFields(payload)
 	if authenticated {
 		payload["user"] = sessionUserPayload(user)
+		// push_available: whether this server can send pushes (TASK-3938). A
+		// JSON bool for a SIGNED-IN caller only: the app reads it by type with
+		// its session, and whether a gateway exists is server configuration an
+		// anonymous caller does not need (absent reads as off).
+		payload["push_available"] = s.pushAvailable()
 	}
 	return payload
 }
@@ -330,31 +335,26 @@ func (s *Server) validateSessionCookie(r *http.Request) *models.User {
 // should embed the returned token in their response body so both
 // transport styles stay authenticated.
 //
-// On DeleteUserSessions error we log and continue; on CreateSession
-// error we write a 500 response and return ok=false — the caller should
-// return immediately.
+// The rotation is one store transaction (RotateUserSessions): it fails
+// closed, revoking every session when it cannot complete, and then this
+// writes a 500 and returns ok=false — the caller should return immediately.
+// The caller's own push devices move onto the replacement session; devices
+// on the user's other sessions die with those sessions (TASK-3938).
 func (s *Server) rotateSessionsAfterCredentialChange(w http.ResponseWriter, r *http.Request, user *models.User) (string, bool) {
+	// TASK-3365: every session is revoked below, so the user's live
+	// connections re-check their credential now, not on their next tick.
+	defer s.invalidateUserAccess(user.ID)
+	info := s.requestSessionInfo(r)
 	// The session being replaced dates the new one (BUG-3336). Every caller
 	// is a session-only door, so a request without a readable session of
 	// this user is not a state to mint from: every session is still revoked
 	// and the caller signs in again, rather than receiving a session that
 	// would read as freshly signed in.
-	// TASK-3365: every session is revoked below, so the user's live
-	// connections re-check their credential now, not on their next tick.
-	defer s.invalidateUserAccess(user.ID)
-	info := s.requestSessionInfo(r)
-	if err := s.store.DeleteUserSessions(user.ID); err != nil {
-		// Best-effort: even if deletion fails we must still mint a new
-		// session for the caller, but log loudly so the operator knows
-		// stale cookies may persist until expiry.
-		slog.Error("failed to invalidate sessions after credential change",
-			"user_id", user.ID, "error", err)
-	}
-
-	// The new session inherits the replaced one's sign-in time, read above
-	// before the delete (BUG-3336): a credential change made with a session
-	// is not a fresh sign-in.
 	if info == nil || info.User.ID != user.ID {
+		if err := s.store.DeleteUserSessions(user.ID); err != nil {
+			slog.Error("failed to invalidate sessions after credential change",
+				"user_id", user.ID, "error", err)
+		}
 		writeError(w, http.StatusInternalServerError, "internal_error",
 			"Credentials updated but failed to refresh session. Please sign in again.")
 		return "", false
@@ -364,14 +364,27 @@ func (s *Server) rotateSessionsAfterCredentialChange(w http.ResponseWriter, r *h
 	if info.Kind == store.SessionKindCLI {
 		device = "cli"
 	}
-	// Fenced on the epoch of the user the caller passes, which is the
-	// credential state this rotation follows (BUG-3382).
-	token, err := s.store.CreateSessionFenced(user.ID, user.CredentialEpoch, device, clientIP(r), r.UserAgent(), webSessionTTL, info.CreatedAt)
+	// The replacement keeps the replaced session's own sliding window too
+	// (BUG-3978): a rotation changes no session's lifetime, so a 30-day CLI
+	// token stays 30 days and nothing is lengthened. A legacy row with no
+	// window falls back to the web TTL, as every rotation did before.
+	ttl := info.RenewTTL
+	if ttl <= 0 {
+		ttl = webSessionTTL
+	}
+	// One store transaction (TASK-3938): mint the replacement, fenced on the
+	// epoch of the user the caller passes, which is the credential state this
+	// rotation follows (BUG-3382); move the CALLER's push devices onto it;
+	// delete every other session, whose devices go with them. Any failure
+	// inside revokes every session, so nothing stays half-rotated.
+	token, err := s.store.RotateUserSessions(user.ID, user.CredentialEpoch, info.ID, device, clientIP(r), r.UserAgent(), ttl, info.CreatedAt)
 	if errors.Is(err, store.ErrUserDisabled) {
 		writeError(w, http.StatusForbidden, "account_disabled", "Your account has been disabled. Contact an administrator.")
 		return "", false
 	}
 	if err != nil {
+		slog.Error("failed to rotate sessions after credential change",
+			"user_id", user.ID, "error", err)
 		writeError(w, http.StatusInternalServerError, "internal_error",
 			"Credentials updated but failed to refresh session. Please sign in again.")
 		return "", false
@@ -384,12 +397,14 @@ func (s *Server) rotateSessionsAfterCredentialChange(w http.ResponseWriter, r *h
 		Name:     sessionCookieName(s.secureCookies),
 		Value:    token,
 		Path:     "/",
-		MaxAge:   int(webSessionTTL.Seconds()),
+		MaxAge:   int(ttl.Seconds()),
 		HttpOnly: true,
 		Secure:   s.secureCookies,
 		SameSite: http.SameSiteLaxMode,
 	})
-	setCSRFCookie(w, int(webSessionTTL.Seconds()), s.secureCookies)
+	// The cookies carry the session's window, as createAuthSession sets them:
+	// a 30-day web session (a bootstrap from /setup) keeps 30-day cookies.
+	setCSRFCookie(w, int(ttl.Seconds()), s.secureCookies)
 	return token, true
 }
 
@@ -1121,6 +1136,10 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.logAuditEventForUser(models.ActionRegister, r, user.ID, auditMeta(map[string]string{"email": user.Email}))
+	// A self-serve or invited signup, now signed in and kept: every rollback
+	// is above. The admin-created branch returned earlier and is not a
+	// signup; OAuth signups are counted by pad-cloud (TASK-3926).
+	s.recordSignup(r, "email")
 
 	// Auto-create default workspace in cloud mode
 	created := s.autoCreateWorkspace(user)

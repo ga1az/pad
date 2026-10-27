@@ -162,7 +162,7 @@ func (s *Server) handleCreateComment(w http.ResponseWriter, r *http.Request) {
 	// A committed comment is a user write (PLAN-1542 / TASK-1543). Done after
 	// the commit rather than inside the activity helper, so a failed comment
 	// is not counted as one.
-	s.store.TouchUserWrite(r.Context(), currentUserID(r))
+	s.touchUserWrite(r, writeKindComment)
 
 	// Publish SSE event
 	s.publishCommentEvent(sseCommentCreated, workspaceID, item.ID, comment.ID, item.Title, item.CollectionSlug, actor, source)
@@ -175,6 +175,7 @@ func (s *Server) handleCreateComment(w http.ResponseWriter, r *http.Request) {
 		Kind:         watchevents.KindComment,
 		Actor:        actor,
 		ActorName:    actorNameFromRequest(r),
+		ActorUserID:  currentUserID(r),
 		Summary:      truncateForSummary(comment.Body, 120),
 	})
 
@@ -289,7 +290,12 @@ func (s *Server) handleUpdateComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updated, err := s.store.UpdateComment(commentID, body)
+	// The editor, not the author, is who a mention the edit adds is from
+	// (TASK-3946): an admin may edit another user's comment.
+	editActor, _ := actorFromRequest(r)
+	updated, err := s.store.UpdateCommentAs(commentID, body, store.CommentEditor{
+		UserID: currentUserID(r), IsAgent: editActor == "agent",
+	})
 	if err != nil {
 		if errors.Is(err, store.ErrCommentDeleted) {
 			writeCommentDeleted(w, commentID)
@@ -442,7 +448,7 @@ func (s *Server) handleCreateReply(w http.ResponseWriter, r *http.Request) {
 		writeInternalError(w, err)
 		return
 	}
-	s.store.TouchUserWrite(r.Context(), currentUserID(r))
+	s.touchUserWrite(r, writeKindComment)
 
 	// Resolve the item's collection slug for SSE filtering
 	replyCollSlug := ""
@@ -469,6 +475,7 @@ func (s *Server) handleCreateReply(w http.ResponseWriter, r *http.Request) {
 		Kind:         watchevents.KindComment,
 		Actor:        actor,
 		ActorName:    actorNameFromRequest(r),
+		ActorUserID:  currentUserID(r),
 		Summary:      truncateForSummary(comment.Body, 120),
 	})
 

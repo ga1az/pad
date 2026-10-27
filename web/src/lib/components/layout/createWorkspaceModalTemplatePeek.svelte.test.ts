@@ -89,7 +89,7 @@ describe('template peek (TASK-2254)', () => {
 		await settle();
 		btn(container, /Or pick a template/).click();
 		await settle();
-		btn(container, /^🏃\s*scrum/).click();
+		btn(container, /^\s*scrum/).click();
 		await settle();
 		btn(container, /Or pick a template|Template:/).click(); // collapse
 		await settle();
@@ -108,7 +108,7 @@ describe('template peek (TASK-2254)', () => {
 		await settle();
 		btn(container, /Or pick a template/).click();
 		await settle();
-		btn(container, /^🏃\s*scrum/).click();
+		btn(container, /^\s*scrum/).click();
 		await settle();
 		expect(await createNamed(container)).toContain('"template":"scrum"');
 	});

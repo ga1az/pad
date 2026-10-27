@@ -16,6 +16,10 @@
 //	-mode titlebody   state = {"title","body"[:5000 runes]} with the same two
 //	                  eval questions — the day-73 shape, re-run today, as the
 //	                  control that separates model drift from state shape.
+//	-mode titlebody-live  the same {"title","body"} state with the LIVE
+//	                  attention set (four questions since TASK-3921) in one
+//	                  call: what the call shape does to needs_human_decision on
+//	                  the day-73 state, with titlebody as its drift control.
 //
 // The key is read from PAD_TYPESAFE_API_KEY or TYPESAFE_API_KEY and is never
 // printed or written.
@@ -35,6 +39,18 @@ import (
 
 	"github.com/PerpetualSoftware/pad/internal/decision"
 	"github.com/PerpetualSoftware/pad/internal/models"
+)
+
+// The day-73 eval asked two questions in one call. The `blocked` one was
+// retired from the production set in TASK-3915 (the dependency graph owns
+// blocked), so the titlebody control carries its text here, verbatim, to keep
+// re-running the day-73 shape.
+const day73Blocked = "blocked"
+
+var day73BlockedQuestion = decision.Noul(
+	"The item's text says the work is currently blocked on something outside the item itself.",
+	"an explicit dependency, wait, or blocker is named",
+	"no blocker is stated; the work can start",
 )
 
 type member struct {
@@ -58,7 +74,7 @@ type Row struct {
 
 func main() {
 	dump := flag.String("dump", "", "directory holding population.json and items/")
-	mode := flag.String("mode", "production", "production | titlebody")
+	mode := flag.String("mode", "production", "production | titlebody | titlebody-live")
 	out := flag.String("out", "", "run JSON path")
 	dry := flag.Bool("dry", false, "build every state and report its shape; no provider call")
 	flag.Parse()
@@ -66,6 +82,24 @@ func main() {
 		fmt.Fprintln(os.Stderr, "need -dump and -out")
 		os.Exit(2)
 	}
+	all := decision.AttentionSet().Questions
+	questions := all
+	if *mode == "titlebody" {
+		questions = map[string]decision.Question{
+			decision.AttentionNeedsHuman: all[decision.AttentionNeedsHuman],
+			day73Blocked:                 day73BlockedQuestion,
+		}
+	} else if *mode != "titlebody-live" && *mode != "production" && *mode != "nostatus" && *mode != "nostatus-notrail" && *mode != "r0" && *mode != "r1" {
+		fmt.Fprintln(os.Stderr, "unknown -mode", *mode)
+		os.Exit(2)
+	}
+	qkeys := make([]string, 0, len(questions))
+	for k := range questions {
+		qkeys = append(qkeys, k)
+	}
+	sort.Strings(qkeys)
+	fmt.Printf("mode=%s questions per call=%d: %s\n", *mode, len(qkeys), strings.Join(qkeys, ", "))
+
 	if *dry {
 		if *mode == "r0" || *mode == "r1" {
 			replayDry(*dump, *mode)
@@ -85,18 +119,6 @@ func main() {
 	}
 	var pop []member
 	mustRead(filepath.Join(*dump, "population.json"), &pop)
-
-	all := decision.AttentionSet().Questions
-	questions := all
-	if *mode == "titlebody" {
-		questions = map[string]decision.Question{
-			decision.AttentionNeedsHuman: all[decision.AttentionNeedsHuman],
-			decision.AttentionBlocked:    all[decision.AttentionBlocked],
-		}
-	} else if *mode != "production" && *mode != "nostatus" && *mode != "nostatus-notrail" && *mode != "r0" && *mode != "r1" {
-		fmt.Fprintln(os.Stderr, "unknown -mode", *mode)
-		os.Exit(2)
-	}
 
 	rows := make([]Row, len(pop))
 	var wg sync.WaitGroup
@@ -186,7 +208,7 @@ func evalOne(p decision.Provider, dump, mode string, m member, qs map[string]dec
 		}
 		state, _ = json.Marshal(is)
 		row.Truncated = st.Truncated
-	case "titlebody":
+	case "titlebody", "titlebody-live":
 		body := []rune(item.Content)
 		if len(body) > 5000 {
 			body = body[:5000]

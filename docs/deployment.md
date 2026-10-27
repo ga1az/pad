@@ -86,7 +86,7 @@ All configuration is via environment variables or a config file (`~/.pad/config.
 | `PAD_PORT` | `7777` | Listen port |
 | `PAD_URL` | — | Public-facing base URL (e.g., `https://pad.example.com`). Used for invitation, password-reset, and share-link emails, and as the public origin for [MCP](#mcp-for-agents-self-hosted). **Required when `PAD_HOST=0.0.0.0`** — otherwise emailed links point at `http://0.0.0.0:port` and are unreachable to recipients. |
 | `PUBLIC_URL` | — | Alternative to `PAD_URL` using the generic env-var convention. Server-side only — does not affect CLI mode, does not influence the CLI's API endpoint, and is not persisted to `config.toml`. Precedence: `PAD_URL` > `PUBLIC_URL` > constructed `http://host:port`. |
-| `PAD_DATA_DIR` | `~/.pad` | Data directory for SQLite DB, logs, and config |
+| `PAD_DATA_DIR` | `~/.pad` | Data directory for SQLite DB, logs, and config. Must be absolute: a relative value is deprecated and warns (it resolves against each process's own directory, so a CLI and a server started in different places use different data), and a future release refuses it |
 | `PAD_LOG_LEVEL` | `info` | Log level: `debug`, `info`, `warn`, `error` |
 | `PAD_MODE` | `local` | Mode: `local`, `remote`, `cloud` |
 
@@ -95,7 +95,7 @@ All configuration is via environment variables or a config file (`~/.pad/config.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PAD_DB_DRIVER` | `sqlite` | Database driver: `sqlite` or `postgres` |
-| `PAD_DB_PATH` | `~/.pad/pad.db` | SQLite database path (ignored when using PostgreSQL) |
+| `PAD_DB_PATH` | `~/.pad/pad.db` | SQLite database path (ignored when using PostgreSQL). Its directory is the data dir, so it must be absolute too: a relative value is deprecated and warns |
 | `PAD_DATABASE_URL` | — | PostgreSQL connection string (required when `PAD_DB_DRIVER=postgres`) |
 
 ### Real-time Events
@@ -730,6 +730,10 @@ used — so a broadcast reporting `0` during the rollout may well have been
 delivered. Re-sending one is a second instruction the receiving agent will act
 on twice. Only re-send a push the server told you it skipped. There is no Redis or database migration; the
 registry's keys are transient and expire on their own TTL.
+
+Worker activity uses a separate namespaced `activity:<user>:<worker>` key
+(`pad:activity:…`, or `pad:<namespace>:activity:…`) with a 30-minute TTL;
+session renewals do not overwrite or extend it.
 
 #### Event ID-space migration (`PAD_EVENTS_PUBLISH_EPOCH`)
 
@@ -1469,6 +1473,31 @@ Email enables sending workspace invitation links. Without it, users can still jo
 | `PAD_MAILEROO_API_KEY` | — | Maileroo sending API key |
 | `PAD_EMAIL_FROM` | `noreply@getpad.dev` | Sender email address |
 | `PAD_EMAIL_FROM_NAME` | `Pad` | Sender display name |
+
+### Push notifications
+
+Mobile push goes out through a push gateway. With no `PAD_PUSH_GATEWAY_URL` this server offers no push and runs no dispatcher.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PAD_PUSH_GATEWAY_URL` | — | Base URL of the push gateway. Setting it turns push on and starts the dispatcher. |
+| `PAD_PUSH_GATEWAY_SECRET` | see below | Secret sent to the gateway in the `X-Cloud-Secret` header. If unset, the first non-empty of `PAD_CLOUD_OUTBOUND_SECRET`, then the last entry of `PAD_CLOUD_SECRET`. Startup refuses a gateway URL with no usable secret. |
+| `PAD_PUSH_DISPATCH_INTERVAL` | `5s` | How often the dispatcher looks for notifications to push. Read once at startup. |
+| `PAD_PUSH_DISPATCH_SETTLE` | `10s` | How long a notification must sit before it is pushed. |
+| `PAD_PUSH_DISPATCH_LEASE` | `60s` | How long a claimed notification stays reserved to this instance before another may reclaim it. |
+| `PAD_PUSH_DISPATCH_LEASE_MARGIN` | `15s` | Safety margin the lease must keep beyond the send timeout. |
+
+The four timing knobs are Go durations (`5s`, `1m30s`) and are environment variables only. Startup refuses a value that is not a valid duration, is zero or negative, or that breaks the lease rule below, with a message naming the variable. A value of only whitespace is malformed, not unset: only an empty or absent variable is unset. It never falls back to the default silently, and it refuses whether or not a gateway URL is set.
+
+Values are not capped: a large explicit value is your choice (a huge settle simply means nothing is pushed, a huge interval means the dispatcher effectively never runs). The one bound is the lease rule, which also refuses a margin so large that adding the send timeout would overflow.
+
+**Lease rule.** The lease must be at least the send timeout plus the lease margin (`PAD_PUSH_DISPATCH_LEASE >= 25s + PAD_PUSH_DISPATCH_LEASE_MARGIN`). A lease shorter than that would let a second instance reclaim a notification while the first is still sending it, and push it twice. With the defaults, 60s >= 25s + 15s. Raising the margin past 35s therefore needs a longer lease too. The refusal message names both `PAD_PUSH_DISPATCH_LEASE` and `PAD_PUSH_DISPATCH_LEASE_MARGIN` and states the lease, send timeout and margin it resolved (defaults included), so you can see which to change.
+
+**The send timeout is fixed at 25s and has no setting.** It is the whole-request timeout of the gateway's HTTP client, built into the binary. A setting for it would only change the number the lease rule checks, not the timeout the client uses, so the rule would certify a value that is never applied.
+
+**Use `https://` for the gateway URL.** Over plain `http://`, the `X-Cloud-Secret` header and the notification payloads travel in cleartext. Use `http://` only on a network you control, such as a private Docker network between the two containers. Startup accepts `http://` on purpose: the URL is set by the operator, at the same trust as `PAD_CLOUD_URL`.
+
+The secret is shared with pad-cloud unless you set `PAD_PUSH_GATEWAY_SECRET` separately. If the gateway is not pad-cloud, set it, so the cloud secret is not sent to another service.
 
 ### Password recovery (when email is not configured)
 

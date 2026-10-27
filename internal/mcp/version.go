@@ -1738,6 +1738,16 @@ const CmdhelpVersion = "0.1"
 //     caller cannot read embeds nothing; a failed fetch stays non-fatal,
 //     as on stdio. Stdio is unchanged.
 //
+//     0.101 — TASK-4035. ADDITIVE bump on the v0.28 grounds: a new
+//     read-only `pad_project.action=catch-up`, the caller's own catch-up
+//     digest (GET /workspaces/{ws}/catch-up, no params), on both
+//     transports. It never marks caught up: PUT /me/seen stays web-only
+//     (ruling 380aa793), so pad_project keeps its read-only annotation.
+//     The ChatGPT surface gains a read-only `catch_up` over the same GET.
+//     No existing name, enum or param moved. Some existing tool
+//     descriptions were reworded to fewer bytes to pay for the entry; no
+//     rule, caveat, refusal or ref was dropped.
+//
 //     0.100 — BUG-3864. BEHAVIOR bump on the 0.45 grounds; no name, enum
 //     or param shape changed. A refused call names its cause, on BOTH
 //     transports. `permission_denied` gains `details.reason` when the server
@@ -2207,7 +2217,86 @@ const CmdhelpVersion = "0.1"
 //     this surface can receive it; the entry exists so a future action does
 //     not collapse it to permission_denied. When an action that can reach
 //     it is added, that addition is the contract change and owns the bump.
-const ToolSurfaceVersion = "0.100"
+//
+// v0.102 — TASK-4042: adds global pad_chat (list, inbox, show, send,
+// delete, read) on stdio and remote HTTP; excluded from ChatGPT. Show marks
+// through the highest returned seq only when the page reaches the last read
+// message (min <= read_seq+1); gaps mark nothing. Remote mark reports outcomes;
+// mark failures preserve show/send success. Replies mark through reply_to. No direction.
+// Existing descriptions were reworded; examples/reasons moved to docs/mcp.md
+// without dropping any rule, caveat, refusal or ref.
+//
+// v0.103 — BUG-4061: a numeric parameter that is not a whole int64 is REFUSED
+// (validation_failed, naming the parameter) instead of silently changed. A
+// fraction used to truncate (limit 1.5 read as 1, limit 0.5 as the default), a
+// value outside int64 converted to an implementation-defined one, and a
+// json.Number that did not parse was dropped as absent. Covers limit, offset
+// and days on every remote door that reads them locally, pad_item.list and
+// pad_item.history's limit, every query-string door built by buildQuery (item
+// backlinks, item context's budget, project activity, item search, project
+// standup and changelog), whose server parsers used to default a forwarded
+// "1.5" silently, and expected_seq (range and json.Number; fractions were
+// already refused). A whole json.Number in exponent form ("1e6") is accepted,
+// and is parsed exactly. A JSON number decoded as float64 of magnitude 2^53
+// or more is refused: the decoder may already have rounded it.
+// The schemas declare these as "number", so the refused inputs were valid
+// under the advertised shape: the bump is owed by the behaviour, not by a
+// schema change (the precedent is the multi_relation DSL refusal).
+//
+// v0.104 — BUG-4065: a numeric parameter's NON-number value is no longer read
+// as absent. A string, a bool, an object or an array used to be dropped, so
+// the default applied, and a string expected_seq made a content write
+// UNGUARDED. Now only null is absent. A string is accepted when it is a plain
+// decimal integer with no leading zero (an optional '-', then "0" or digits
+// not starting with 0), parsed exactly and bounded like a JSON number
+// (|x| < 2^53), so "10" is 10 and "123" is a GUARDED write. Every other
+// string ("010", "1.0", "1e3", " 10", "+10", "") and every other type is
+// refused (validation_failed, naming the parameter); "010" because stdio's
+// CLI flags read it as octal 8. An empty string or false is refused, not
+// skipped as absent. The rule covers the same doors as v0.103,
+// including every numeric key on a query-string door (item backlinks, item
+// search, item context's budget, project activity, project standup and
+// changelog), where a bool, an object or "abc" used to reach the server's
+// Atoi and silently become its default, plus pad_item.update's and
+// pad_item.patch's expected_seq, pad_item.patch's edits[].line_hint,
+// pad_item.link-pr's pr_number (a json.Number is read exactly; 2^53 itself is
+// now refused), pad_collection's and pad_role's update sort_order (which used
+// to reach the server's decode as a 400), and pad_chat's since, limit,
+// reply_to, seq and to (2^53 now bounds a float64; json.Number "1e6" is
+// accepted; a present null is still refused there, as before, with the same
+// message). Non-numeric query keys are still forwarded verbatim. These
+// parameters are declared "number", so the bump is owed by behaviour, as for
+// v0.103.
+//
+// v0.105 — BUG-4070: stdio applies v0.104's rule to every top-level parameter
+// declared "number", before the value becomes CLI text. A string used to reach
+// the CLI verbatim: an int flag parses base 0, so "010" was 8, "0x10" 16,
+// "1_000" 1000 and "+5" 5, and pad_chat delete's positional seq parses base
+// 10, so "010" was 10. Now a string is accepted only as a plain decimal
+// integer with no leading zero, bounded |x| < 2^53, and forwarded unchanged;
+// every other string is refused (validation_failed, naming the parameter). A
+// JSON number used to be formatted and forwarded whatever its size; now one
+// that is not whole, or of magnitude 2^53 or more (which the decoder may
+// already have rounded), is refused the same way, as remote has since v0.103.
+// For a string or a JSON number, stdio now accepts and refuses what remote
+// does. Other types keep their path: intParam (pad_item list and history
+// limit) reads null as absent, so the default applies (v0.104), and refuses a
+// bool, an array or an object; everywhere else the CLI's own parse refuses
+// all of them. The nested pad_item.patch edits[].line_hint is BUG-4082.
+// Behaviour only; the schemas are unchanged, as for v0.103 and v0.104.
+//
+// v0.106 — BUG-4082: stdio's pad_item.patch gives each edit's line_hint
+// remote's rule (v0.104), through the one helper both transports now call.
+// stdio used to forward edits to the CLI unread, so its JSON decode refused a
+// string hint that remote coerces ("5" is now 5 on stdio too), and took 2^53
+// or more, which mcp-go's float64 decode of the request may already have
+// rounded, as a line number. Now
+// a hint that is not a whole number below 2^53 (a fraction, "010", a bool, an
+// object) is refused on stdio with remote's validation_failed, naming the
+// edit ("(in edits[1])"); null is absent, and an edit that is not an object
+// keeps its path. Remote is unchanged. Behaviour only; the schemas are
+// unchanged.
+const ToolSurfaceVersion = "0.106"
 
 // MetaVersionURI is the canonical URI of the queryable version document.
 // Lives outside the pad://workspace/{ws}/... namespace because it's a

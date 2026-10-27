@@ -8,6 +8,13 @@ compress /.well-known/oauth-protected-resource/mcp
 compress /.well-known/oauth-protected-resource/mcp/
 compress /.well-known/oauth-protected-resource/mcp/chatgpt
 compress /.well-known/openai-apps-challenge
+skip /api/agent/v1/activity
+skip /api/agent/v1/items/{itemSlug}/comments
+skip /api/agent/v1/items/{itemSlug}/context
+skip /api/agent/v1/items/{itemSlug}/{op}
+skip /api/agent/v1/join
+skip /api/agent/v1/join/register
+skip /api/agent/v1/me
 compress /api/app/v1/me
 skip /api/app/v1/workspaces/{ws}/attachments/{attachmentID}
 skip /api/app/v1/workspaces/{ws}/attachments/{attachmentID}/content
@@ -54,7 +61,14 @@ compress /api/v1/health/ready
 compress /api/v1/invitations/{code}/preview
 compress /api/v1/library/entry
 compress /api/v1/mcp/tool-surface
+compress /api/v1/me/chat/unread
+compress /api/v1/me/conversations
+compress /api/v1/me/conversations/{n}
+compress /api/v1/me/conversations/{n}/messages
 compress /api/v1/me/invitations
+compress /api/v1/me/needs
+compress /api/v1/me/notification-settings
+compress /api/v1/me/notifications/{id}
 compress /api/v1/me/ui-dismissals
 compress /api/v1/me/workspace-tabs/
 skip /api/v1/oauth/clients/{id}/public-info
@@ -75,9 +89,11 @@ compress /api/v1/workspaces/deleted
 compress /api/v1/workspaces/import-status
 compress /api/v1/workspaces/{slug}/
 compress /api/v1/workspaces/{slug}/activity
+compress /api/v1/workspaces/{slug}/agent-links/
 compress /api/v1/workspaces/{slug}/agent-roles/
 compress /api/v1/workspaces/{slug}/agent-roles/{roleID}/
 compress /api/v1/workspaces/{slug}/agent/bootstrap
+compress /api/v1/workspaces/{slug}/agents/
 compress /api/v1/workspaces/{slug}/apps
 compress /api/v1/workspaces/{slug}/apps/install/pending/{pendingID}
 compress /api/v1/workspaces/{slug}/apps/{installID}
@@ -85,6 +101,7 @@ compress /api/v1/workspaces/{slug}/archived-collections
 compress /api/v1/workspaces/{slug}/attachments
 skip /api/v1/workspaces/{slug}/attachments/{attachmentID}
 compress /api/v1/workspaces/{slug}/builtins
+compress /api/v1/workspaces/{slug}/catch-up
 compress /api/v1/workspaces/{slug}/changelog
 compress /api/v1/workspaces/{slug}/changes
 skip /api/v1/workspaces/{slug}/claim-code
@@ -128,6 +145,7 @@ compress /api/v1/workspaces/{slug}/items/{itemSlug}/share-links
 compress /api/v1/workspaces/{slug}/items/{itemSlug}/star
 compress /api/v1/workspaces/{slug}/items/{itemSlug}/tasks
 compress /api/v1/workspaces/{slug}/items/{itemSlug}/timeline
+compress /api/v1/workspaces/{slug}/items/{itemSlug}/verifications
 compress /api/v1/workspaces/{slug}/items/{itemSlug}/versions
 compress /api/v1/workspaces/{slug}/items/{itemSlug}/versions/{versionID}
 compress /api/v1/workspaces/{slug}/items/{itemSlug}/versions/{versionID}/diff

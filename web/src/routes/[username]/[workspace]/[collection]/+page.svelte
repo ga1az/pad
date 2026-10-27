@@ -1,8 +1,10 @@
 <script lang="ts">
+	import { Alert02Icon, LockIcon, PinIcon, Search01Icon, StarIcon } from '@hugeicons/core-free-icons';
+	import Icon from '$lib/icons/Icon.svelte';
 	import { isRelationType } from '$lib/items/relationFieldTypes';
 	import { ownValue } from '$lib/utils/ownValue';
 	import { page, navigating } from '$app/state';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import { goto, beforeNavigate, afterNavigate } from '$app/navigation';
 	import { api, PadApiError, isPlanLimitError, isConflictOrNotFound } from '$lib/api/client';
 	import { showPlanLimitToast } from '$lib/billing/planLimitToast';
@@ -296,6 +298,8 @@
 		onSettle: (ref) => {
 			paneMintRef = ref;
 		},
+		// A drill still in flight when the window ends applies itself (TASK-3423).
+		deferWhile: () => navigating.type !== null,
 	});
 	afterNavigate((nav) => {
 		const samePathname =
@@ -651,8 +655,7 @@
 		// instead of go(-1)). PLAN-2154 R13. Harmless no-op when no pane is open.
 		goto(newUrl, {
 			replaceState: true,
-			noScroll: true,
-			keepFocus: true,
+			reset: false,
 			state: currentPaneState(),
 		});
 	}
@@ -710,7 +713,6 @@
 		getOpenItemRef: () => openItemRef,
 		cancelFollow: () => cancelPaneFollow(),
 		focusPaneRegion: () => paneHostEl?.focusPaneRegion(),
-		getPaneScrollTop: () => paneHostEl?.getPaneScrollTop() ?? null,
 		captureReturnFocus,
 		setBypassNavGuard: (bypass) => {
 			bypassNavGuard = bypass;
@@ -839,7 +841,7 @@
 	let skipUrlQueryValue: string | null = null;
 
 	function loadUrlFilters() {
-		const url = new URL(page.url);
+		const url = new URL(page.url.href);
 		const skipQuery = skipUrlQueryValue;
 		skipUrlQueryValue = null;
 		const filters: Record<string, string> = {};
@@ -960,13 +962,12 @@
 		// string means only the previous session's own query is suppressed.
 		skipUrlQueryValue = page.url.searchParams.get('q');
 		if (browser) {
-			const url = new URL(page.url);
+			const url = new URL(page.url.href);
 			if (url.searchParams.has('q')) {
 				url.searchParams.delete('q');
 				void goto(url.pathname + url.search, {
 					replaceState: true,
-					noScroll: true,
-					keepFocus: true,
+					reset: false,
 					// PRESERVED (codex round 2 [P2]). Omitting it lets SvelteKit
 					// default the history state to `{}`, losing `paneDepth` and
 					// `paneOwned` — after which closing a drilled pane takes the
@@ -1186,10 +1187,20 @@
 	// position to keep: a handoff was applied for this very navigation, or —
 	// pane-to-pane, where the column never switched — the list is rendered.
 	// Otherwise (still loading, nothing anchored) the saved offset is the only
-	// position there is, so it restores (codex r1). SvelteKit calls
-	// `snapshot.restore` synchronously after these callbacks, so the skip is
-	// released in a microtask. Entering the page from elsewhere (a different
-	// pathname — the Back from Expand to full page) always restores.
+	// position there is, so it restores (codex r1). The skip belongs to the
+	// navigation that armed it: that navigation's own `snapshot.restore`
+	// consumes it, and the NEXT navigation releases whatever is left (an entry
+	// with no saved snapshot is never restored, so nothing would consume it).
+	// It used to be released in a microtask, which assumed SvelteKit restores
+	// synchronously after these callbacks; kit 3 restores after an `await`, so
+	// the microtask released it first and the saved offset jumped the list
+	// (TASK-3423). Entering the page from elsewhere (a different pathname —
+	// the Back from Expand to full page) always restores.
+	let releaseRestoreSkip: (() => void) | null = null;
+	beforeNavigate(() => {
+		releaseRestoreSkip?.();
+		releaseRestoreSkip = null;
+	});
 	afterNavigate((nav) => {
 		const handedOff = !!nav.to && handoffHref === nav.to.url.href;
 		handoffHref = null;
@@ -1199,7 +1210,7 @@
 		const toPane = nav.to.url.searchParams.has('item');
 		const paneToPane = fromPane && toPane && !loading && viewMode !== 'board';
 		if (!handedOff && !paneToPane) return;
-		queueMicrotask(scrollRestoration.skipNextRestore());
+		releaseRestoreSkip = scrollRestoration.skipNextRestore();
 	});
 
 	// Reflect the collection name in the browser tab; clear any stale item ref.
@@ -4138,7 +4149,7 @@
 		     path instead of the misleading "Collection not found" empty
 		     state, mirroring the items branch's retry box. -->
 		<div class="empty-state-box">
-			<div class="empty-icon">⚠️</div>
+			<div class="empty-icon"><Icon icon={Alert02Icon} /></div>
 			<h2>Couldn't load this collection</h2>
 			<p>Something went wrong while loading. It may be a temporary network or server issue.</p>
 			<button
@@ -4160,7 +4171,7 @@
 			     rendering stale data silently would be worse than the error card
 			     this replaces, which at least told the truth. -->
 			<div class="offline-banner" role="status">
-				<span aria-hidden="true">⚠️</span>
+				<span aria-hidden="true"><Icon icon={Alert02Icon} /></span>
 				<span>
 					Showing a saved copy — couldn't reach the server, so this may be out of date.
 				</span>
@@ -4179,7 +4190,7 @@
 			<div class="title-row">
 				<div class="title-group">
 					<h1>
-						{#if collection.icon}<span class="collection-icon">{collection.icon}</span>{/if}
+						{#if collection.icon}<span class="collection-icon"><Icon icon={collection.icon} /></span>{/if}
 						{collection.name}
 						<span class="item-count">{itemCountLabel}</span>
 					</h1>
@@ -4281,7 +4292,7 @@
 												<span class="view-sheet-icon" aria-hidden="true">&#9733;</span>
 												<span>{view.name}</span>
 												{#if defaultViewId === view.id}
-													<span class="saved-view-default" title="Default view — applied on entry" aria-label="Default view">📌</span>
+													<span class="saved-view-default" title="Default view — applied on entry" aria-label="Default view"><Icon icon={PinIcon} /></span>
 												{/if}
 											</button>
 										{/each}
@@ -4300,7 +4311,7 @@
 								aria-label="Change view"
 								title="View, saved views"
 							>
-								<span class="view-dd-icon" aria-hidden="true">{viewModeIcon}</span>
+								<span class="view-dd-icon" aria-hidden="true"><Icon icon={viewModeIcon} /></span>
 								<span class="view-dd-label">{viewTriggerLabel}</span>
 								<span class="view-dd-caret" aria-hidden="true">▾</span>
 							</button>
@@ -4344,7 +4355,7 @@
 											>
 												<span class="saved-view-name">{view.name}</span>
 												{#if defaultViewId === view.id}
-													<span class="saved-view-default" title="Default view — applied on entry" aria-label="Default view">📌</span>
+													<span class="saved-view-default" title="Default view — applied on entry" aria-label="Default view"><Icon icon={PinIcon} /></span>
 												{/if}
 											</button>
 											{#if canEditThisCollection}
@@ -4359,7 +4370,7 @@
 									{/each}
 									{#if activeViewId !== null}
 										<MenuItem
-											icon="📌"
+											icon={PinIcon}
 											onclick={() => { toggleMakeDefault(); viewMenuOpen = false; }}
 										>
 											{isCurrentDefault ? 'Remove as default' : 'Make default'}
@@ -4368,7 +4379,7 @@
 								{/if}
 								{#if canSaveView}
 									<div class="menu-divider" role="separator"></div>
-									<MenuItem icon="★" onclick={() => { openSaveView(); viewMenuOpen = false; }}>
+									<MenuItem icon={StarIcon} onclick={() => { openSaveView(); viewMenuOpen = false; }}>
 										Save current view…
 									</MenuItem>
 								{/if}
@@ -4605,7 +4616,7 @@
 				never in.
 			-->
 			<div class="empty-state-box">
-				<div class="empty-icon">🔒</div>
+				<div class="empty-icon"><Icon icon={LockIcon} /></div>
 				<h2>This workspace isn't available</h2>
 				<p>It isn't available to you, or it no longer exists.</p>
 				<a class="empty-cta" href="/{username}">Back to your workspaces</a>
@@ -4617,7 +4628,7 @@
 			     path instead of the misleading "No items yet" empty
 			     state OR a stuck-forever "Loading…" spinner. -->
 			<div class="empty-state-box">
-				<div class="empty-icon">⚠️</div>
+				<div class="empty-icon"><Icon icon={Alert02Icon} /></div>
 				<h2>Couldn't load {collection.name.toLowerCase()}</h2>
 				<p>Something went wrong while loading this workspace.</p>
 				<button
@@ -4632,7 +4643,7 @@
 			</div>
 		{:else if items.length === 0}
 			<div class="empty-state-box">
-				<div class="empty-icon">{collection.icon || '📦'}</div>
+				<div class="empty-icon"><Icon icon={collection.icon || '📦'} /></div>
 				<h2>No {collection.name.toLowerCase()} yet</h2>
 				{#if canEditThisCollection}
 					<p>Create your first {singularName().toLowerCase()} to get started.</p>
@@ -4649,7 +4660,7 @@
 		     "create your first item" state on a full collection. -->
 		{:else if filteredItems.length === 0 && hasActiveFilters}
 			<div class="empty-state-box">
-				<div class="empty-icon">🔍</div>
+				<div class="empty-icon"><Icon icon={Search01Icon} /></div>
 				<h2>No matches</h2>
 				<p>No items match your current filters.
 					<button class="clear-link" onclick={() => { activeFilters = {}; selectedTags = []; searchQuery = ''; searchResultRank = null; unparentedFilter = false; updateUrlFilters(); }}>Clear filters</button>

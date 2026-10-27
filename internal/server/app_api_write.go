@@ -224,7 +224,7 @@ func (s *Server) appUpdateItem(w http.ResponseWriter, r *http.Request) {
 	// comparison with this handler's earlier read: a status another writer
 	// changed between that read and the commit is not this write's.
 	if after.LastMutation != nil && after.LastMutation.StatusChanged {
-		s.publishWatchNotifications(ac.WorkspaceID, after, appActorKind(ac), wr.ActorDisplay)
+		s.publishWatchNotifications(ac.WorkspaceID, after, appActorKind(ac), wr.ActorDisplay, currentUserID(r))
 	}
 	writeAppJSON(w, http.StatusOK, appWrittenItemDTO(wr))
 }

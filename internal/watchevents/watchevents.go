@@ -85,6 +85,9 @@ var ErrNotSubscribed = errors.New("watchevents: this instance has no subscriptio
 // {status-change, assignment, comment, ask}), plus push (IDEA-2544) and the
 // opt-in workspace_access_changed (TASK-3272).
 const (
+	// KindChat is a conversation nudge (TASK-4041, DOC-4036): no full body;
+	// a bounded excerpt (at most 100 runes, first line) rides on the event.
+	KindChat         = "chat"
 	KindStatusChange = "status-change"
 	KindAssignment   = "assignment"
 	KindComment      = "comment"
@@ -178,6 +181,11 @@ type Notification struct {
 	// nothing, and any future opt-in re-addressing (a per-watch flag, a
 	// config key) needs it in place to be a consumer-side change only.
 	AssignedUserID string
+	// ActorUserID is the acting user's id, when a producer knows it. The
+	// agent inbox (SPEC-15) reads it so an agent is not told about its own
+	// comment or status change. Not part of watchEventPayload's wire shape;
+	// a producer that leaves it empty is never mistaken for an agent.
+	ActorUserID string
 	// TargetUserID is IDEA-2544's generalized addressed-to field:
 	// populated on Kind == KindPush with the user the push is addressed
 	// to (Phase 1 always sets this to the pushing user's own ID —
@@ -219,6 +227,18 @@ type Notification struct {
 	// one of the Access* values above.
 	AccessChange string
 	Timestamp    int64
+	// TASK-4041, DOC-4036: chat carries references and no full body;
+	// a bounded excerpt (at most 100 runes, first line) rides on the event.
+	ConversationID     string
+	ConversationNumber int
+	MessageID          string
+	MessageSeq         int64
+	ReplyToSeq         *int64
+	Excerpt            string
+	AuthorUserID       string
+	AuthorAgentKey     string
+	TargetAgentKey     string
+	ChatDeleted        bool
 }
 
 // Bus is the pub/sub surface the watch pipeline's producers and the

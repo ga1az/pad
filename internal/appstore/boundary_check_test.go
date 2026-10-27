@@ -56,9 +56,8 @@ var allowedStoreMethodsInsideDoor = map[string]string{
 	"checkLimitOn":             "reads plan, settings and counts",
 	"featureCountOn":           "reads a count",
 	"resolveLimitQ":            "reads workspace owner, user plan and platform settings",
-	"GetUserQ":                 "reads the user row",
+	"GetUserQ":                 "reads the user row; the TOTP secret is scanned and discarded, never decrypted",
 	"GetPlatformSettingQ":      "reads platform_settings",
-	"decryptUserTOTP":          "decrypts a field in memory; no SQL",
 	"decrypt":                  "decrypts in memory; no SQL",
 	"HasEncryptionKey":         "reads in-memory config; no SQL",
 	"replaceWikiLinksScoped":   "DELETE and INSERT on item_wiki_links WHERE source_item_id = the item it is given, only (all six INSERTs bind it); target resolution reads, limited to the scope's collections",
@@ -70,8 +69,10 @@ var allowedStoreMethodsInsideDoor = map[string]string{
 	"workspaceHasInstalledAppTx": "reads app_installs (does the workspace have an install not uninstalled)",
 	"outboxRowCap":               "reads in-memory config; no SQL",
 	"outboxClaimableRowCap":      "reads in-memory config; no SQL",
-	"enqueueDecisionJobsTx":      "INSERT ... ON CONFLICT DO UPDATE on decision_jobs for the item it is given; no-op without a provider",
+	"enqueueDecisionJobsTx":      "INSERT ... ON CONFLICT DO UPDATE on decision_jobs for the item it is given; no-op without a provider. Reads MAX(item_decisions.evaluated_at) for the item when its set has a debounce window (TASK-3916)",
+	"owedDecisionJobTx":          "INSERT ... ON CONFLICT DO UPDATE on decision_jobs for the item and set it is given (the per-set body of enqueueDecisionJobsTx, TASK-3921); reads MAX(item_decisions.evaluated_at) for the item when the set has a debounce window",
 	"decisionSetResolver":        "loads an in-memory pointer; no SQL",
+	"decisionDebounceFunc":       "loads an in-memory pointer; no SQL (TASK-3916)",
 	"createActivityQ":            "INSERT INTO activities on the executor it is given (the fence's tx)",
 	"recentDebounceCandidateQ":   "reads activities",
 	// U2b (TASK-3391).
@@ -82,12 +83,25 @@ var allowedStoreMethodsInsideDoor = map[string]string{
 	"lockCommentForDeleteTx":              "reads the comment's ancestor chain and locks it root first (FOR UPDATE on Postgres); writes nothing",
 	"lockCommentRowTx":                    "reads one comment row (FOR UPDATE on Postgres); writes nothing",
 	"reapTombstonesTx":                    "DELETE FROM comments for emptied tombstones up the chain from the id it is given; FencedTx.DeleteComment first proves every comment on that chain is on the same companion item",
+	"reindexCommentMentionsTx":            "DELETE FROM and INSERT INTO comment_mentions WHERE comment_id = the comment it is given, only; reads users by username (kind = human) and comment_mentions; on the tx it is handed (TASK-3917)",
 	"emitRefOnlyDeletionWithProjectionTx": "INSERT INTO event_outbox (through writeOutboxTx) for the deleted comment",
 	// U10d (TASK-3411): the same emitters, recording the fence's install as
 	// the event's actor in the app-projection block.
 	"emitItemEventAsInstallTx":        "INSERT INTO event_outbox (through writeOutboxTx) for the item it is given; sets the block's actor_via_app",
 	"emitItemUpdateEventsAsInstallTx": "INSERT INTO event_outbox for the item it is given (status_changed and/or updated); sets the block's actor_via_app",
 	"emitCommentEventAsInstallTx":     "INSERT INTO event_outbox (through writeOutboxTx) for the comment it is given; sets the block's actor_via_app",
+	// TASK-3937: the push queue, written at the tail of the fenced comment create.
+	"enqueueCommentNotificationsTx": "reads the comment's item (assignee, creator) and its parent comment's author, then enqueueNotificationsTx for the comment it is given",
+	"enqueueNotificationsTx":        "INSERT INTO user_notifications ... ON CONFLICT (user_id, dedupe_key) DO NOTHING, only for a user with a row in push_devices; on the tx it is handed",
+	// TASK-3946: @mention notifications, at the fenced comment create and edit.
+	"enqueueNotificationsCountTx":          "the body of enqueueNotificationsTx, also reporting which facts wrote a row (RowsAffected); writes only that INSERT, on the tx it is handed",
+	"enqueueMentionNotificationsTx":        "mentionRecipientsTx, then enqueueNotificationsCountTx for the comment it is given; for each written mention, DELETE FROM user_notifications WHERE comment_id = that comment AND user_id = that user AND kind IN ('comment','reply') AND push_state = 'pending'; on the tx it is handed",
+	"mentionRecipientsTx":                  "reads the item's collection_id, then GetUserQ and ResolveBacklinksVisibilityQ per mentioned user, on the tx it is handed",
+	"ResolveBacklinksVisibilityQ":          "reads; GetUserQ, GetWorkspaceMemberQ, the GuestVisibleResources*Q grant reads and GetMemberCollectionAccessQ on the Queryer it is handed (here, the fence's tx)",
+	"GetWorkspaceMemberQ":                  "reads the workspace_members row",
+	"GetMemberCollectionAccessQ":           "reads member_collection_access",
+	"GuestVisibleResourcesQ":               "reads collection_grants and item_grants (live rows)",
+	"GuestVisibleResourcesIncludeDeletedQ": "reads collection_grants and item_grants (soft-deleted items included); reachable statically, mentionRecipientsTx passes includeDeletedItems=false",
 	// BUG-3653 part B: the storage cap on an app upload. BeginFenced takes the
 	// lock first when the spec sets StorageLimit; CheckStorageLimit reads.
 	"lockStorageLimitTx":     "reads workspaces.owner_id, then acquirePlanLimitLock; writes nothing",
@@ -114,7 +128,14 @@ var reviewedStoreFuncs = map[string]string{
 // func-value rule is never loosened globally; a new case gets its own entry.
 var allowedFuncValues = map[string]map[string]string{
 	"(*github.com/PerpetualSoftware/pad/internal/store.Store).enqueueDecisionJobsTx": {
-		"resolve": "the store's DecisionSetResolver; production installs decision.Registry.SetsFor, an in-memory lookup that runs no SQL",
+		"resolve":  "the store's DecisionSetResolver; production installs decision.Registry.SetsFor, an in-memory lookup that runs no SQL",
+		"debounce": "the store's DecisionDebounce (TASK-3916), passed to decisionWindowFor; production installs decision.Runner.debounceFor, a registry lookup that runs no SQL",
+	},
+	"(*github.com/PerpetualSoftware/pad/internal/store.Store).owedDecisionJobTx": {
+		"debounce": "the store's DecisionDebounce (TASK-3916), passed to decisionWindowFor; production installs decision.Runner.debounceFor, a registry lookup that runs no SQL",
+	},
+	"github.com/PerpetualSoftware/pad/internal/store.decisionWindowFor": {
+		"debounce": "the store's DecisionDebounce (TASK-3916); production installs decision.Runner.debounceFor, a registry lookup that runs no SQL",
 	},
 	"github.com/PerpetualSoftware/pad/internal/store.collapseChanges": {
 		"isLossySummary": "a closure defined in the same body and never reassigned; the walk inspects its body",

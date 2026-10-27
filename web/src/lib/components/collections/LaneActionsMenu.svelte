@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
+	import { Archive01Icon, Flag01Icon, Tag01Icon, UserIcon } from '@hugeicons/core-free-icons';
 	import type { Item, Collection } from '$lib/types';
 	import { parseSchema } from '$lib/types';
 	import { SORT_OPTIONS, priorityField, type SortMode } from '$lib/collections/itemSort';
@@ -182,7 +184,7 @@
 
 			{#if onTag}
 				<button class="lane-menu-item" role="menuitem" onclick={(e) => run(e, () => (view = 'tag'))}>
-					<span class="lmi-icon" aria-hidden="true">🏷</span> Tag all <span class="lmi-chevron">›</span>
+					<span class="lmi-icon" aria-hidden="true"><Icon icon={Tag01Icon} /></span> Tag all <span class="lmi-chevron">›</span>
 				</button>
 			{/if}
 
@@ -194,13 +196,13 @@
 
 			{#if onSetPriority && priorityOptions.length > 0}
 				<button class="lane-menu-item" role="menuitem" onclick={(e) => run(e, () => (view = 'priority'))}>
-					<span class="lmi-icon" aria-hidden="true">⚑</span> Set priority <span class="lmi-chevron">›</span>
+					<span class="lmi-icon" aria-hidden="true"><Icon icon={Flag01Icon} /></span> Set priority <span class="lmi-chevron">›</span>
 				</button>
 			{/if}
 
 			{#if onAssign && members.length > 0}
 				<button class="lane-menu-item" role="menuitem" onclick={(e) => run(e, () => (view = 'assign'))}>
-					<span class="lmi-icon" aria-hidden="true">👤</span> Assign all <span class="lmi-chevron">›</span>
+					<span class="lmi-icon" aria-hidden="true"><Icon icon={UserIcon} /></span> Assign all <span class="lmi-chevron">›</span>
 				</button>
 			{/if}
 		{/if}
@@ -217,7 +219,7 @@
 				</div>
 			{:else}
 				<button class="lane-menu-item lmi-danger" role="menuitem" onclick={(e) => run(e, () => (confirmArchive = true))}>
-					<span class="lmi-icon" aria-hidden="true">🗃</span> Archive all ({count}{scopeNote})
+					<span class="lmi-icon" aria-hidden="true"><Icon icon={Archive01Icon} /></span> Archive all ({count}{scopeNote})
 				</button>
 			{/if}
 		{/if}

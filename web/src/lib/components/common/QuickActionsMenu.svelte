@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
+	import { Settings01Icon, ZapIcon } from '@hugeicons/core-free-icons';
 	import { safeString, safeText } from '$lib/fields/fieldShape';
 	import { localIndex } from '$lib/stores/localIndex.svelte';
 	import { categoricalTemplateValue } from '$lib/utils/quick-action-preview';
@@ -676,7 +678,7 @@
 		{#if canEdit}
 			<div class="footer-divider"></div>
 			<MenuItem icon="+" onclick={() => (showCreateForm = true)}>New quick action</MenuItem>
-			<MenuItem icon="⚙" onclick={handleManage}>Manage actions</MenuItem>
+			<MenuItem icon={Settings01Icon} onclick={handleManage}>Manage actions</MenuItem>
 		{/if}
 	{/if}
 {/snippet}
@@ -691,7 +693,7 @@
 			onclick={handleTriggerClick}
 			title="Quick actions"
 		>
-			&#9889;
+			<Icon icon={ZapIcon} />
 		</button>
 
 		<!-- mode=portal (BUG-2610): the split-view pane is an

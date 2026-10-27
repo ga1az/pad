@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
+	import { StarIcon } from '@hugeicons/core-free-icons';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import type { Item, Collection, FieldDef } from '$lib/types';
@@ -234,7 +236,7 @@
 	<div class="card-top-row">
 		{#if showCollection && item.collection_name}
 			<span class="collection-badge">
-				{#if item.collection_icon}{item.collection_icon} {/if}{item.collection_name}
+				{#if item.collection_icon}<Icon icon={item.collection_icon} /> {/if}{item.collection_name}
 			</span>
 		{/if}
 		{#if itemRef}
@@ -269,7 +271,7 @@
 				not a control, so it is not a sub-44 target.
 			-->
 			{#if starred}
-				<span class="starred-mark" aria-label="Starred" role="img">★</span>
+				<span class="starred-mark" aria-label="Starred" role="img"><Icon icon={StarIcon} /></span>
 			{/if}
 			<ItemActionsMenu
 				{item}
@@ -368,7 +370,7 @@
 		{#if item.agent_role_name}
 			<span class="meta-sep">&middot;</span>
 			<span class="meta-role">
-				{#if item.agent_role_icon}{item.agent_role_icon} {/if}{item.agent_role_name}
+				{#if item.agent_role_icon}<Icon icon={item.agent_role_icon} /> {/if}{item.agent_role_name}
 			</span>
 		{/if}
 		<span class="meta-spacer"></span>

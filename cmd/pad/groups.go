@@ -98,6 +98,7 @@ func projectCmd() *cobra.Command {
 		changelogCmd(),
 		reportCmd(),
 		activityCmd(),
+		catchUpCmd(),
 		watchCmd(),
 		reconcileCmd(),
 	)
@@ -205,6 +206,9 @@ func agentCmd() *cobra.Command {
 		agentGuideCmd(),
 		agentUpdateCmd(),
 		agentStatusCmd(),
+		agentLinkCmd(),
+		agentListCmd(),
+		agentRevokeCmd(),
 	)
 	return cmd
 }
@@ -249,4 +253,15 @@ func agentStatusCmd() *cobra.Command {
 			return installList()
 		},
 	}
+}
+
+func chatCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "chat",
+		Short: "Chat with agents across workspaces",
+		Long:  "Global chat. Targets are C<n>, <n>, or @<name> for your DM with an agent.",
+		RunE:  unknownSubcommandRun,
+	}
+	cmd.AddCommand(chatListCmd(), chatInboxCmd(), chatShowCmd(), chatSendCmd(), chatDeleteCmd(), chatReadCmd(), newChatArmCmd(), newChatDisarmCmd())
+	return cmd
 }

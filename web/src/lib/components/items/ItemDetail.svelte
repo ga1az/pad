@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
+	import { Attachment01Icon, Delete02Icon, Globe02Icon, HierarchySquare01Icon, MultiplicationSignIcon, Tick02Icon, Tree06Icon } from '@hugeicons/core-free-icons';
 	import { viaAppTitle } from '$lib/utils/viaApp';
 	import ItemAppActions from './ItemAppActions.svelte';
 	import { LINK_DIRECTIONS, linkDirection, linkEnds, linkSentence } from '$lib/items/linkDirections';
@@ -87,6 +89,12 @@
 	import { titleEditError, titleLengthState } from '$lib/items/titleLimit';
 	import { editorStore } from '$lib/stores/editor.svelte';
 	import type { Item, Collection, CollectionSettings, QuickAction, ItemLink, AgentRole, PaneTarget, ResolvedItemIdentity, ItemCopyResult } from '$lib/types';
+	// Agents in the assignee picker (SPEC-15, TASK-20). Their own statements, so
+	// units that only use the imports above keep their reviewed hash.
+	import type { WorkspaceAgent } from '$lib/types';
+	import { BotIcon } from '@hugeicons/core-free-icons';
+	import { assigneeGroups, assigneeName } from '$lib/agent/joinedAgents';
+	import { listAssignableAgents } from '$lib/agent/assignableAgents';
 	import { parseFields, parseSchema, parseSettings, parseTags, formatItemRef, itemUrlId, type ItemIndexRow } from '$lib/types';
 	import ItemPicker from './ItemPicker.svelte';
 	import QuickActionsMenu from '$lib/components/common/QuickActionsMenu.svelte';
@@ -419,6 +427,8 @@
 		| { user_id: string; user_name: string; user_email: string; role: string }[]
 		| null = null;
 	let cachedMembersWs: string | null = null;
+	// The joined agents (SPEC-15, TASK-20), fetched and cached with the members.
+	let cachedAgents: WorkspaceAgent[] | null = null;
 	let cachedRoles: AgentRole[] | null = null;
 	let cachedRolesWs: string | null = null;
 
@@ -612,9 +622,10 @@
 				adoptCollection(fresh, collGen);
 			}
 			const search = typeof window !== 'undefined' ? window.location.search : '';
+			// was noScroll alone: kit 3 has no scroll-only option (TASK-3423)
 			goto(`/${username}/${ws}/${target}/${itemRef}${search}`, {
 				replaceState: true,
-				noScroll: true,
+				reset: false,
 			}).catch(() => {
 				// A failed/cancelled navigation must not leave the override
 				// bridging to a URL we never reached. Identity compare (this
@@ -839,6 +850,18 @@
 	 */
 	const linksRetry = createLinksRetry((target) => retryLinks(target));
 	let workspaceMembers = $state<{ user_id: string; user_name: string; user_email: string; role: string }[]>([]);
+	// Agents that joined through a link (SPEC-15, TASK-20): assignable as their
+	// bot user, offered apart from the people.
+	let workspaceAgents = $state<WorkspaceAgent[]>([]);
+	let assignees = $derived(
+		assigneeGroups(workspaceMembers, workspaceAgents, {
+			user_id: item?.assigned_user_id,
+			user_name: item?.assigned_user_name,
+		})
+	);
+	let assignedToAgent = $derived(
+		!!item?.assigned_user_id && assignees.agents.some((a) => a.user_id === item!.assigned_user_id)
+	);
 	// The History tab's feed, mirrored out of a HEADLESS <ItemTimeline> that
 	// fetches only HISTORY_KINDS (PLAN-2348 U3). The comments <ItemTimeline>
 	// on Details fetches only comments. They were one feed (IDEA-2843), and a
@@ -958,7 +981,7 @@
 		}
 		const has = page.url.searchParams.get('graph') === '1';
 		if (has === open) return;
-		const url = new URL(page.url);
+		const url = new URL(page.url.href);
 		if (open) url.searchParams.set('graph', '1');
 		else url.searchParams.delete('graph');
 		// This same-page toggle can PRESERVE an open pane's `?item=` (on the
@@ -966,7 +989,7 @@
 		// keep the pane depth+ownership stamp intact — a bare replaceState would
 		// blank it and desync the close arithmetic (PLAN-2154 R13). A no-op when
 		// there's no pane state to carry.
-		goto(url, { replaceState: true, noScroll: true, keepFocus: true, state: page.state });
+		goto(url, { replaceState: true, reset: false, state: page.state });
 	}
 	function openGraph() {
 		setGraphParam(true);
@@ -1472,9 +1495,10 @@
 							to: event.new_slug,
 						};
 						const search = typeof window !== 'undefined' ? window.location.search : '';
+						// was noScroll alone: kit 3 has no scroll-only option (TASK-3423)
 						void goto(`/${username}/${wsSlug}/${event.new_slug}/${itemSlug}${search}`, {
 							replaceState: true,
-							noScroll: true,
+							reset: false,
 						});
 					}
 				}
@@ -2353,14 +2377,22 @@
 			// a newer load started.
 			if (cachedMembersWs === wsSlug && cachedMembers) {
 				workspaceMembers = cachedMembers;
+				workspaceAgents = cachedAgents ?? [];
 			} else {
 				try {
-					const membersData = await api.members.list(wsSlug);
+					// listAssignableAgents never rejects, so an agents failure
+					// costs only the agents, never the members.
+					const [membersData, agentsData] = await Promise.all([
+						api.members.list(wsSlug),
+						listAssignableAgents(wsSlug),
+					]);
 					if (myGen !== loadGeneration) return;
 					workspaceMembers = membersData.members ?? [];
+					workspaceAgents = agentsData;
 					cachedMembers = workspaceMembers;
+					cachedAgents = agentsData;
 					cachedMembersWs = wsSlug;
-				} catch { if (myGen !== loadGeneration) return; workspaceMembers = []; }
+				} catch { if (myGen !== loadGeneration) return; workspaceMembers = []; workspaceAgents = []; }
 			}
 			if (cachedRolesWs === wsSlug && cachedRoles) {
 				agentRoles = cachedRoles;
@@ -3385,7 +3417,8 @@
 	$effect(() => {
 		if (pendingNewItemEdit && item && canEdit && !loading) {
 			pendingNewItemEdit = false;
-			goto(`/${username}/${wsSlug}/${collSlug}/${itemSlug}`, { replaceState: true, noScroll: true });
+			// was noScroll alone: kit 3 has no scroll-only option (TASK-3423)
+			goto(`/${username}/${wsSlug}/${collSlug}/${itemSlug}`, { replaceState: true, reset: false });
 			startEditTitle();
 		}
 	});
@@ -6503,7 +6536,7 @@
 				onclick={() => onClose?.()}
 				title="Close pane"
 				aria-label="Close pane"
-			>✕</button>
+			><Icon icon={MultiplicationSignIcon} /></button>
 		</div>
 	</header>
 {/if}
@@ -6544,7 +6577,7 @@
 						<a href="/{username}/{wsSlug}/{item.parent_collection_slug}/{item.parent_slug}">{item.parent_ref || item.parent_title}</a>
 						<span class="sep">/</span>
 					{:else}
-						<a href="/{username}/{wsSlug}/{effectiveCollSlug}">{collection.icon} {collection.name}</a>
+						<a href="/{username}/{wsSlug}/{effectiveCollSlug}"><Icon icon={collection.icon} /> {collection.name}</a>
 						<span class="sep">/</span>
 					{/if}
 					<span class="current">{formatItemRef(item) || item.title}</span>
@@ -6621,7 +6654,7 @@
 						onclick={() => onClose?.()}
 						title="Close pane"
 						aria-label="Close pane"
-					>✕</button>
+					><Icon icon={MultiplicationSignIcon} /></button>
 				</div>
 			</header>
 			<!-- Structural parent breadcrumb (PLAN-2154 Architecture C / D3,
@@ -6802,14 +6835,14 @@
 						disabled={refreshing}
 						onclick={refreshFromSource}
 					>
-						<span class="source-chip-icon" aria-hidden="true">🌐</span>
+						<span class="source-chip-icon" aria-hidden="true"><Icon icon={Globe02Icon} /></span>
 						<span class="source-chip-label">
 							{refreshing ? 'Refreshing…' : 'Refresh from source'}
 						</span>
 					</button>
 				{:else}
 					<span class="source-chip source-chip-readonly" title={fields.pad_source_url}>
-						<span class="source-chip-icon" aria-hidden="true">🌐</span>
+						<span class="source-chip-icon" aria-hidden="true"><Icon icon={Globe02Icon} /></span>
 						<span class="source-chip-label">Imported from URL</span>
 					</span>
 				{/if}
@@ -6826,8 +6859,14 @@
 
 		<!-- Meta info -->
 		<div class="meta-info">
-			<span title={new Date(item.created_at).toLocaleString()}>Created {relativeTime(item.created_at)} by {item.created_by || 'unknown'}</span>
-			{#if item.via_app_name}
+			{#if item.created_by === 'agent' && item.via_app_name}
+				<!-- TASK-3980: an app's bot wrote this; name the app, not the
+				     generic "agent" that created_by stores. -->
+				<span title={new Date(item.created_at).toLocaleString()}>Created {relativeTime(item.created_at)} by <bdi title={viaAppTitle(item.via_app_name)}>{item.via_app_name}</bdi></span>
+			{:else}
+				<span title={new Date(item.created_at).toLocaleString()}>Created {relativeTime(item.created_at)} by {item.created_by || 'unknown'}</span>
+			{/if}
+			{#if item.via_app_name && item.created_by !== 'agent'}
 				<!-- SPEC-6 U9c: the app the item was created through; a quiet
 				     secondary label, never a second author. -->
 				<span class="meta-via-app" title={viaAppTitle(item.via_app_name)}>via <bdi>{item.via_app_name}</bdi></span>
@@ -6835,7 +6874,7 @@
 			<span class="meta-sep">·</span>
 			<span title={new Date(item.updated_at).toLocaleString()}>Updated {relativeTime(item.updated_at)}</span>
 			<span class="save-status" class:saving={saveStatus === 'saving'} class:saved={saveStatus === 'saved'} class:visible={saveStatus !== 'idle'}>
-				{#if saveStatus === 'saving'}Saving...{:else}✓ Saved{/if}
+				{#if saveStatus === 'saving'}Saving...{:else}<Icon icon={Tick02Icon} /> Saved{/if}
 			</span>
 			{#if collabProvider}
 				<!-- Pending-sync indicator (TASK-1264). Visible only while
@@ -7014,7 +7053,7 @@
 					aria-label="Jump to Children — {childDone} of {childTotal} done"
 					onclick={() => jumpToSection('relationships', 'item-children')}
 				>
-					🌳 {childDone}/{childTotal}
+					<Icon icon={Tree06Icon} /> {childDone}/{childTotal}
 				</button>
 			{/if}
 			{#if backlinksCount > 0}
@@ -7033,7 +7072,7 @@
 					title="Mentioned in {backlinksCount} other item{backlinksCount === 1 ? '' : 's'}"
 					onclick={() => jumpToSection('relationships', 'item-backlinks')}
 				>
-					📎 {backlinksCount}
+					<Icon icon={Attachment01Icon} /> {backlinksCount}
 				</button>
 			{/if}
 			<!-- Pane ⋯ overflow (PLAN-2290 Phase 4 PR B): graph / move / share /
@@ -7070,7 +7109,7 @@
 				>
 					{#if paneMenuView === 'root'}
 						{#if graphFocusRef}
-							<MenuItem icon="🕸" onclick={() => { paneMenuOpen = false; openGraph(); }}>
+							<MenuItem icon={HierarchySquare01Icon} onclick={() => { paneMenuOpen = false; openGraph(); }}>
 								Dependency graph
 							</MenuItem>
 						{/if}
@@ -7122,7 +7161,7 @@
 							     'delete' sub-view of THIS panel (PLAN-2326 DR-6), so
 							     the menu stays open and Menu's focusKey hands focus
 							     to the sub-view's first row. -->
-							<MenuItem icon="🗑" danger hint="›" onclick={() => (paneMenuView = 'delete')}>
+							<MenuItem icon={Delete02Icon} danger hint="›" onclick={() => (paneMenuView = 'delete')}>
 								Delete…
 							</MenuItem>
 						{/if}
@@ -7168,7 +7207,7 @@
 						<MenuItem icon="‹" onclick={() => (paneMenuView = 'root')}>Cancel</MenuItem>
 						<div class="menu-divider" role="separator"></div>
 						<MenuItem
-							icon="🗑"
+							icon={Delete02Icon}
 							danger
 							describedBy="delete-confirm-note-{uid}"
 							disabled={deleting || !canEdit}
@@ -7340,10 +7379,10 @@
 				</div>
 
 				<!-- Assignment: user + role -->
-				{#if workspaceMembers.length > 0 || agentRoles.length > 0}
+				{#if workspaceMembers.length > 0 || workspaceAgents.length > 0 || agentRoles.length > 0}
 					<div class="fields-header" style="margin-top: var(--space-4)">Assignment</div>
 				{/if}
-				{#if workspaceMembers.length > 0}
+				{#if workspaceMembers.length > 0 || workspaceAgents.length > 0}
 					<div class="field-row">
 						<span class="field-label">Assigned to</span>
 						<div class="field-value">
@@ -7357,17 +7396,38 @@
 									}}
 								>
 									<option value="">Unassigned</option>
-									{#each workspaceMembers as member (member.user_id)}
-										<option value={member.user_id}>{member.user_name}</option>
-									{/each}
+									{#if assignees.other}
+										<option value={assignees.other.user_id}>{assignees.other.name}</option>
+									{/if}
+									{#snippet peopleOptions()}
+										{#each assignees.people as member (member.user_id)}
+											<option value={member.user_id}>{member.name}</option>
+										{/each}
+									{/snippet}
+									<!-- People are listed as they always were; only when agents
+									     joined (SPEC-15, TASK-20) do the two get their own groups. -->
+									{#if assignees.agents.length > 0}
+										<optgroup label="People">{@render peopleOptions()}</optgroup>
+										<optgroup label="Agents">
+											{#each assignees.agents as agent (agent.user_id)}
+												<option value={agent.user_id}>{agent.name} (agent)</option>
+											{/each}
+										</optgroup>
+									{:else}
+										{@render peopleOptions()}
+									{/if}
 								</select>
+								{#if assignedToAgent}
+									<span class="assignment-agent" title="Assigned to an agent"><Icon icon={BotIcon} /></span>
+								{/if}
 							{:else}
 								<!-- Read-only display (PLAN-1100 / TASK-1105). Assignment
 								     mutations go through api.items.update which is
 								     server-gated on edit permission. -->
 								<span class="assignment-readonly">
 									{#if item?.assigned_user_id}
-										{workspaceMembers.find(m => m.user_id === item!.assigned_user_id)?.user_name ?? '—'}
+										{#if assignedToAgent}<Icon icon={BotIcon} />{/if}
+										{assigneeName(assignees, item.assigned_user_id) ?? '—'}
 									{:else}
 										Unassigned
 									{/if}
@@ -7391,7 +7451,7 @@
 								>
 									<option value="">No role</option>
 									{#each agentRoles as role (role.id)}
-										<option value={role.id}>{role.icon ? role.icon + ' ' : ''}{role.name}</option>
+										<option value={role.id}>{role.name}</option>
 									{/each}
 								</select>
 							{:else}
@@ -8256,8 +8316,8 @@
 		></div>
 		<aside class="graph-drawer" aria-label="Dependency graph">
 			<header class="graph-drawer-header">
-				<span class="graph-drawer-title">🕸 {graphFocusRef} — dependency graph</span>
-				<button class="action-btn" onclick={closeGraph}>Close ✕</button>
+				<span class="graph-drawer-title"><Icon icon={HierarchySquare01Icon} /> {graphFocusRef} — dependency graph</span>
+				<button class="action-btn" onclick={closeGraph}>Close <Icon icon={MultiplicationSignIcon} /></button>
 			</header>
 			<div class="graph-drawer-body">
 				{#if graphLoadError}
@@ -9043,6 +9103,10 @@
 	}
 	.assignment-select:hover {
 		border-color: var(--accent-blue);
+	}
+	.assignment-agent {
+		margin-left: var(--space-1);
+		color: var(--text-secondary);
 	}
 	.assignment-select:focus {
 		outline: 2px solid var(--accent-blue);

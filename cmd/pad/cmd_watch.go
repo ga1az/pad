@@ -70,7 +70,17 @@ type watchStreamPayload struct {
 	Summary   string `json:"summary"`
 	// PushID is set on a push (TASK-3585). A re-publish of the same push
 	// (a retry after a server crash) carries the same id; seenPushes drops it.
-	PushID string `json:"push_id,omitempty"`
+	PushID         string `json:"push_id,omitempty"`
+	ConversationID string `json:"conversation_id,omitempty"`
+	Conversation   int    `json:"conversation,omitempty"`
+	MessageID      string `json:"message_id,omitempty"`
+	MessageSeq     int64  `json:"message_seq,omitempty"`
+	ReplyToSeq     *int64 `json:"reply_to_seq,omitempty"`
+	Excerpt        string `json:"excerpt,omitempty"`
+	AuthorAgentKey string `json:"author_agent_key,omitempty"`
+	AuthorIsHuman  bool   `json:"author_is_human,omitempty"`
+	TargetAgentKey string `json:"target_agent_key,omitempty"`
+	Deleted        bool   `json:"deleted,omitempty"`
 }
 
 // recentSet remembers ids for a bounded time and count, so the monitor can
@@ -241,6 +251,24 @@ pad watch --stream --for-session
     stream may have missed notifications it cannot replay: after that line,
     re-check watched items rather than assuming nothing changed.
 
+    Chat replies append a reference and server-supplied quote excerpt after
+    the body (and its truncation pointer); missing/deleted quotes are omitted.
+    After chat identity first resolves, ensures the owner-agent DM once per
+    monitor process in the background, using the presence agent key. No agent
+    name skips it; existing DMs are uncharged. Only 429 retries, waiting
+    Retry-After (defaulting to 120s when the server gives no usable value),
+    with at most three attempts. Success is silent; a final failure writes
+    one stderr line and delivery continues.
+
+    Every chat line is also appended, byte for byte, to
+    ~/.pad/chat-seen/<harness pid>.log (0600), so the person at the agent's
+    terminal can see it: the Claude Code plugin shows it above the prompt,
+    and any other harness can tail the file. The pid is PAD_SESSION_PID,
+    else CLAUDE_PID; with neither set, or with one that is not a pid,
+    there is no log, and the first chat line writes one stderr line saying
+    so. The log holds 256 KiB, then moves
+    to <pid>.log.1; pad session prune removes both with the session.
+
     Silent on startup in three cases, and silence does not distinguish
     them: no workspace linked (retries hourly), padd unreachable
     (backoff from 5s, capped at 5min), and the server refusing the
@@ -257,6 +285,10 @@ pad watch --stream --for-session
 				if len(args) > 0 {
 					return fmt.Errorf("--stream --for-session does not take a ref argument")
 				}
+				// BUG-4066: the relative data-dir warning never reaches the
+				// plugin monitor; this process is read by a machine, line by
+				// line, and every other pad command still warns the human.
+				config.SetRelativeDataDirWarningSink(func(string) {})
 				return runWatchMonitor(cmd.Context())
 			}
 			if len(args) != 1 {
@@ -397,6 +429,8 @@ func monitorClient() (*cli.Client, error) {
 //     for exactly which conditions this folds into "unreachable" rather
 //     than treating as fatal.
 //   - a matching event → exactly one stdout line, formatMonitorLine.
+//   - after chat identity resolves, a background owner-agent DM ensure runs
+//     once per process; success is silent, final failure is one stderr line.
 //
 // Runs until ctx is cancelled (Ctrl+C / SIGTERM) or, on the initial
 // call from Cobra's cmd.Context(), forever. The .pad.toml check and
@@ -408,24 +442,15 @@ func monitorClient() (*cli.Client, error) {
 // presence registry (PLAN-2558 S2, TASK-2560): the working directory's
 // basename as a human-readable label, plus this process's own pid.
 //
-// WHY NOT READ ~/.pad/sessions/. When this slice shipped (S2), the
-// registry was keyed on the dead `pad session register` command pid and
-// the only fields to match on were pid and cwd — two agent sessions in
-// one checkout were indistinguishable, and picking "the newest" would
-// have put a wrong-but-confident name in the S5 target picker. TASK-2767
-// fixed the registry: it is now keyed on the harness session pid
-// (CLAUDE_PID) and records the messaging socket's identity, so a monitor
-// COULD find its own record exactly (same CLAUDE_CODE_MESSAGING_SOCKET).
-// It still does not, by ruling: the agent name reaching the server is
-// IDEA-2750 part 2b, a wire change with its own review (the server would
-// then carry a self-declared label per stream, and the picker would show
-// it), and until that lands the label stays what the monitor can never
-// be wrong about — its own cwd and pid.
+// Label and PID describe this monitor directly. Agent name and worker id
+// travel separately through the client's X-Pad-Agent and X-Pad-Worker headers;
+// presence carries both, and the worker id stays stable across /clear.
+// The messaging socket's path and identity remain local.
 //
 // Failures are silent by construction: os.Getwd can fail (a deleted
 // cwd), and the answer is an unlabelled session, not a dead monitor.
-// This whole file's contract is "print nothing, keep running" (see
-// runWatchMonitor's doc comment).
+// Identity-label failures keep the monitor silent and running (see
+// runWatchMonitor's doc comment for the separate DM-ensure diagnostic).
 func monitorSessionIdentity() cli.StreamSessionIdentity {
 	ident := cli.StreamSessionIdentity{PID: os.Getpid()}
 	if cwd, err := os.Getwd(); err == nil {
@@ -453,6 +478,7 @@ func monitorSessionIdentity() cli.StreamSessionIdentity {
 	// (Codex R1 S3 HIGH-1) rather than lingering until a natural reconnect
 	// that an idle SSE connection might never have.
 	ident.Armed = cli.ResolveAnnouncedArmed()
+	ident.Chat = ident.Armed
 	return ident
 }
 
@@ -470,6 +496,13 @@ func runWatchMonitor(ctx context.Context) error {
 
 	var lastEventID string
 	attempt := 0
+	chat := newMonitorChat(nil, seenChat)
+	// TASK-4071: chat lines also go to ~/.pad/chat-seen/<harness-pid>.log
+	// for the human at this agent's terminal. Disabled, with one stderr
+	// line, when there is no harness pid to key it by.
+	owner, ownerErr := cli.CaptureSessionOwner()
+	chat.seen = cli.OpenChatSeen(owner, ownerErr, os.Stderr)
+	ensureDM := newMonitorEnsureDM(os.Stderr)
 
 	for {
 		if sigCtx.Err() != nil {
@@ -538,6 +571,23 @@ func runWatchMonitor(ctx context.Context) error {
 		}()
 
 		req, err := client.NewWatchEventsStreamRequest(streamCtx, lastEventID, monitorSessionIdentity())
+		if err == nil {
+			// Keep chat closed until its identity is known; pushes still
+			// flow. A failed lookup can retry on the next chat reference.
+			chat.sink = nil
+			chat.resolveIdentity = func(ctx context.Context) (monitorChatIdentity, chatSink) {
+				user, identityErr := client.GetCurrentUserContext(ctx)
+				if identityErr != nil || user.ID == "" {
+					return monitorChatIdentity{}, nil
+				}
+				ensureDM.start(sigCtx, req.Header.Get("X-Pad-Agent"), func(ctx context.Context, agent string) error {
+					_, err := client.EnsureChatDMContext(ctx, agent)
+					return err
+				})
+				baseURL := req.URL.Scheme + "://" + req.URL.Host + strings.TrimSuffix(req.URL.EscapedPath(), "/api/v1/events/stream")
+				return monitorChatIdentity{baseURL, user.ID}, httpChatSink{client: client}
+			}
+		}
 		if err != nil {
 			cancelStream()
 			attempt++
@@ -576,7 +626,7 @@ func runWatchMonitor(ctx context.Context) error {
 
 		attempt = 0 // connected — reset backoff for the NEXT disconnect
 
-		lastEventID = streamWatchEvents(resp, lastEventID)
+		lastEventID = chat.stream(os.Stdout, resp, lastEventID)
 		resp.Body.Close()
 		cancelStream()
 
@@ -629,9 +679,10 @@ func runWatchMonitor(ctx context.Context) error {
 // too large to replay, stop trying.
 //
 // It is also delivered MID-STREAM since BUG-2730, on a connection that never
-// dropped. Clearing the cursor is this PROCESS's whole response there too —
-// this loop keeps the connection open and the next notification starts a
-// fresh coverage span — so a growing cause list costs it no request.
+// dropped. This loop clears the cursor and chat floors. Each conversation
+// refetches its own server marker on its next event; local delivery and printed
+// ids survive. /me/chat/unread supplies only the unread pointer.
+// The connection stays open and the next notification starts a fresh coverage span.
 //
 // It is NOT the consumer's whole response: whoever reads stdout has to be
 // told it may have missed something, so each sync_required also prints
@@ -642,7 +693,16 @@ func streamWatchEvents(resp *http.Response, lastEventID string) string {
 	return streamWatchEventsTo(os.Stdout, resp, lastEventID)
 }
 
-func streamWatchEventsTo(w io.Writer, resp *http.Response, lastEventID string) string {
+func streamWatchEventsTo(w io.Writer, resp *http.Response, lastEventID string, sinks ...chatSink) string {
+	var sink chatSink
+	if len(sinks) > 0 {
+		sink = sinks[0]
+	}
+	return newMonitorChat(sink, seenChat).stream(w, resp, lastEventID)
+}
+
+func (chat *monitorChat) stream(w io.Writer, resp *http.Response, lastEventID string) string {
+	chat.resync(w)
 	scanner := bufio.NewScanner(resp.Body)
 	var eventType, data string
 	resyncAnnounced := false
@@ -671,14 +731,22 @@ func streamWatchEventsTo(w io.Writer, resp *http.Response, lastEventID string) s
 				}
 				if data != "" {
 					var payload watchStreamPayload
-					if err := json.Unmarshal([]byte(data), &payload); err == nil &&
-						(payload.PushID == "" || !seenPushes.seen(payload.PushID)) {
+					if err := json.Unmarshal([]byte(data), &payload); err == nil {
+						if payload.Kind == "chat" {
+							chat.handle(w, payload)
+							resyncAnnounced = false
+							break
+						}
+						if payload.PushID != "" && seenPushes.seen(payload.PushID) {
+							break
+						}
 						fmt.Fprintln(w, formatMonitorLine(payload))
 						resyncAnnounced = false
 					}
 				}
 			case "sync_required":
 				lastEventID = ""
+				chat.resync(w)
 				if !resyncAnnounced {
 					// The same consent gate a notification takes: a disarmed
 					// session is told nothing, including this.

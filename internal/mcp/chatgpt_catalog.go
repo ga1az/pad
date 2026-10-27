@@ -289,6 +289,16 @@ var ChatGPTCatalog = []ChatGPTTool{
 		Hints:       ChatGPTHints{ReadOnly: true},
 	},
 	{
+		// TASK-4035: a pass-through of the same GET, so the handler's
+		// visibility applies. It reads only: marking caught up is web-only.
+		Name:        "catch_up",
+		Description: "Show your own catch-up digest: what needs you, and what others did since you last marked the workspace caught up. Never marks it.",
+		Source:      ChatGPTSource{"pad_project", "catch-up"},
+		Params:      []string{chatGPTWorkspaceParam},
+		Required:    []string{chatGPTWorkspaceParam},
+		Hints:       ChatGPTHints{ReadOnly: true},
+	},
+	{
 		Name:        "list_playbooks",
 		Description: "List a workspace's playbooks: reusable step-by-step procedures the team has written down.",
 		Source:      ChatGPTSource{"pad_playbook", "list"},
@@ -309,6 +319,12 @@ var ChatGPTCatalog = []ChatGPTTool{
 // ChatGPTExclusions are the /mcp operations deliberately not on the ChatGPT
 // surface, each with its reason (TASK-3321 U1-T, lead-ruled).
 var ChatGPTExclusions = map[ChatGPTSource]string{
+	{"pad_chat", "list"}:                "agent chat is not on the ChatGPT surface",
+	{"pad_chat", "inbox"}:               "agent chat is not on the ChatGPT surface",
+	{"pad_chat", "show"}:                "agent chat is not on the ChatGPT surface",
+	{"pad_chat", "send"}:                "agent chat is not on the ChatGPT surface",
+	{"pad_chat", "delete"}:              "agent chat is not on the ChatGPT surface",
+	{"pad_chat", "read"}:                "agent chat is not on the ChatGPT surface",
 	{Tool: chatGPTSetWorkspaceSource}:   "on this shared server it persists no session workspace, so it would only duplicate get_workspace_overview, the connect step",
 	{"pad_item", "bulk-update"}:         "batch overwrite with a large blast radius and little chat value",
 	{"pad_item", "move"}:                "drops fields the target collection does not declare; confusing in chat",

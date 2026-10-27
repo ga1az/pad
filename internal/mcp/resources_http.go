@@ -167,8 +167,19 @@ func (f *HTTPResourceFetcher) fetchItemList(ctx context.Context, user *models.Us
 	// readItems asks for one row past the cap (BUG-3793), as the CLI's
 	// --limit does on stdio.
 	limit := itemListResourceLimit
-	if n, err := strconv.Atoi(flags["limit"]); err == nil && n > 0 {
-		limit = n
+	// BUG-4065 (Q2): a malformed flag is refused, never defaulted. Atoi used to
+	// read "1.5" or "abc" as absent. The flag is plain decimal or nothing, as
+	// for a string parameter; zero or a negative still means the default.
+	// Today resources.go always writes it with strconv.Itoa, so this guards a
+	// future vector, not a caller-controlled value.
+	if s, set := flags["limit"]; set {
+		n, err := decimalIntString(s)
+		if err != nil {
+			return "", fmt.Errorf("item list: limit %w", err)
+		}
+		if n > 0 {
+			limit = int(n)
+		}
 	}
 	q.Set("limit", strconv.Itoa(limit))
 	if _, all := flags["all"]; !all {
@@ -218,8 +229,9 @@ func (f *HTTPResourceFetcher) fetchWorkspaceList(ctx context.Context, user *mode
 	// Honor the OAuth token's consent allow-list: the /api/v1/workspaces
 	// handler returns every membership, so — unlike per-workspace routes —
 	// nothing scopes it to the workspaces the token was granted. Filter here
-	// with the canonical set builder (nil/wildcard → no filter, so PAT auth
-	// and local stdio are unaffected; a specific allow-list → intersect) so
+	// with the canonical set builder (nil/wildcard → no filter, so an
+	// unpinned PAT and local stdio are unaffected, while a pinned PAT carries
+	// the one-slug list, BUG-3982; a specific allow-list → intersect) so
 	// this resource can't enumerate the slugs of workspaces the user never
 	// consented to expose.
 	allowSet := server.TokenAllowedWorkspaceSet(ctx)

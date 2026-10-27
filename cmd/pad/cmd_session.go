@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"text/tabwriter"
@@ -13,6 +15,7 @@ import (
 
 	"github.com/PerpetualSoftware/pad/internal/cli"
 	"github.com/PerpetualSoftware/pad/internal/config"
+	"github.com/PerpetualSoftware/pad/internal/models"
 )
 
 // sessionCmd groups the local session-registry verbs (register / list /
@@ -26,6 +29,7 @@ func sessionCmd() *cobra.Command {
 	}
 	cmd.AddCommand(
 		sessionRegisterCmd(),
+		sessionActivityCmd(),
 		sessionListCmd(),
 		sessionPruneCmd(),
 		sessionArmCmd(),
@@ -104,8 +108,8 @@ var errNotArmed = fmt.Errorf("not armed")
 
 // sessionRegisterCmd records the CURRENT session in the local session
 // registry (~/.pad/sessions/<session_pid>.json — see
-// internal/cli/session_registry.go). The plugin monitor runs it on start;
-// other harnesses call it from their own session-start hook.
+// internal/cli/session_registry.go). The plugin runs it on the session's
+// first use of Pad (TASK-3970); other harnesses call it from their own hook.
 func sessionRegisterCmd() *cobra.Command {
 	var agent string
 	cmd := &cobra.Command{
@@ -167,7 +171,8 @@ prune').`,
 // one row per registered session with a liveness verdict. Deterministic
 // and local: it stats sockets and probes pids, it does not ask the server.
 // By default shows sessions that are alive or unknown (a platform that
-// cannot probe); --all adds the dead ones a prune would remove.
+// cannot probe, or an owner in another PID or mount namespace — BUG-4090); --all
+// adds the dead ones a prune would remove.
 func sessionListCmd() *cobra.Command {
 	var (
 		agentFilter string
@@ -187,7 +192,10 @@ signal the record carries — its messaging socket, its owner pid, and the
 identity captured for each at registration where the platform supplies
 one — still checks out; "dead" means one is gone or has been reused by
 something else; "unknown" means one could not be examined (a platform
-that cannot probe pids, a socket that cannot be stat'ed). A legacy row
+that cannot probe pids, a socket that cannot be stat'ed, or an owner that
+this version registered in a different PID or mount namespace from this
+reader's, such as a host session read from inside a sandbox or container;
+a row registered before this version may still read dead there). A legacy row
 (registered before sessions carried an agent name) is judged by its pid
 alone: it can say a session exists but not who it is, and it matches no
 --agent filter.
@@ -327,7 +335,8 @@ func printableCell(s string) string {
 
 // sessionPruneCmd is `pad session prune` (TASK-2767): removes the records
 // of dead sessions. Alive records are never touched. Unknown ones — a
-// platform that cannot probe pids, or a malformed file — are removed only
+// platform that cannot probe pids, an owner in another PID or mount namespace
+// (BUG-4090), or a malformed file — are removed only
 // under an explicit --older-than bound, because "cannot tell" is not
 // "dead" and deleting on it would empty a live registry on such a platform.
 func sessionPruneCmd() *cobra.Command {
@@ -336,11 +345,14 @@ func sessionPruneCmd() *cobra.Command {
 		Use:     "prune",
 		Short:   "Remove dead sessions' records from the local session registry",
 		Example: `  pad session prune --older-than 72h`,
-		Long: `Deletes registry records whose session is dead. Never deletes a record
-it can see is alive.
+		Long: `Deletes registry records whose session is dead, with each one's chat-seen
+log (~/.pad/chat-seen/<pid>.log and .log.1). Never deletes a record it can
+see is alive.
 
 Records whose liveness is unknown (this platform cannot probe the owner,
-or the file is malformed) are kept unless --older-than is given, in which
+this version registered the owner in a different PID or mount namespace
+from this reader's, or the file is malformed) are kept unless --older-than
+is given, in which
 case those older than the bound are deleted too — live or not, since
 unknown means exactly that; it is the only way such a registry ever
 shrinks, and an explicit choice for that reason.
@@ -397,6 +409,10 @@ and only armed sessions receive pushes (the consent gate). Run
 'pad session disarm' to withdraw consent, or 'pad session status' to see
 the current state.
 
+Re-running 'pad session arm' creates a new arm generation and ends chat
+direction. To accept chat instructions again, the user must re-run
+'pad chat arm --accept-instructions'.
+
 Arming is per-session and transient. To opt a whole REPOSITORY in without
 arming each session by hand, set 'push.auto_arm = true' under a [push]
 table in the repo's .pad.toml (a deliberate, committed choice).
@@ -426,7 +442,7 @@ command exits non-zero.`,
 				})
 			}
 			if state == cli.LocalArmUnverifiable {
-				fmt.Println("NOT armed: this session cannot be verified on this platform, so a local arm cannot take effect.")
+				fmt.Println("NOT armed: this session cannot be verified from here (this platform, or another namespace), so a local arm cannot take effect.")
 				fmt.Println("Use 'push.auto_arm = true' in the repo's .pad.toml instead; 'pad session reset' removes the file just written.")
 				return nil
 			}
@@ -437,6 +453,8 @@ command exits non-zero.`,
 		},
 	}
 }
+
+var clearSessionChatDirection = cli.ClearChatDirection
 
 // sessionDisarmCmd is `pad session disarm` (PLAN-2613 S3, TASK-2618): the
 // withdrawal verb. It writes a session-scoped explicit-OFF marker (NOT a
@@ -470,6 +488,7 @@ disarm is kept for the directory until 'pad session reset'.
 Idempotent.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			clearErr := clearSessionChatDirection()
 			path, err := cli.WriteDisarmState()
 			if err != nil {
 				return err
@@ -478,6 +497,9 @@ Idempotent.`,
 			// auto_arm is deciding again (BUG-3227). Refuse loudly.
 			if _, err := cli.VerifyArmStateHeld(); err != nil {
 				return err
+			}
+			if clearErr != nil {
+				return fmt.Errorf("session disarmed; %w", clearErr)
 			}
 			// Whether auto_arm would otherwise re-arm THIS session tells the
 			// user if the disarm actually changed anything visible.
@@ -494,7 +516,7 @@ Idempotent.`,
 			if cli.SessionArmState() == cli.LocalArmUnverifiable {
 				// The file is kept rather than reaped (BUG-2771), so here the
 				// disarm outlives the session: say so and name the way out.
-				fmt.Println("(This session cannot be verified on this platform, so the disarm stays in force for this directory until 'pad session reset'.)")
+				fmt.Println("(This session cannot be verified from here (this platform, or another namespace), so the disarm stays in force for this directory until 'pad session reset'.)")
 			} else if autoArm {
 				fmt.Println("(This repo has push.auto_arm=true; a NEW session will arm again. Remove it from .pad.toml to stop that.)")
 			}
@@ -524,9 +546,13 @@ session, and stays in force for the directory until reset.
 Idempotent.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			clearErr := clearSessionChatDirection()
 			removed, path, err := cli.RemoveArmState()
 			if err != nil {
 				return err
+			}
+			if clearErr != nil {
+				return fmt.Errorf("session reset; %w", clearErr)
 			}
 			if formatFlag == "json" {
 				return cli.PrintJSON(map[string]any{
@@ -547,13 +573,14 @@ Idempotent.`,
 // sessionStatusJSON is the JSON shape of `pad session status` (a stable
 // contract S4's composer and other tooling can read).
 type sessionStatusJSON struct {
-	Workspace string `json:"workspace,omitempty"`
+	ChatDirection bool   `json:"chat_direction"`
+	Workspace     string `json:"workspace,omitempty"`
 	// LocalState is THIS session's tri-state local override (PLAN-2613 S3):
 	// "armed" (explicit `pad session arm`), "disarmed" (explicit `pad
 	// session disarm`, which beats auto_arm for this session), "none"
 	// (no live override — auto_arm decides), "error" (a file that cannot
 	// be read — fails closed), or "unverifiable" (a file whose session
-	// cannot be verified on this platform — fails closed and is kept until
+	// cannot be verified from here (this platform, or another namespace) — fails closed and is kept until
 	// `pad session reset`, BUG-2771). It reflects intent on this machine,
 	// not server state.
 	LocalState string `json:"local_state"`
@@ -600,6 +627,7 @@ func sessionStatusCmd() *cobra.Command {
 			localState := cli.SessionArmState()
 
 			st := sessionStatusJSON{
+				ChatDirection:      cli.ChatDirectionOn(),
 				LocalState:         localArmStateString(localState),
 				LocalArmed:         localState == cli.LocalArmOn,
 				AutoArm:            decision.Armed,
@@ -709,9 +737,10 @@ func printSessionStatus(st sessionStatusJSON) {
 	case "error":
 		local = "unreadable local state — failing closed (run pad session arm to reset)"
 	case "unverifiable":
-		local = "cannot verify this session on this platform — failing closed; local arm/disarm cannot take effect here (use .pad.toml push.auto_arm; pad session reset clears this file)"
+		local = "cannot verify this session from here (this platform, or another namespace) — failing closed; local arm/disarm cannot take effect here (use .pad.toml push.auto_arm; pad session reset clears this file)"
 	}
 	fmt.Fprintf(tw, "Local state:\t%s\n", local)
+	fmt.Fprintf(tw, "Chat direction:\t%t\n", st.ChatDirection)
 
 	auto := "off"
 	switch {
@@ -742,4 +771,136 @@ func printSessionStatus(st sessionStatusJSON) {
 		fmt.Fprintf(tw, "Server sees:\t(unreachable — session counts unknown)\n")
 	}
 	tw.Flush()
+}
+
+const sessionActivityDefaultResolutionTimeout = 500 * time.Millisecond
+
+var sessionActivityTimeout = models.SessionActivityReportBound
+var sessionActivityResolutionTimeout = sessionActivityDefaultResolutionTimeout
+
+var sessionActivityBody = reportSessionActivity
+var sessionActivitySpawn = spawnSessionActivity
+var sessionActivityResolveIdentity = func() (agent, worker string) {
+	// Match synchronous requests, including their best-effort handling of
+	// registry and configuration errors.
+	return cli.ResolveAgentName(), cli.ResolveWorkerID()
+}
+
+func reportSessionActivity(ctx context.Context, state, at, agent, worker string) {
+	// Avoid getClient/getConfiguredConfig: they can start a server, prompt,
+	// or exit nonzero. Hooks silently tolerate configuration failures too.
+	cfg, err := config.Load()
+	if err != nil {
+		return
+	}
+	if urlFlag != "" {
+		cfg.URL = urlFlag
+		cfg.LoadedFromFlags = true
+	}
+	applyPadTomlOverride(cfg)
+	// The child no longer has the harness in its ancestry. Never resolve its
+	// identity again, even when the parent passed empty values.
+	client := cli.NewClientFromURLWithAgentName(cfg.BaseURL(), agent)
+	if !models.ValidWorkerID(worker) {
+		worker = ""
+	}
+	_ = client.SetWorkerID(worker)
+	_ = client.SetSessionActivity(ctx, state, at)
+}
+
+func spawnSessionActivity(state, at, agent, worker string) error {
+	executable, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	null, err := os.OpenFile(os.DevNull, os.O_RDWR, 0)
+	if err != nil {
+		return err
+	}
+	defer null.Close()
+	args := []string{"session", "activity", state, "--detached-at", at,
+		"--detached-agent", agent, "--detached-worker", worker}
+	if urlFlag != "" {
+		args = append(args, "--url", urlFlag)
+	}
+	cmd := exec.Command(executable, args...)
+	cmd.SysProcAttr = sessionActivityProcessAttrs()
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = null, null, null
+	// A nil Env inherits credentials; identity is passed explicitly above.
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	// Never Wait: even an unreachable server must not delay the hook parent.
+	return cmd.Process.Release()
+}
+
+// sessionActivityCmd is hook plumbing: no prompting, server startup or output.
+// A missed activity update must never fail a Claude Code hook.
+func sessionActivityCmd() *cobra.Command {
+	var detachedAt, detachedAgent, detachedWorker string
+	cmd := &cobra.Command{
+		Use:           "activity <busy|idle>",
+		Short:         "Report this worker's activity (best effort, for hooks)",
+		Example:       "  pad session activity busy\n  pad session activity idle",
+		Args:          cobra.ArbitraryArgs,
+		SilenceErrors: true,
+		SilenceUsage:  true,
+		// Override the root's --format validation: this hook has no formatted
+		// output, and even an invalid format must not fail a Claude Code hook.
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
+		Run: func(cmd *cobra.Command, args []string) {
+			at := time.Now().UTC().Format(time.RFC3339Nano)
+			if len(args) != 1 || (args[0] != "busy" && args[0] != "idle") {
+				return
+			}
+			if !cmd.Flags().Changed("detached-at") {
+				// Resolve while the harness is still our ancestor, under a separate
+				// short deadline. If local resolution blocks, spawn without identity
+				// rather than block the prompt; the child must not try again.
+				ctx, cancel := context.WithTimeout(cmd.Context(), sessionActivityResolutionTimeout)
+				defer cancel()
+				type identity struct{ agent, worker string }
+				resolved := make(chan identity, 1)
+				resolve := sessionActivityResolveIdentity
+				go func() {
+					agent, worker := resolve()
+					resolved <- identity{agent, worker}
+				}()
+				var id identity
+				select {
+				case id = <-resolved:
+				case <-ctx.Done():
+				}
+				_ = sessionActivitySpawn(args[0], at, id.agent, id.worker)
+				return
+			}
+			if _, err := time.Parse(time.RFC3339Nano, detachedAt); err != nil {
+				return
+			}
+			ctx, cancel := context.WithTimeout(cmd.Context(), sessionActivityTimeout)
+			defer cancel()
+			done := make(chan struct{})
+			go func() {
+				sessionActivityBody(ctx, args[0], detachedAt, detachedAgent, detachedWorker)
+				close(done)
+			}()
+			// Configuration and credentials can block before
+			// HTTP starts. Return even if the body cannot observe cancellation;
+			// the background child then exits, releasing any process-held locks.
+			select {
+			case <-done:
+			case <-ctx.Done():
+			}
+		},
+	}
+	cmd.Flags().StringVar(&detachedAt, "detached-at", "", "Send a previously timestamped activity report in this process")
+	_ = cmd.Flags().MarkHidden("detached-at")
+	cmd.Flags().StringVar(&detachedAgent, "detached-agent", "", "Previously resolved agent name")
+	_ = cmd.Flags().MarkHidden("detached-agent")
+	cmd.Flags().StringVar(&detachedWorker, "detached-worker", "", "Previously resolved worker id")
+	_ = cmd.Flags().MarkHidden("detached-worker")
+	// Flag parsing precedes Run too. Swallow its errors here so the root's
+	// flag-error handler cannot print usage or make the hook exit nonzero.
+	cmd.SetFlagErrorFunc(func(cmd *cobra.Command, err error) error { return nil })
+	return cmd
 }

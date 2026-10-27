@@ -1,9 +1,11 @@
 <script lang="ts">
+	import { Search01Icon } from '@hugeicons/core-free-icons';
+	import Icon from '$lib/icons/Icon.svelte';
 	import { untrack, tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/api/client';
 	import { uniqueBy } from '$lib/utils/unique';
-	import { statusColor } from '$lib/utils/fieldColors';
+	import { priorityColor, statusColor } from '$lib/utils/fieldColors';
 	import { workspaceStore } from '$lib/stores/workspace.svelte';
 	import { collectionStore } from '$lib/stores/collections.svelte';
 	import { categoricalValueFor } from '$lib/collections/categoricalFieldValue';
@@ -924,13 +926,10 @@
 
 	// statusColor imported from $lib/utils/fieldColors (canonical palette).
 
+	// The dot's color for a known priority, or '' for none (no dot).
 	function priorityDot(priority: string): string {
 		const p = priority?.toLowerCase();
-		if (p === 'critical') return '\u{1F534}';
-		if (p === 'high') return '\u{1F7E0}';
-		if (p === 'medium') return '\u{1F7E1}';
-		if (p === 'low') return '\u26AA';
-		return '';
+		return p === 'critical' || p === 'high' || p === 'medium' || p === 'low' ? priorityColor(p) : '';
 	}
 
 	// Recent searches persistence
@@ -1117,7 +1116,7 @@
 									class:active={filterCollection === slug}
 									onclick={() => applyFilter('collection', slug)}
 								>
-									<span class="chip-icon">{coll?.icon || '📦'}</span>
+									<span class="chip-icon"><Icon icon={coll?.icon || '📦'} /></span>
 									<span class="chip-label">{coll?.name || slug}</span>
 									<span class="chip-count">{count}</span>
 								</button>
@@ -1153,7 +1152,7 @@
 								class="filter-chip active"
 								onclick={() => applyFilter('collection', filterCollection!)}
 							>
-								<span class="chip-icon">{coll?.icon || '📦'}</span>
+								<span class="chip-icon"><Icon icon={coll?.icon || '📦'} /></span>
 								<span class="chip-label">{coll?.name || filterCollection}</span>
 							</button>
 						{/if}
@@ -1192,7 +1191,7 @@
 						{#each Object.entries(groupedResults) as [slug, group] (slug)}
 							<div class="result-group" role="group" aria-label={group.name}>
 								<div class="group-header" aria-hidden="true">
-									<span class="group-icon">{group.icon}</span>
+									<span class="group-icon"><Icon icon={group.icon} /></span>
 									<span class="group-name">{group.name}</span>
 									<span class="group-count">{group.results.length}</span>
 								</div>
@@ -1210,7 +1209,7 @@
 									>
 										<div class="result-main">
 											<span class="result-icon"
-												>{r.item.collection_icon || '📦'}</span
+												><Icon icon={r.item.collection_icon || '📦'} /></span
 											>
 											{#if meta.ref}
 												<span class="result-ref">{meta.ref}</span>
@@ -1220,7 +1219,7 @@
 												{@const dot = priorityDot(meta.priority)}
 												{#if dot}
 													<span class="result-priority" title={meta.priority}
-														>{dot}</span
+														><span class="priority-dot" style:background={dot}></span></span
 													>
 												{/if}
 											{/if}
@@ -1263,7 +1262,7 @@
 							>
 								<div class="result-main">
 									<span class="result-icon"
-										>{r.item.collection_icon || '📦'}</span
+										><Icon icon={r.item.collection_icon || '📦'} /></span
 									>
 									{#if meta.ref}
 										<span class="result-ref">{meta.ref}</span>
@@ -1273,7 +1272,7 @@
 										{@const dot = priorityDot(meta.priority)}
 										{#if dot}
 											<span class="result-priority" title={meta.priority}
-												>{dot}</span
+												><span class="priority-dot" style:background={dot}></span></span
 											>
 										{/if}
 									{/if}
@@ -1341,7 +1340,7 @@
 					{#if contentLoading || contentResults.length > 0}
 						<div class="result-group content-group" role="listbox" id={CONTENT_LISTBOX_ID} aria-label="Matches in content">
 							<div class="group-header" aria-hidden="true">
-								<span class="group-icon">🔎</span>
+								<span class="group-icon"><Icon icon={Search01Icon} /></span>
 								<span class="group-name">Matches in content</span>
 								{#if searchAllWorkspaces}
 									<!--
@@ -1371,7 +1370,7 @@
 									onclick={() => selectResult(r)}
 								>
 									<div class="result-main">
-										<span class="result-icon">{r.item.collection_icon || '📦'}</span>
+										<span class="result-icon"><Icon icon={r.item.collection_icon || '📦'} /></span>
 										{#if meta.ref}
 											<span class="result-ref">{meta.ref}</span>
 										{/if}
@@ -1379,7 +1378,7 @@
 										{#if meta.priority}
 											{@const dot = priorityDot(meta.priority)}
 											{#if dot}
-												<span class="result-priority" title={meta.priority}>{dot}</span>
+												<span class="result-priority" title={meta.priority}><span class="priority-dot" style:background={dot}></span></span>
 											{/if}
 										{/if}
 										{#if meta.status}
@@ -1756,6 +1755,12 @@
 		font-size: 0.8em;
 		flex-shrink: 0;
 		line-height: 1;
+	}
+	.priority-dot {
+		display: inline-block;
+		width: 0.6em;
+		height: 0.6em;
+		border-radius: 50%;
 	}
 	.result-status {
 		font-size: 0.7em;

@@ -32,16 +32,18 @@ var bcryptCost = 12
 const userColumns = `id, email, username, name, password_hash, role, avatar_url, totp_secret, totp_enabled, recovery_codes, plan, plan_expires_at, plan_source, stripe_customer_id, plan_overrides, oauth_providers, password_set, disabled_at, email_verified_at, last_active_at, last_write_at, created_at, updated_at, credential_epoch, kind`
 
 // scanUser scans a user row into a User struct.
-// Note: does NOT decrypt the TOTP secret — call store.decryptUserTOTP() after
-// scanning if you need the plaintext secret for validation.
+// The TOTP secret column is read and discarded: the User struct does not carry
+// it, so no ordinary read can fail on a secret that will not decrypt. The one
+// door that needs the plaintext is TOTPSecretForVerify (BUG-4019).
 func scanUser(row interface{ Scan(...interface{}) error }) (*models.User, error) {
 	var u models.User
 	var createdAt, updatedAt string
 
 	var disabledAt, emailVerifiedAt, lastActiveAt, lastWriteAt sql.NullString
+	var totpSecretUnused string
 	err := row.Scan(
 		&u.ID, &u.Email, &u.Username, &u.Name, &u.PasswordHash, &u.Role, &u.AvatarURL,
-		&u.TOTPSecret, &u.TOTPEnabled, &u.RecoveryCodes,
+		&totpSecretUnused, &u.TOTPEnabled, &u.RecoveryCodes,
 		&u.Plan, &u.PlanExpiresAt, &u.PlanSource, &u.StripeCustomerID, &u.PlanOverrides, &u.OAuthProviders,
 		&u.PasswordSet,
 		&disabledAt, &emailVerifiedAt, &lastActiveAt, &lastWriteAt, &createdAt, &updatedAt,
@@ -71,17 +73,39 @@ func scanUser(row interface{ Scan(...interface{}) error }) (*models.User, error)
 	return &u, nil
 }
 
-// decryptUserTOTP decrypts the TOTP secret on a User struct in place.
-func (s *Store) decryptUserTOTP(u *models.User) error {
-	if u == nil || u.TOTPSecret == "" {
-		return nil
+// ErrNoTOTPSecret is TOTPSecretForVerify's answer when there is nothing to
+// verify a code against: no such user, 2FA not enabled, or an empty secret.
+// An empty secret must never verify, because a code is computable from "".
+var ErrNoTOTPSecret = errors.New("no TOTP secret to verify against")
+
+// TOTPSecretForVerify returns the plaintext TOTP secret of a user whose 2FA is
+// enabled, for the second-factor check and nothing else. It is the only reader
+// that returns the plaintext (EnableTOTP and ConsumeTOTPStep decrypt the column
+// only to compare it), so a secret that will not decrypt (an operator key
+// change) fails this check alone, not every read of the user row (BUG-4019).
+// A decrypt failure is a wrapped error (the caller fails closed); no row, 2FA
+// off or an empty secret is ErrNoTOTPSecret.
+func (s *Store) TOTPSecretForVerify(userID string) (string, error) {
+	var stored string
+	err := s.db.QueryRow(s.q(`SELECT totp_secret FROM users WHERE id = ? AND totp_enabled = ?`),
+		userID, s.dialect.BoolToInt(true)).Scan(&stored)
+	if err == sql.ErrNoRows {
+		return "", ErrNoTOTPSecret
 	}
-	decrypted, err := s.decrypt(u.TOTPSecret)
 	if err != nil {
-		return fmt.Errorf("decrypt user TOTP: %w", err)
+		return "", fmt.Errorf("totp secret for verify: read: %w", err)
 	}
-	u.TOTPSecret = decrypted
-	return nil
+	if stored == "" {
+		return "", ErrNoTOTPSecret
+	}
+	decrypted, err := s.decrypt(stored)
+	if err != nil {
+		return "", fmt.Errorf("totp secret for verify: decrypt: %w", err)
+	}
+	if decrypted == "" {
+		return "", ErrNoTOTPSecret
+	}
+	return decrypted, nil
 }
 
 // ErrReservedAppEmail refuses a person's account, invitation or bootstrap at
@@ -138,9 +162,6 @@ func (s *Store) GetUserQ(q Queryer, id string) (*models.User, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get user: %w", err)
 	}
-	if err := s.decryptUserTOTP(u); err != nil {
-		return nil, err
-	}
 	return u, nil
 }
 
@@ -150,9 +171,6 @@ func (s *Store) GetUserByEmail(email string) (*models.User, error) {
 		strings.ToLower(strings.TrimSpace(email))))
 	if err != nil {
 		return nil, fmt.Errorf("get user by email: %w", err)
-	}
-	if err := s.decryptUserTOTP(u); err != nil {
-		return nil, err
 	}
 	return u, nil
 }
@@ -166,9 +184,6 @@ func (s *Store) GetUserByUsername(username string) (*models.User, error) {
 	u, err := scanUser(s.db.QueryRow(s.q(`SELECT `+userColumns+` FROM users WHERE LOWER(username) = ?`), username))
 	if err != nil {
 		return nil, fmt.Errorf("get user by username: %w", err)
-	}
-	if err := s.decryptUserTOTP(u); err != nil {
-		return nil, err
 	}
 	return u, nil
 }
@@ -308,7 +323,6 @@ func (s *Store) ListUsers() ([]models.User, error) {
 		if err != nil {
 			return nil, fmt.Errorf("scan user: %w", err)
 		}
-		_ = s.decryptUserTOTP(u) // Best-effort decrypt for list (TOTP secret is json:"-" anyway)
 		result = append(result, *u)
 	}
 	return result, rows.Err()
@@ -537,9 +551,10 @@ func (s *Store) SearchUsers(params AdminUserSearchParams) (*AdminUserSearchResul
 		var disabledAt, emailVerifiedAt, lastActiveAt, lastWriteAt sql.NullString
 		var workspaceCount int
 		var storageBytes int64
+		var totpSecretUnused string
 		if err := rows.Scan(
 			&entry.ID, &entry.Email, &entry.Username, &entry.Name, &entry.PasswordHash, &entry.Role, &entry.AvatarURL,
-			&entry.TOTPSecret, &entry.TOTPEnabled, &entry.RecoveryCodes,
+			&totpSecretUnused, &entry.TOTPEnabled, &entry.RecoveryCodes,
 			&entry.Plan, &entry.PlanExpiresAt, &entry.PlanSource, &entry.StripeCustomerID, &entry.PlanOverrides, &entry.OAuthProviders,
 			&entry.PasswordSet,
 			&disabledAt, &emailVerifiedAt, &lastActiveAt, &lastWriteAt, &createdAt, &updatedAt,
@@ -565,7 +580,6 @@ func (s *Store) SearchUsers(params AdminUserSearchParams) (*AdminUserSearchResul
 		entry.WorkspaceCount = workspaceCount
 		entry.StorageBytes = storageBytes
 		entry.Status = computeAdminUserStatus(entry.DisabledAt, entry.LastWriteAt, entry.WorkspaceCount)
-		_ = s.decryptUserTOTP(&entry.User)
 		entries = append(entries, entry)
 	}
 	if err := rows.Err(); err != nil {
@@ -1012,16 +1026,32 @@ func (s *Store) TouchUserActivity(ctx context.Context, userID string) {
 // comment authored, attachment uploaded. See handlers_documents.go's
 // logActivityWithMetaReturningID and handlers_attachments.go's upload handler.
 //
+// first reports that this call recorded the user's FIRST write ever
+// (TASK-3926, the funnel's first-write metric). It is decided by a
+// conditional UPDATE on last_write_at IS NULL, so of any number of concurrent
+// first writes exactly one sees a row count of 1, on SQLite and PostgreSQL
+// alike. A failed statement reports false: a missed count, never a double one.
+//
 // Silent no-op on empty userID so callers don't have to guard.
-func (s *Store) TouchUserWrite(ctx context.Context, userID string) {
+func (s *Store) TouchUserWrite(ctx context.Context, userID string) (first bool) {
 	if userID == "" {
-		return
+		return false
 	}
 	ts := now()
+	res, err := s.db.ExecContext(ctx, s.q(`
+		UPDATE users SET last_write_at = ?
+		WHERE id = ? AND last_write_at IS NULL
+	`), ts, userID)
+	if err == nil {
+		if n, nerr := res.RowsAffected(); nerr == nil && n == 1 {
+			return true
+		}
+	}
 	s.db.ExecContext(ctx, s.q(`
 		UPDATE users SET last_write_at = ?
 		WHERE id = ? AND (last_write_at IS NULL OR last_write_at < ?)
 	`), ts, userID, throttleTime(ts))
+	return false
 }
 
 // throttleTime returns a timestamp 5 minutes before the given RFC3339 time string.
@@ -1634,6 +1664,11 @@ func (s *Store) eraseUserTx(tx *sql.Tx, userID string) error {
 		{"delete created share links", "DELETE FROM share_links WHERE created_by = ?"},
 		{"delete mcp audit log", "DELETE FROM mcp_audit_log WHERE user_id = ?"},
 		{"delete oauth connections", "DELETE FROM oauth_connections WHERE user_id = ?"},
+		// Chat (TASK-4038). The FK cascade would remove these with the users
+		// row; deleting them here takes the conversations row lock before
+		// DELETE FROM users, the order a send uses (conversation row first),
+		// so the two cannot cycle. Members and messages cascade off it.
+		{"delete conversations", "DELETE FROM conversations WHERE owner_user_id = ?"},
 	}
 	for _, stmt := range deletes {
 		if err := exec(stmt.what, stmt.query); err != nil {

@@ -269,6 +269,43 @@ type activeBlocker struct {
 	status string
 }
 
+// firstActiveBlockers resolves, for every blocked target in the workspace,
+// the FIRST blocker (newest link first) that the caller can see AND that is
+// still non-done. Presence in the map means the target has an active
+// blocker. One GetBlocksEdges query (BUG-2002). Shared by the dashboard's
+// blocked attention and the catch-up digest's needs_you (TASK-3615), so the
+// two can never disagree about what blocks an item.
+func (s *Server) firstActiveBlockers(r *http.Request, workspaceID string, visibleIDs, fullCollIDs, grantedItemIDs []string, ctxMap map[string]doneContext) (map[string]activeBlocker, error) {
+	blocksEdges, err := s.store.GetBlocksEdges(workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	firstActiveBlocker := make(map[string]activeBlocker)
+	for _, e := range blocksEdges {
+		if _, resolved := firstActiveBlocker[e.TargetID]; resolved {
+			continue // already picked this target's first active blocker
+		}
+		// Skip blockers from hidden collections or ungrantable items — a
+		// blocker the caller can't see must not influence the target.
+		if !isCollectionVisible(e.SourceCollectionID, visibleIDs) {
+			continue
+		}
+		if !s.isItemVisibleToGuest(r, workspaceID, &models.Item{ID: e.SourceID, CollectionID: e.SourceCollectionID}, fullCollIDs, grantedItemIDs) {
+			continue
+		}
+		if isItemDone(e.SourceFields, e.SourceCollectionID, ctxMap) {
+			continue
+		}
+		firstActiveBlocker[e.TargetID] = activeBlocker{
+			title: e.SourceTitle,
+			// Used only in the human-readable "Reason" string — the terminal
+			// check above owns the actual done-detection.
+			status: extractFieldValue(e.SourceFields, "status"),
+		}
+	}
+	return firstActiveBlocker, nil
+}
+
 // buildDoneContextMap builds a map of collection ID → (schema, settings)
 // for quick lookups during dashboard / lineage traversals.
 func buildDoneContextMap(collections []models.Collection) map[string]doneContext {
@@ -837,32 +874,9 @@ func (s *Server) buildDashboardResponse(workspaceID string, r *http.Request) (*D
 	// dashboard latency (BUG-2002). Presence in the map == the target has an
 	// active blocker, which also drives the suggested_next blocked-filter
 	// below.
-	blocksEdges, err := s.store.GetBlocksEdges(workspaceID)
+	firstActiveBlocker, err := s.firstActiveBlockers(r, workspaceID, visibleIDs, dashFullCollIDs, dashGrantedItemIDs, ctxMap)
 	if err != nil {
 		return nil, err
-	}
-	firstActiveBlocker := make(map[string]activeBlocker)
-	for _, e := range blocksEdges {
-		if _, resolved := firstActiveBlocker[e.TargetID]; resolved {
-			continue // already picked this target's first active blocker
-		}
-		// Skip blockers from hidden collections or ungrantable items — a
-		// blocker the caller can't see must not influence the target.
-		if !isCollectionVisible(e.SourceCollectionID, visibleIDs) {
-			continue
-		}
-		if !s.isItemVisibleToGuest(r, workspaceID, &models.Item{ID: e.SourceID, CollectionID: e.SourceCollectionID}, dashFullCollIDs, dashGrantedItemIDs) {
-			continue
-		}
-		if isItemDone(e.SourceFields, e.SourceCollectionID, ctxMap) {
-			continue
-		}
-		firstActiveBlocker[e.TargetID] = activeBlocker{
-			title: e.SourceTitle,
-			// Used only in the human-readable "Reason" string — the terminal
-			// check above owns the actual done-detection.
-			status: extractFieldValue(e.SourceFields, "status"),
-		}
 	}
 	for _, item := range workItems {
 		if isItemDone(item.Fields, item.CollectionID, ctxMap) {
@@ -884,13 +898,16 @@ func (s *Server) buildDashboardResponse(workspaceID string, r *http.Request) (*D
 
 	// (f) Content-aware attention (TASK-3118): the `attention` question
 	// set's latest answers. Nil runner (no provider) => no rows, no section,
-	// byte-identical to before. The dependency graph stays the primary
-	// source for "blocked": the text-derived signal is added only for an
-	// item the graph did not already flag, which also keeps the web's
-	// `${type}:${item_slug}` attention key unique.
-	// Only CURRENT answers at or above the threshold come back — the same
-	// currency rule the item page applies — so the checks below need no
-	// threshold of their own beyond naming which key they read.
+	// byte-identical to before. Only needs_human comes from here: "blocked"
+	// is the dependency graph's alone (section e). The text-derived blocked
+	// flag was retired in TASK-3915 (IDEA-3906; the measurements are on that
+	// idea's trail).
+	// Answers at or above the threshold come back when they are CURRENT (the
+	// item page's currency rule), or when the item has moved on but its
+	// re-ask is still pending: a job owed with no recorded failure, for an
+	// item the set still applies to (TASK-3915). With the re-ask debounced
+	// (TASK-3916) that pending window can last up to an hour. So the checks
+	// below need no threshold of their own beyond naming which key they read.
 	if nouls, failing, nerr := s.decisionRunner().WorkspaceFlags(workspaceID, decision.AttentionSetName, decision.AttentionThreshold); nerr != nil {
 		markDegraded("attention.decisions", nerr)
 	} else {
@@ -914,19 +931,6 @@ func (s *Server) buildDashboardResponse(workspaceID string, r *http.Request) (*D
 						ItemTitle:  item.Title,
 						Collection: item.CollectionSlug,
 						Reason:     "Waiting on a human decision (" + attentionPercent(p) + " likely)",
-					})
-				}
-				if _, graphBlocked := firstActiveBlocker[item.ID]; graphBlocked {
-					continue
-				}
-				if p, ok := answers[decision.AttentionBlocked]; ok {
-					resp.Attention = append(resp.Attention, DashboardAttention{
-						Type:       "blocked",
-						ItemSlug:   item.Slug,
-						ItemRef:    item.Ref,
-						ItemTitle:  item.Title,
-						Collection: item.CollectionSlug,
-						Reason:     "Its text says it is blocked (" + attentionPercent(p) + " likely)",
 					})
 				}
 			}

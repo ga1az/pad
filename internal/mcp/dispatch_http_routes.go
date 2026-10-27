@@ -6,9 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -49,6 +52,16 @@ type routeSpec struct {
 	// from "only set --flag if it has a value."
 	queryParams map[string]string
 
+	// numericQuery lists the INPUT keys among queryParams' values that are
+	// integers (the catalog declares them "number"). buildQuery reads them
+	// through numericInput, so a bool, an object or a string that is not a
+	// plain decimal integer is refused naming the key; the server would
+	// otherwise Atoi it, fail and silently use its default (BUG-4065 r1, lead
+	// ruling 5a06782e). TestBUG4065_NoRouteForwardsANonNumberForANumberParam
+	// walks every route against the catalog so a new numeric key cannot be
+	// left off.
+	numericQuery []string
+
 	// bodyKeys lists input keys that pass through into a flat JSON
 	// body. Empty-string values are omitted (matches the CLI's
 	// "only-when-set" semantic). For nested or transformed bodies use
@@ -61,13 +74,18 @@ func (s routeSpec) toRouteMapper() RouteMapper {
 	method := s.method
 	template := s.pathTemplate
 	queryParams := s.queryParams
+	numericQuery := s.numericQuery
 	bodyKeys := s.bodyKeys
 	return func(input map[string]any) (string, string, []byte, error) {
 		path, err := expandPath(template, input)
 		if err != nil {
 			return "", "", nil, err
 		}
-		if q := buildQuery(input, queryParams); q != "" {
+		q, err := buildQuery(input, queryParams, numericQuery...)
+		if err != nil {
+			return "", "", nil, err
+		}
+		if q != "" {
 			path += "?" + q
 		}
 		var body []byte
@@ -133,14 +151,35 @@ func expandPath(template string, input map[string]any) (string, error) {
 // Numbers from JSON arrive as float64; ints with no fractional part
 // emit without the .0. Booleans only emit when true (matching the
 // CLI's "presence-only" treatment).
-func buildQuery(input map[string]any, mapping map[string]string) string {
+//
+// BUG-4061: a number that is not a whole int64 is refused, naming the key.
+// Every numeric query parameter this builds is an integer (limit, offset,
+// days, budget), and the server's parsers read "1.5" as absent and use their
+// default (parseDaysParam, the limit parsers), so forwarding it silently
+// replaced the caller's number exactly as numericInput's truncation did.
+//
+// BUG-4065 r1 (lead ruling 5a06782e): the input keys named in numeric are
+// integers. Each is read through numericInput whatever its type, so "7" and 7
+// both forward 7, and a bool, an object, an array, "7.5" or "abc" is refused
+// naming the key. The server's parsers Atoi these and keep their default on
+// error, so forwarding them verbatim was this bug's silent default. Every
+// other key keeps the switch below: a string verbatim, a bool when true.
+func buildQuery(input map[string]any, mapping map[string]string, numeric ...string) (string, error) {
 	if len(mapping) == 0 {
-		return ""
+		return "", nil
 	}
 	q := url.Values{}
 	for dst, src := range mapping {
 		v, ok := input[src]
 		if !ok || v == nil {
+			continue
+		}
+		if slices.Contains(numeric, src) {
+			n, _, err := numericInput(v)
+			if err != nil {
+				return "", fmt.Errorf("%s %w", src, err)
+			}
+			q.Set(dst, strconv.FormatInt(n, 10))
 			continue
 		}
 		switch x := v.(type) {
@@ -152,26 +191,31 @@ func buildQuery(input map[string]any, mapping map[string]string) string {
 			if x {
 				q.Set(dst, "true")
 			}
-		case float64:
-			// Cheap int detection — JSON parser gives every number as
-			// float64, but CLI flags in cmdhelp can be "int" type so
-			// most callers pass whole numbers. Emit without the
-			// trailing ".0" so the wire format matches the CLI.
-			if x == float64(int64(x)) {
-				q.Set(dst, strconv.FormatInt(int64(x), 10))
-			} else {
-				q.Set(dst, strconv.FormatFloat(x, 'f', -1, 64))
+		case float64, json.Number,
+			int, int8, int16, int32, int64,
+			uint, uint8, uint16, uint32, uint64:
+			// BUG-4065: the native integers share numericInput's checks, so a
+			// uint64 above MaxInt64 is refused, not forwarded for the server
+			// to default. float32 stays on formatNumber below (unreachable).
+			n, _, err := numericInput(x)
+			if err != nil {
+				return "", fmt.Errorf("%s %w", src, err)
 			}
-		case json.Number:
-			q.Set(dst, x.String())
+			q.Set(dst, strconv.FormatInt(n, 10))
 		default:
-			q.Set(dst, fmt.Sprint(v))
+			// BUG-4056 r1: float32 shares formatNumber (the integer types moved
+			// to the case above in BUG-4065).
+			if number, ok := formatNumber(v); ok {
+				q.Set(dst, number)
+			} else {
+				q.Set(dst, fmt.Sprint(v))
+			}
 		}
 	}
 	if len(q) == 0 {
-		return ""
+		return "", nil
 	}
-	return q.Encode()
+	return q.Encode(), nil
 }
 
 // flatJSONBody serializes selected input keys into a JSON object.
@@ -207,6 +251,8 @@ func flatJSONBody(input map[string]any, keys []string) ([]byte, error) {
 // produce a clear "not yet implemented over HTTP transport" error.
 func init() {
 	routeTable = map[string]RouteMapper{
+		"chat list":  routeSpec{method: http.MethodGet, pathTemplate: "/api/v1/me/conversations"}.toRouteMapper(),
+		"chat inbox": routeSpec{method: http.MethodGet, pathTemplate: "/api/v1/me/chat/unread", queryParams: map[string]string{"agent": "agent"}}.toRouteMapper(),
 		// --- Item CRUD-ish ---
 		"item create": mapItemCreate,
 		"item show": routeSpec{
@@ -219,6 +265,7 @@ func init() {
 			method:       http.MethodGet,
 			pathTemplate: "/api/v1/workspaces/{workspace}/items/{ref}/context",
 			queryParams:  map[string]string{"intent": "intent", "role": "role", "budget": "budget"},
+			numericQuery: []string{"budget"},
 		}.toRouteMapper(),
 		"item delete": routeSpec{
 			method:       http.MethodDelete,
@@ -279,6 +326,7 @@ func init() {
 			method:       http.MethodGet,
 			pathTemplate: "/api/v1/workspaces/{workspace}/items/{ref}/backlinks",
 			queryParams:  map[string]string{"limit": "limit", "offset": "offset"},
+			numericQuery: []string{"limit", "offset"},
 		}.toRouteMapper(),
 
 		// --- Read-only workspace surfaces ---
@@ -297,6 +345,15 @@ func init() {
 			queryParams:  map[string]string{"window": "window", "collections": "collections"},
 		}.toRouteMapper(),
 
+		// `project catch-up` (TASK-4035) — the caller's own digest. A plain
+		// GET with no params: the endpoint never writes, and the cursor
+		// moves only through PUT /me/seen, which no route here maps
+		// (ruling 380aa793).
+		"project catch-up": routeSpec{
+			method:       http.MethodGet,
+			pathTemplate: "/api/v1/workspaces/{workspace}/catch-up",
+		}.toRouteMapper(),
+
 		// `project activity` (TASK-2018) — non-streaming, bounded
 		// snapshot of the enriched workspace activity feed. The endpoint
 		// applies the limit + actor + since filters server-side, so all
@@ -306,6 +363,7 @@ func init() {
 			method:       http.MethodGet,
 			pathTemplate: "/api/v1/workspaces/{workspace}/activity",
 			queryParams:  map[string]string{"limit": "limit", "actor": "actor", "since": "since"},
+			numericQuery: []string{"limit"},
 		}.toRouteMapper(),
 
 		// `pad bootstrap` shells out to `pad_meta.action=bootstrap` and
@@ -429,11 +487,9 @@ func init() {
 		// takes ttl_seconds. `item release` fits the declarative shape.
 		"item claim": mapItemClaim,
 		// PLAN-3578: content-anchored patch writes.
-		"item patch": routeSpec{
-			method:       http.MethodPost,
-			pathTemplate: "/api/v1/workspaces/{workspace}/items/{ref}/patch",
-			bodyKeys:     []string{"edits", "expected_seq", "undo", "op_key"},
-		}.toRouteMapper(),
+		// BUG-4065 (Q9): validates expected_seq and each edit's line_hint
+		// before forwarding; see mapItemPatch.
+		"item patch": mapItemPatch,
 		"item release": routeSpec{
 			method:       http.MethodPost,
 			pathTemplate: "/api/v1/workspaces/{workspace}/items/{ref}/release",
@@ -788,7 +844,11 @@ func mapItemStarred(input map[string]any) (string, string, []byte, error) {
 		q.Set("include_terminal", "true")
 	}
 	// actionItemStarred always sets it, one past the MCP cap (BUG-3790).
-	if n, ok := numericInput(input["limit"]); ok && int(n) > 0 {
+	n, ok, err := intParam(input, "limit")
+	if err != nil {
+		return "", "", nil, err
+	}
+	if ok && int(n) > 0 {
 		q.Set("limit", strconv.Itoa(int(n)))
 	}
 	urlPath := "/api/v1/workspaces/" + url.PathEscape(workspace) + "/starred"
@@ -796,6 +856,80 @@ func mapItemStarred(input map[string]any) (string, string, []byte, error) {
 		urlPath += "?" + q.Encode()
 	}
 	return http.MethodGet, urlPath, nil, nil
+}
+
+// itemPatchRoute is the declarative half of `item patch` (PLAN-3578).
+var itemPatchRoute = routeSpec{
+	method:       http.MethodPost,
+	pathTemplate: "/api/v1/workspaces/{workspace}/items/{ref}/patch",
+	bodyKeys:     []string{"edits", "expected_seq", "undo", "op_key"},
+}.toRouteMapper()
+
+// mapItemPatch is itemPatchRoute with its two numeric inputs validated here
+// (BUG-4065, folded from BUG-4061's Q9, lead ruling 63360424). They used to be
+// forwarded raw, so a fraction or a non-number answered the server decode's
+// 400 bad_request rather than validation_failed naming the field. A string
+// expected_seq gets numericInput's rule here, as on update, so "123" is a
+// guarded write. Each edit's line_hint is checked the same way; an edit that
+// is not an object is left for the server to refuse, since its shape is the
+// server's to define. The caller's input map is not modified.
+func mapItemPatch(input map[string]any) (string, string, []byte, error) {
+	in := make(map[string]any, len(input))
+	for k, v := range input {
+		in[k] = v
+	}
+	seq, ok, err := itemExpectedSeqParam(input)
+	if err != nil {
+		return "", "", nil, err
+	}
+	if ok {
+		in["expected_seq"] = seq
+	}
+	if edits, isList := input["edits"].([]any); isList {
+		out, err := editsWithLineHints(edits)
+		if err != nil {
+			return "", "", nil, err
+		}
+		in["edits"] = out
+	}
+	return itemPatchRoute(in)
+}
+
+// editsWithLineHints returns a copy of a patch's edits with each object edit's
+// line_hint read through intParam (numericInput's rule) and replaced by its
+// int64. A refusal names the edit, e.g. `line_hint must be a whole number, got
+// the string "010" (in edits[0])`. An edit that is not an object is left as it
+// is, for the server or the CLI to refuse, since its shape is theirs to
+// define; a null line_hint is absent and left as it is. Neither edits nor any
+// edit in it is modified: a changed edit is a copy.
+//
+// Both transports call it (BUG-4082): remote's mapItemPatch, where the loop
+// was inline (BUG-4065), and stdio's patch action, which used to forward edits
+// to the CLI unread, so a string hint was refused there where remote coerced
+// it, and a JSON number of 2^53 or more, already rounded by the decoder,
+// reached bodypatch as a line number.
+func editsWithLineHints(edits []any) ([]any, error) {
+	out := make([]any, len(edits))
+	for i, e := range edits {
+		out[i] = e
+		edit, isObj := e.(map[string]any)
+		if !isObj {
+			continue
+		}
+		hint, present, err := intParam(edit, "line_hint")
+		if err != nil {
+			return nil, fmt.Errorf("%w (in edits[%d])", err, i)
+		}
+		if present {
+			copied := make(map[string]any, len(edit))
+			for k, v := range edit {
+				copied[k] = v
+			}
+			copied["line_hint"] = hint
+			out[i] = copied
+		}
+	}
+	return out, nil
 }
 
 // mapItemClaim dispatches `pad item claim <ref> [--holder] [--ttl]`.
@@ -897,11 +1031,14 @@ func mapCollectionUpdate(input map[string]any) (string, string, []byte, error) {
 			payload[key] = s
 		}
 	}
-	if v, ok := input["sort_order"]; ok && v != nil {
-		// JSON numbers arrive as float64; CollectionUpdate.SortOrder
-		// is *int, but encoding/json on the receiving side coerces
-		// fine since the field's tag is plain integer.
-		payload["sort_order"] = v
+	// BUG-4065 (Q4): validated here, so a fraction, a string that is not a
+	// plain integer or any other type answers validation_failed naming
+	// sort_order, not the server decode's 400 bad_request. CollectionUpdate.
+	// SortOrder is *int; the whole int64 is forwarded.
+	if so, ok, err := intParam(input, "sort_order"); err != nil {
+		return "", "", nil, err
+	} else if ok {
+		payload["sort_order"] = so
 	}
 	// schema vs fields: the catalog advertises both forms as mutually
 	// exclusive (matching `pad collection create`/`update`). The CLI
@@ -1000,8 +1137,11 @@ func mapRoleUpdate(input map[string]any) (string, string, []byte, error) {
 			payload["slug"] = s
 		}
 	}
-	if v, ok := input["sort_order"]; ok && v != nil {
-		payload["sort_order"] = v
+	// BUG-4065 (Q4): validated here, as in mapCollectionUpdate.
+	if so, ok, err := intParam(input, "sort_order"); err != nil {
+		return "", "", nil, err
+	} else if ok {
+		payload["sort_order"] = so
 	}
 
 	body, err := json.Marshal(payload)
@@ -1185,11 +1325,19 @@ func mapWorkspaceAuditLog(input map[string]any) (string, string, []byte, error) 
 	if s, _ := input["actor"].(string); s != "" {
 		q.Set("actor", s)
 	}
-	if n, ok := numericInput(input["days"]); ok && n > 0 {
-		q.Set("days", strconv.FormatInt(n, 10))
+	days, ok, err := intParam(input, "days")
+	if err != nil {
+		return "", "", nil, err
 	}
-	if n, ok := numericInput(input["limit"]); ok && n > 0 {
-		q.Set("limit", strconv.FormatInt(n, 10))
+	if ok && days > 0 {
+		q.Set("days", strconv.FormatInt(days, 10))
+	}
+	limit, ok, err := intParam(input, "limit")
+	if err != nil {
+		return "", "", nil, err
+	}
+	if ok && limit > 0 {
+		q.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	urlPath := "/api/v1/audit-log"
 	if encoded := q.Encode(); encoded != "" {
@@ -1400,11 +1548,19 @@ func mapItemList(input map[string]any) (string, string, []byte, error) {
 	}
 
 	// Numeric filters.
-	if n, ok := numericInput(input["limit"]); ok && n > 0 {
-		values.Set("limit", strconv.FormatInt(n, 10))
+	limit, ok, err := intParam(input, "limit")
+	if err != nil {
+		return "", "", nil, err
 	}
-	if n, ok := numericInput(input["offset"]); ok && n > 0 {
-		values.Set("offset", strconv.FormatInt(n, 10))
+	if ok && limit > 0 {
+		values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	offset, ok, err := intParam(input, "offset")
+	if err != nil {
+		return "", "", nil, err
+	}
+	if ok && offset > 0 {
+		values.Set("offset", strconv.FormatInt(offset, 10))
 	}
 
 	if b, _ := input["all"].(bool); b {
@@ -1595,8 +1751,12 @@ func (d *HTTPHandlerDispatcher) dispatchItemHistory(
 
 	urlPath := "/api/v1/workspaces/" + url.PathEscape(workspace) + "/items/" + url.PathEscape(ref) + "/versions"
 	q := url.Values{}
-	if n, ok := numericInput(input["limit"]); ok && n > 0 {
-		q.Set("limit", strconv.FormatInt(n, 10))
+	limit, ok, err := intParam(input, "limit")
+	if err != nil {
+		return validationFailedResult(cmdKey, err.Error(), "Pass limit as a whole number."), nil
+	}
+	if ok && limit > 0 {
+		q.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	// Ask the server to skip reverse-patch resolution whenever the bodies are
 	// about to be thrown away below. Without this the projection to
@@ -1661,26 +1821,228 @@ func (d *HTTPHandlerDispatcher) dispatchItemHistory(
 
 // numericInput pulls an int64 out of a JSON-typed input value. JSON
 // decoders deliver numbers as float64 (or json.Number when
-// UseNumber()); we accept both. Returns (0, false) for nil or
-// non-numeric inputs so callers can short-circuit.
-func numericInput(v any) (int64, bool) {
+// UseNumber()); we accept both. Returns (0, false, nil) for nil only, so
+// callers can short-circuit on an absent parameter.
+//
+// BUG-4061: a number that is not a whole int64 is REFUSED, never changed.
+// int64(1.5) is 1 and int64(-2.7) is -2, and a float64 outside int64 converts
+// to an implementation-defined value, so the caller's number used to be
+// silently replaced by a different one. A json.Number that does not parse as
+// an int64 used to read as absent, so the parameter was silently dropped.
+// Both are now an error, and callers name the parameter (intParam).
+//
+// BUG-4065: only nil is absent. A value of any other type used to read as
+// absent too, so a string, a bool or an object was silently replaced by the
+// default, and a string expected_seq made the write unguarded. Now:
+//   - every Go integer type is admitted, widened exactly; an unsigned value
+//     above MaxInt64 is refused as out of range;
+//   - a float32 widens exactly to float64 and gets wholeInt64's rules;
+//   - a string is admitted only as a plain decimal integer (decimalIntString),
+//     a form stdio's CLI flags read as the same number (lead ruling af4bff40,
+//     Q1; leading zeros refused per 5a06782e). Strings and float64 are
+//     bounded at |x| < 2^53; the native Go integers keep their int64 range;
+//   - anything else is refused, naming its JSON type.
+func numericInput(v any) (int64, bool, error) {
+	var n int64
+	var err error
 	switch x := v.(type) {
 	case nil:
-		return 0, false
+		return 0, false, nil
 	case float64:
-		return int64(x), true
+		n, err = wholeInt64(x)
+	case float32:
+		n, err = wholeInt64(float64(x))
 	case int:
-		return int64(x), true
+		n = int64(x)
+	case int8:
+		n = int64(x)
+	case int16:
+		n = int64(x)
+	case int32:
+		n = int64(x)
 	case int64:
-		return x, true
+		n = x
+	case uint:
+		n, err = uint64Int64(uint64(x))
+	case uint8:
+		n = int64(x)
+	case uint16:
+		n = int64(x)
+	case uint32:
+		n = int64(x)
+	case uint64:
+		n, err = uint64Int64(x)
+	case uintptr:
+		n, err = uint64Int64(uint64(x))
 	case json.Number:
-		n, err := x.Int64()
-		if err != nil {
-			return 0, false
-		}
-		return n, true
+		n, err = jsonNumberInt64(x)
+	case string:
+		n, err = decimalIntString(x)
+	default:
+		return 0, false, fmt.Errorf("must be a number, got %s", jsonTypeName(v))
 	}
-	return 0, false
+	if err != nil {
+		return 0, false, err
+	}
+	return n, true, nil
+}
+
+// uint64Int64 converts an unsigned value that fits int64 and refuses a larger
+// one, rather than wrapping it negative (BUG-4065, from BUG-4061's Q6 note).
+func uint64Int64(x uint64) (int64, error) {
+	if x > math.MaxInt64 {
+		return 0, fmt.Errorf("is out of range, got %d", x)
+	}
+	return int64(x), nil
+}
+
+// decimalIntString admits a string only when it is a plain decimal integer,
+// ^-?(0|[1-9][0-9]*)$: an optional '-', then "0" or digits with no leading
+// zero, nothing else (no whitespace, no '+', no '.', no exponent, not empty).
+// It is parsed exactly by ParseInt and then gets the float64 path's bound,
+// |x| < 2^53, so a string accepts no value a JSON number would not (lead
+// ruling af4bff40, Q1). A leading zero ("010", "00", "-010") is refused, not
+// read as decimal: stdio's CLI flags parse base 0, so "010" is 8 there, and
+// accepting it here as 10 would make one string two numbers (BUG-4065 r1,
+// lead ruling 5a06782e). "-0" is 0.
+func decimalIntString(s string) (int64, error) {
+	digits := strings.TrimPrefix(s, "-")
+	if digits == "" || strings.TrimLeft(digits, "0123456789") != "" ||
+		(len(digits) > 1 && digits[0] == '0') {
+		return 0, fmt.Errorf("must be a whole number, got the string %q", s)
+	}
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("is out of range, got the string %q", s)
+	}
+	if n >= 1<<53 || n <= -(1<<53) {
+		return 0, fmt.Errorf("is beyond the exact integer range of a JSON number, got the string %q", s)
+	}
+	return n, nil
+}
+
+// jsonTypeName names v's type in the caller's vocabulary (JSON), for a refusal.
+func jsonTypeName(v any) string {
+	switch v.(type) {
+	case bool:
+		return "a boolean"
+	case map[string]any:
+		return "an object"
+	case []any:
+		return "an array"
+	}
+	return fmt.Sprintf("a value of type %T", v)
+}
+
+// jsonNumberInt64 is wholeInt64 for a json.Number. Int64() alone refuses a
+// whole number written with an exponent ("1e6"), so a literal it cannot parse
+// is read EXACTLY as a decimal: a float64 would round 9007199254740993e0 to
+// ...992 and 1.0000000000000001 to 1, changing the caller's number again
+// (BUG-4061 r2). The length and exponent bounds keep a literal like 1e999999999
+// from costing a huge allocation; no int64 needs either to be larger.
+func jsonNumberInt64(x json.Number) (int64, error) {
+	s := x.String()
+	if n, err := x.Int64(); err == nil {
+		return n, nil
+	}
+	// An allow-list, not a deny-list (BUG-4061 r5): big.Rat parses base
+	// prefixes ("0b101" is 5, "0o17" is 15, "0x10" is 16), fractions ("1/2")
+	// and underscores, none of which is a JSON number.
+	if len(s) > 64 || !isDecimalLiteral(s) {
+		return 0, fmt.Errorf("must be a whole number in range, got %s", s)
+	}
+	if i := strings.IndexAny(s, "eE"); i >= 0 {
+		if e, err := strconv.Atoi(s[i+1:]); err != nil || e > 64 || e < -64 {
+			return 0, fmt.Errorf("must be a whole number in range, got %s", s)
+		}
+	}
+	r, ok := new(big.Rat).SetString(s)
+	if !ok || !r.IsInt() {
+		return 0, fmt.Errorf("must be a whole number, got %s", s)
+	}
+	if !r.Num().IsInt64() {
+		return 0, fmt.Errorf("is out of range, got %s", s)
+	}
+	return r.Num().Int64(), nil
+}
+
+// wholeInt64 converts a float64 that is exactly an int64, and refuses any
+// other: a fraction, or a value outside int64. 2^63 itself is out of range
+// (MaxInt64 is 2^63-1, and float64(MaxInt64) rounds up to 2^63). NaN fails
+// the Trunc comparison; ±Inf fails the range check.
+//
+// BUG-4061 r3/r4 (lead ruling on Q3, corrected on r4): a float64 of magnitude
+// 2^53 or more is refused too. The JSON decoder has already rounded such an
+// integer, and 2^53 itself is the rounded image of 2^53+1, so the value cannot
+// prove it is the number the caller sent. The largest accepted float64 is
+// 2^53-1 (the safe-integer bound). A json.Number is parsed exactly instead
+// (jsonNumberInt64) and keeps the int64 range.
+func wholeInt64(x float64) (int64, error) {
+	if x != math.Trunc(x) {
+		return 0, fmt.Errorf("must be a whole number, got %v", x)
+	}
+	if x >= 1<<63 || x < -(1<<63) {
+		return 0, fmt.Errorf("is out of range, got %v", x)
+	}
+	if x >= 1<<53 || x <= -(1<<53) {
+		return 0, fmt.Errorf("is beyond the exact integer range of a JSON number, got %v", x)
+	}
+	return int64(x), nil
+}
+
+// isDecimalLiteral reports whether s is a plain decimal number: an optional
+// sign, digits with at most one '.', and at most one exponent ('e' or 'E',
+// an optional sign, then digits). At least one digit before the exponent.
+func isDecimalLiteral(s string) bool {
+	i := 0
+	if i < len(s) && (s[i] == '+' || s[i] == '-') {
+		i++
+	}
+	digits, dot := 0, false
+	for ; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case c >= '0' && c <= '9':
+			digits++
+		case c == '.' && !dot:
+			dot = true
+		default:
+			goto exponent
+		}
+	}
+exponent:
+	if digits == 0 {
+		return false
+	}
+	if i == len(s) {
+		return true
+	}
+	if s[i] != 'e' && s[i] != 'E' {
+		return false
+	}
+	i++
+	if i < len(s) && (s[i] == '+' || s[i] == '-') {
+		i++
+	}
+	if i == len(s) {
+		return false
+	}
+	for ; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// intParam is numericInput on input[key], with the parameter named in the
+// error (BUG-4061).
+func intParam(input map[string]any, key string) (int64, bool, error) {
+	n, ok, err := numericInput(input[key])
+	if err != nil {
+		return 0, false, fmt.Errorf("%s %w", key, err)
+	}
+	return n, ok, nil
 }
 
 // mapItemMove dispatches `pad item move <ref> <target-collection>`.
@@ -1750,7 +2112,7 @@ func mapItemSearch(input map[string]any) (string, string, []byte, error) {
 	if query == "" {
 		return "", "", nil, fmt.Errorf("query is required")
 	}
-	q := buildQuery(input, map[string]string{
+	q, err := buildQuery(input, map[string]string{
 		"q":          "query",
 		"workspace":  "workspace",
 		"collection": "collection",
@@ -1759,7 +2121,10 @@ func mapItemSearch(input map[string]any) (string, string, []byte, error) {
 		"sort":       "sort",
 		"limit":      "limit",
 		"offset":     "offset",
-	})
+	}, "limit", "offset")
+	if err != nil {
+		return "", "", nil, err
+	}
 	urlPath := "/api/v1/search"
 	if q != "" {
 		urlPath += "?" + q

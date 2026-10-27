@@ -28,7 +28,9 @@ import (
 
 const (
 	// defaultDecisionTickInterval bounds how stale a decision is after a
-	// write: at most one interval plus the provider's latency. Decisions are
+	// write whose job is claimable: at most one interval plus the provider's
+	// latency. A re-ask inside its debounce window (decision.ReaskDebounce,
+	// TASK-3916) waits for the window first. Decisions are
 	// advisory reads, not alarms, so a few seconds is well inside what a
 	// reader would notice, and an idle tick costs one indexed scan of an
 	// empty table.
@@ -76,6 +78,13 @@ type decisionTickConfig struct {
 	// (codex round 1). A cancelled job's claim is released without counting
 	// an attempt, so the new runner picks it up.
 	passCancel context.CancelFunc
+
+	// backfillCancel cancels the running effort backfill (TASK-3921), if any;
+	// backfillGen names the current run so a cancelled run exiting late cannot
+	// clear the state of the one that replaced it. Both live under mu, as the
+	// stopped check and the bg.Add of the run do.
+	backfillCancel context.CancelFunc
+	backfillGen    uint64
 }
 
 // SetDecisionRunner attaches the decision runner and wires its registry into
@@ -177,6 +186,10 @@ func (s *Server) stopDecisionTick() {
 	s.decisionTick.mu.Lock()
 	defer s.decisionTick.mu.Unlock()
 	s.decisionTick.stopped = true
+	if s.decisionTick.backfillCancel != nil {
+		s.decisionTick.backfillCancel()
+		s.decisionTick.backfillCancel = nil
+	}
 	if !s.decisionTick.running {
 		return
 	}

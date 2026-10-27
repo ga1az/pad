@@ -63,6 +63,7 @@ type toolSurfaceToolSummary struct {
 //   - pad_project:    all read (dashboard/next/ready/stale/standup/
 //     changelog/report/activity).
 //   - pad_role:       list read; create/update/delete write.
+//   - pad_chat:       list/inbox read; show/send/delete/read write.
 //   - pad_search:     query read.
 //   - pad_playbook:   list/get read; run is side-effect-free (returns the
 //     body + bound args for the agent to execute) → read; match is a
@@ -71,6 +72,7 @@ type toolSurfaceToolSummary struct {
 //   - pad_attachment: list/show read (metadata only; no upload/download).
 //   - pad_meta:       server-info/version/tool-surface/bootstrap all read.
 var readOnlyActions = map[string]map[string]bool{
+	"pad_chat": {"list": true, "inbox": true},
 	"pad_item": {
 		"reminders":     true,
 		"get":           true,
@@ -108,6 +110,10 @@ var readOnlyActions = map[string]map[string]bool{
 		"changelog": true,
 		"report":    true,
 		"activity":  true,
+		// TASK-4035: a GET digest. Mark caught up (PUT /me/seen) has no
+		// action on purpose (ruling 380aa793); this entry keeps pad_project
+		// read-only on the tool annotation.
+		"catch-up": true,
 	},
 	"pad_role": {
 		"list": true,

@@ -38,6 +38,8 @@ import (
 	"github.com/PerpetualSoftware/pad/internal/events"
 	"github.com/PerpetualSoftware/pad/internal/metrics"
 	"github.com/PerpetualSoftware/pad/internal/models"
+	"github.com/PerpetualSoftware/pad/internal/needs"
+	"github.com/PerpetualSoftware/pad/internal/notify"
 	"github.com/PerpetualSoftware/pad/internal/oauth"
 	"github.com/PerpetualSoftware/pad/internal/store"
 	"github.com/PerpetualSoftware/pad/internal/textguard"
@@ -122,6 +124,14 @@ type Server struct {
 	// deterministic. TestVisibleCollectionIDsFaultIsNilInProduction holds New
 	// to leaving it nil. Same synchronisation rule as afterItemPreRead.
 	visibleCollectionIDsFault func() error
+	// needsScorers are the importance and simplicity scorers GET /me/needs
+	// runs per workspace (TASK-3920). New registers the two real ones
+	// (TASK-3959); tests replace the slice.
+	needsScorers []needs.Scorer
+	// needsMemoLoad is a TEST-ONLY seam, nil in production: the scorers' shared
+	// memo calls it with the name of each batch read it actually performs, so a
+	// test can hold a request to one read of each kind (TASK-3959).
+	needsMemoLoad func(read string)
 	// itemDoorAfterRowsHook is a TEST-ONLY seam, nil in production: the item
 	// doors (/items-index, /items-changes) call it right after their row
 	// query, so a test can commit a write between the rows and the access
@@ -417,6 +427,10 @@ type Server struct {
 	// loop via stopOutboxDrain.
 	outboxDrain outboxDrainConfig
 
+	// pushDispatch holds the push dispatcher's config and lifecycle
+	// (TASK-3939). Stop() signals the loop via stopPushDispatch.
+	pushDispatch pushDispatchConfig
+
 	// reminderTick holds the periodic config + lifecycle for the item-reminder
 	// scheduler (IDEA-2641). Mirrors outboxDrain. Configured via
 	// SetReminderTickConfig + started via StartReminderTick; Stop() signals
@@ -557,6 +571,13 @@ type Server struct {
 	// public exposure should leave it off and use the logs-token path.
 	bypassSetupToken bool
 
+	// pushGatewayURL is PAD_PUSH_GATEWAY_URL (TASK-3938); empty means this
+	// server offers no push. Set once at startup by SetPushGateway.
+	pushGatewayURL string
+	// pushGateway is the client behind pushGatewayURL (TASK-3939); nil when
+	// push is not configured.
+	pushGateway *notify.Gateway
+
 	// restoreAckFault is a TEST SEAM (always nil in production). When non-nil,
 	// handleRestoreItemVersion's collab commit closure invokes it AFTER the restore
 	// transaction has durably committed; a non-nil return simulates a Postgres commit
@@ -585,6 +606,13 @@ type Server struct {
 	// natural trigger, so without the seam the recover that sends it to the
 	// keep door could not be driven by a test.
 	importBundleAfterMintHook func()
+
+	// verificationBeforeInsertHook is a TEST SEAM (always nil in production,
+	// TASK-3617 r1): handleCreateItemVerifications calls it with the attempt
+	// number just before each insert, so a test can move the item between
+	// the criteria read and the write and drive the retry, which has no
+	// natural trigger on SQLite.
+	verificationBeforeInsertHook func(attempt int)
 
 	// importBundleRemapFault is a TEST SEAM (always nil in production,
 	// BUG-3656): when non-nil, importBundle's final reference remap returns
@@ -735,6 +763,7 @@ func (s *Server) Stop() {
 	// SPEC-3 event outbox drain (TASK-2714). Same lifecycle pattern; an
 	// in-flight delivery is tracked on s.bg and awaited below.
 	s.stopOutboxDrain()
+	s.stopPushDispatch()
 	// Item reminder tick (IDEA-2641). Same lifecycle pattern; an in-flight
 	// pass is tracked on s.bg and awaited below.
 	s.stopReminderTick()
@@ -810,13 +839,15 @@ func New(s *store.Store) *Server {
 			"A leaked admin token can then administer the instance; prefer a CLI session (`pad auth login`). " +
 			"Ignored in cloud mode.")
 	}
-	return &Server{
+	srv := &Server{
 		store:                 s,
 		rateLimiters:          rl,
 		storageInfoCache:      newStorageInfoCache(storageInfoTTL),
 		clientWrites:          newClientWriteMarks(),
 		adminAPITokensAllowed: adminTokens,
 	}
+	srv.needsScorers = srv.newNeedsScorers()
+	return srv
 }
 
 // adminAcceptsAPITokens reports whether platform administration accepts an
@@ -1701,6 +1732,9 @@ func (s *Server) setupRouter() {
 	// The installed-app API (SPEC-6 U6a): its own router, outside TokenAuth
 	// and RequireAuth, like the MCP mount above.
 	s.registerAppAPIRoutes(r)
+	// Agents that joined through a link (SPEC-15): /api/agent/v1, outside
+	// TokenAuth like the app router, with its own padagt_ token step.
+	s.registerAgentAPIRoutes(r)
 	s.registerChatGPTMCPRoutes(r)
 
 	// OAuth 2.1 authorization-server flow endpoints (PLAN-943
@@ -1801,6 +1835,7 @@ func (s *Server) setupRouter() {
 		// line. Self-scoped; see handleListSessions on why there is
 		// deliberately no admin view.
 		r.Get("/api/v1/sessions", s.handleListSessions)
+		r.Post("/api/v1/sessions/activity", s.handleSessionActivity)
 
 		// WebSocket endpoint for Yjs-based collaborative editing on a
 		// single item (PLAN-1248). Lives outside jsonContentType for
@@ -2082,6 +2117,17 @@ func (s *Server) setupRouter() {
 			// One-time UI suggestions the caller dismissed (TASK-3452), and
 			// the in-app tutorial catalog, Pad Cloud only (404 self-hosted;
 			// the client links out to getpad.dev/learn). Web client only.
+			// The cross-workspace needs-you inbox (TASK-3920): outside the
+			// /{slug} subrouter, so the handler admits each workspace itself.
+			r.Get("/me/needs", s.handleMeNeeds)
+			// Push device registration (session-only) and the account's push
+			// settings (TASK-3938).
+			r.Put("/me/push-devices/{connection_id}", s.handlePutPushDevice)
+			r.Delete("/me/push-devices/{connection_id}", s.handleDeletePushDevice)
+			r.Get("/me/notification-settings", s.handleGetNotificationSettings)
+			r.Put("/me/notification-settings", s.handlePutNotificationSettings)
+			// What a push's id resolves to (TASK-3939 B2b).
+			r.Get("/me/notifications/{id}", s.handleGetMyNotification)
 			r.Get("/me/ui-dismissals", s.handleListUIDismissals)
 			r.Put("/me/ui-dismissals/{key}", s.handleDismissUI)
 			r.Get("/tutorials", s.handleListTutorials)
@@ -2090,6 +2136,17 @@ func (s *Server) setupRouter() {
 			r.Get("/me/invitations", s.handleListMyInvitations)
 			r.Post("/me/invitations/{id}/accept", s.handleAcceptMyInvitation)
 			r.Post("/me/invitations/{id}/decline", s.handleDeclineMyInvitation)
+
+			// TASK-4039: global, membership-only, no workspace check, not for apps.
+			r.Get("/me/conversations", s.handleListChatConversations)
+			r.Post("/me/conversations", s.handleEnsureChatConversation)
+			r.Get("/me/conversations/{n}", s.handleGetChatConversation)
+			r.Get("/me/conversations/{n}/messages", s.handleListChatMessages)
+			r.Post("/me/conversations/{n}/messages", s.handleSendChatMessage)
+			r.Delete("/me/conversations/{n}/messages/{seq}", s.handleDeleteChatMessage)
+			r.Post("/me/conversations/{n}/read", s.handleMarkChatRead)
+			r.Post("/me/conversations/{n}/delivered", s.handleMarkChatDelivered)
+			r.Get("/me/chat/unread", s.handleChatUnread)
 
 			// Workspaces
 			r.Route("/workspaces", func(r chi.Router) {
@@ -2326,6 +2383,10 @@ func (s *Server) setupRouter() {
 						// pipeline. `pad watch <ref>` / `pad watch remove <ref>`.
 						r.Post("/watch", s.handleCreateWatch)
 						r.Delete("/watch", s.handleDeleteWatch)
+						// Needs-you snooze (TASK-3918): the caller's own
+						// dismiss/defer, so viewers and guests may too.
+						r.Put("/needs/snooze", s.handleSnoozeNeedsItem)
+						r.Delete("/needs/snooze", s.handleUnsnoozeNeedsItem)
 						// Push (IDEA-2544 Phase 1): transient, self-addressed
 						// human→harness dispatch over the SAME watch-events
 						// bus/stream — no durable row, see handlePushToItem's
@@ -2340,6 +2401,11 @@ func (s *Server) setupRouter() {
 						// about the item it names.
 						r.Get("/reminders", s.handleListItemReminders)
 						r.Post("/reminders", s.handleCreateItemReminder)
+						// Verifications (TASK-3617): per-criterion verdicts
+						// on the item that carries the acceptance criteria,
+						// judged against its present text at read time.
+						r.Get("/verifications", s.handleListItemVerifications)
+						r.Post("/verifications", s.handleCreateItemVerifications)
 						// Typed decisions (TASK-3117): the item's latest
 						// answer per question, each marked current or not.
 						// Read-only; evaluation happens off the write path.
@@ -2431,6 +2497,19 @@ func (s *Server) setupRouter() {
 					r.Post("/apps/{installID}/upgrade/preview", s.handleAppUpgradePreview)
 					r.Post("/apps/{installID}/upgrade/confirm", s.handleAppUpgradeConfirm)
 
+					// Agents that join through a link (SPEC-15, TASK-16). Links are
+					// owner-only; the agent list is readable by any member, who may
+					// assign work to an agent.
+					r.Route("/agent-links", func(r chi.Router) {
+						r.Get("/", s.handleListAgentJoinLinks)
+						r.Post("/", s.handleCreateAgentJoinLink)
+						r.Delete("/{linkID}", s.handleRevokeAgentJoinLink)
+					})
+					r.Route("/agents", func(r chi.Router) {
+						r.Get("/", s.handleListWorkspaceAgents)
+						r.Delete("/{agentID}", s.handleRevokeWorkspaceAgent)
+					})
+
 					// Webhooks
 					r.Route("/webhooks", func(r chi.Router) {
 						r.Get("/", s.handleListWebhooks)
@@ -2486,6 +2565,12 @@ func (s *Server) setupRouter() {
 					// Per-user Insights layout prefs (PLAN-1628 / TASK-1634).
 					r.Get("/report/layout", s.handleGetReportLayout)
 					r.Put("/report/layout", s.handleSaveReportLayout)
+
+					// Per-user "catch me up" digest and its cursor
+					// (TASK-3615). The GET never writes; only PUT
+					// /me/seen creates or moves the cursor.
+					r.Get("/catch-up", s.handleGetCatchUp)
+					r.Put("/me/seen", s.handleMarkCaughtUp)
 
 					// Project intelligence reads — next/standup/changelog
 					// (PLAN-1888 / TASK-1894). Mirror `pad project
@@ -2787,6 +2872,7 @@ const (
 	forbiddenReasonTokenScope             = "token_scope"
 	forbiddenReasonNoAccess               = "no_access"
 	forbiddenReasonWorkspaceNotAuthorized = "workspace_not_authorized"
+	forbiddenReasonTokenWorkspacePinned   = "token_workspace_pinned"
 )
 
 // roleGateReason is the reason for a refusal by a workspace-role gate. A

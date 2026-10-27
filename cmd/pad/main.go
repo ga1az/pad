@@ -55,9 +55,21 @@ func main() {
 		return
 	}
 
+	silenceWarningsForCompletion(os.Args[1:])
 	if err := newRootCmd().Execute(); err != nil {
 		writeRootStructuredError(os.Stderr, err)
 		os.Exit(1)
+	}
+}
+
+// silenceWarningsForCompletion routes the relative data-dir warning nowhere
+// when this process is cobra's hidden shell-completion command, so no
+// completion function, present or future, prints it in the middle of a Tab
+// (BUG-4066 r2). NARROW on purpose: only args[0] being __complete or
+// __completeNoDesc; every other command still warns.
+func silenceWarningsForCompletion(args []string) {
+	if len(args) > 0 && (args[0] == cobra.ShellCompRequestCmd || args[0] == cobra.ShellCompNoDescRequestCmd) {
+		config.SetRelativeDataDirWarningSink(func(string) {})
 	}
 }
 
@@ -142,9 +154,9 @@ func newRootCmd() *cobra.Command {
 		SilenceUsage: true,
 		// Validate the persistent --format value up front so a bogus value
 		// fails loudly instead of silently rendering a table. Runs for every
-		// subcommand (cobra invokes the nearest PersistentPreRunE, and no
-		// subcommand defines its own). The help command binds its own local
-		// --format, which shadows this persistent flag, so `pad help … --format md`
+		// subcommand except the best-effort session activity hook (cobra
+		// invokes the nearest PersistentPreRunE). The help command binds its
+		// own local --format, which shadows this persistent flag, so `pad help … --format md`
 		// leaves formatFlag at its "table" default and still passes.
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			switch formatFlag {
@@ -182,6 +194,7 @@ func newRootCmd() *cobra.Command {
 		agentCmd(),
 		githubCmd(),
 		roleCmd(),
+		chatCmd(),
 		tagCmd(),
 		webhooksCmd(),
 		tokenCmd(),
@@ -201,6 +214,8 @@ func newRootCmd() *cobra.Command {
 	rootCmd.SetHelpCommand(helpCmd())
 
 	rootCmd.RegisterFlagCompletionFunc("workspace", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		// No relative data-dir warning here: main() silences it for every
+		// completion request (silenceWarningsForCompletion, BUG-4066 r2).
 		cfg, err := config.Load()
 		if err != nil || !cfg.IsConfigured() {
 			return nil, cobra.ShellCompDirectiveNoFileComp

@@ -402,19 +402,20 @@ directory for `claude-code`, and an `[mcp_servers.pad]` table in
 project-scoped, it's install-on-request only — `--all` and `pad mcp status` cover
 the per-user clients (including Codex) and skip it.
 
-**Tool catalog (v0.100)** — ten resource × action tools plus `pad_set_workspace`. Undeclared input keys are rejected with a structured error rather than silently dropped, and field values are typed against the collection schema on the server:
+**Tool catalog (v0.106)** — eleven resource × action tools plus `pad_set_workspace`. Undeclared input keys are rejected with a structured error rather than silently dropped, and field values are typed against the collection schema on the server:
 
 | Tool | Actions |
 |---|---|
 | `pad_item` | `create`, `update`, `delete`, `get`, `list`, `move`, `restore`, `link`, `unlink`, `deps`, `context`, `star`, `unstar`, `starred`, `comment`, `list-comments`, `edit-comment`, `delete-comment`, `backlinks`, `bulk-update`, `note`, `decide`, `export`, `import`, `history`, `remind`, `ack-reminder`, `reminders`, `unremind`, `link-pr`, `unlink-pr`, `claim`, `release`, `patch` |
 | `pad_workspace` | `list`, `members`, `invite`, `storage`, `audit-log`, `create`, `claim`, `deleted`, `restore` |
 | `pad_collection` | `list`, `create`, `update`, `delete`, `list-archived`, `restore` |
-| `pad_project` | `dashboard`, `next`, `ready`, `stale`, `standup`, `changelog`, `report`, `activity` |
+| `pad_project` | `dashboard`, `next`, `ready`, `stale`, `standup`, `changelog`, `report`, `activity`, `catch-up` |
 | `pad_role` | `list`, `create`, `update`, `delete` |
 | `pad_search` | `query` |
 | `pad_playbook` | `list`, `get`, `run`, `match` |
 | `pad_library` | `list`, `get`, `activate` |
 | `pad_attachment` | `list`, `show` |
+| `pad_chat` | `list`, `inbox`, `show`, `send`, `delete`, `read` (global agent chat; excluded from ChatGPT) |
 | `pad_meta` | `server-info`, `version`, `tool-surface`, `bootstrap` |
 | `pad_set_workspace` | session-default workspace pinning (response embeds the bootstrap blob) |
 
@@ -426,7 +427,7 @@ Plus resources at `pad://workspaces`, `pad://workspace/{ws}/dashboard`,
 and `pad://_meta/version`.
 
 **Stability contract.** The catalog is versioned
-(`tool_surface_version: "0.100"`) and advertised in the initialize handshake and at
+(`tool_surface_version: "0.106"`) and advertised in the initialize handshake and at
 `pad://_meta/version`, so external agents can pin against it; the per-version
 changelog lives in [`internal/mcp/version.go`](internal/mcp/version.go). Errors
 come back as structured envelopes (`{error: {code, message, hint, ...}}`) from a
@@ -480,6 +481,7 @@ pad project ready                     Query actionable next items
 pad project stale                     Query stalled or attention-worthy items
 pad project standup [--days N]        Daily standup report
 pad project changelog [--days N]      Release notes from completed items
+pad project catch-up                 Your catch-up digest (read-only; marking is web-only)
 pad project watch                     Real-time activity stream
 pad project reconcile                 Reconcile item and PR state
 
@@ -602,14 +604,14 @@ pad workspace join <code>
 
 ### Decision provider (optional)
 
-Pad can ask a small classification model typed questions about your items, such as "does this need a human decision?" or "is this blocked?", and use the answers in the dashboard and playbook routing. It is **off by default**, and off is not a degraded mode: with no provider configured, no decision job is queued and nothing is sent anywhere. The dashboard shows only its graph-derived attention entries, the decisions list is empty, and `playbook match` answers `404 decision_provider_unavailable`.
+Pad can ask a small classification model typed questions about your items, such as "does this need a human decision?", and use the answers in the dashboard and playbook routing. It is **off by default**, and off is not a degraded mode: with no provider configured, no decision job is queued and nothing is sent anywhere. The dashboard shows only its graph-derived attention entries, the decisions list is empty, and `playbook match` answers `404 decision_provider_unavailable`.
 
 **What uses it**
-- The dashboard's `attention` list gains `needs_human` entries, and a text-derived `blocked` entry for an item the dependency graph has not already flagged. Only answers computed from the item's *current* state count.
+- The dashboard's `attention` list gains `needs_human` entries. Its `blocked` entries always come from the dependency graph. An answer counts when it was computed from the item's *current* state, or while a re-ask of a changed item is still pending.
 - `pad playbook match -- "<text>"` (`pad_playbook action=match` over MCP) picks the active playbook that free text asks for. It answers `404 decision_provider_unavailable` with no provider, so callers fall back to slug or trigger routing.
 - `GET /workspaces/{ws}/items/{slug}/decisions` lists an item's latest answers.
 
-Answers are computed **asynchronously**. Creating, updating, restoring or moving an item, and creating, editing or deleting a comment on it, queues a job, and a server tick makes the provider call, so no write ever waits on the network. Only open items in non-system collections are asked about: a job owed for a closed item is dropped at the tick without a call.
+Answers are computed **asynchronously**. Creating, updating, restoring or moving an item, and creating, editing or deleting a comment on it, queues a job, and a server tick makes the provider call, so no write ever waits on the network. A re-ask within an hour of the item's last evaluation for a question set waits until that hour is up, so a burst of edits and comments costs at most one call an hour per set, not one per write. Only open items in non-system collections are asked about: a job owed for a closed item is dropped at the tick without a call.
 
 **Configure** (later sources win, per field): the config file, then the instance-admin setting (**Console → Admin → Settings**), then the environment.
 
@@ -676,6 +678,26 @@ See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
 - **Self-addressed only.** The server forces every push's target to the caller's own sessions; nobody can push into a session that isn't theirs. Delivery is filtered to armed sessions, and the surfaces are honest about it: the web composer shows the split ("2 connected, 0 accepting pushes") and withholds a send it knows nobody would accept; a CLI broadcast still publishes and reports `delivered_sessions` (in JSON output), and a targeted push to a session that is not accepting skips the publish rather than pretending.
 - **No grandfathering.** Updating the plugin replaces the v0.14 always-on monitor with the gated one for everyone. Sessions that used to receive pushes receive none until they connect; the web composer's counts make that visible rather than silent.
 - **The accepted caveat.** An agent can run the arm command from inside its own session. That is visible in the transcript, within the operator's sight: the gate protects sessions from the outside and does not police the inside. A push can inject text; it cannot click a permission prompt.
+
+The plugin's Claude Code hooks report activity through `pad session activity`:
+the hook returns immediately and sends the report in a detached background
+process, so a prompt never waits on the network. `UserPromptSubmit` sets busy
+and `Stop` clears it. Client timestamps keep a late busy report from overwriting
+a newer idle report within a 10-second reorder window; larger gaps apply as
+clock steps. Claude Code fires no `Stop` when the user interrupts a turn
+with Esc, so an interrupted session reads busy until its record expires 30
+minutes after the prompt report reaches the server. Nothing refreshes the record
+mid-turn: a single turn longer than 30 minutes reads `online` or
+`connected_not_accepting` for the rest of the turn, according to its armed state.
+For `pad session activity`, argument errors, flag errors, configuration failures,
+network failures and spawn failures are silent and exit 0. `--help` prints help
+to stdout; the shipped hooks never pass it. An OS-level kill cannot be converted
+to exit 0. If session identity cannot be resolved within 500ms, that report is
+sent without a worker id and the server drops it with `400 invalid_worker_id`.
+The next prompt or stop retries resolution and corrects activity once identity
+resolves. The hooks discard output because `UserPromptSubmit` stdout reaches
+the model. Activity reporting does not change push consent.
+A hook running with a read-only API token cannot report activity and silently does nothing.
 
 ## License
 

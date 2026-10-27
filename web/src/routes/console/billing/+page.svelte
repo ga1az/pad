@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
+	import { Tick02Icon } from '@hugeicons/core-free-icons';
 	import { authStore } from '$lib/stores/auth.svelte';
 	import { api, withRequestDeadline, BillingCheckoutError, type BillingInterval } from '$lib/api/client';
 	import BillingIntervalPicker from '$lib/components/billing/BillingIntervalPicker.svelte';
@@ -361,7 +363,7 @@
 		</div>
 	{:else if upgradeStatus === 'confirmed' && isPro}
 		<div class="upgrade-banner success" role="status" aria-live="polite">
-			<span class="check-icon" aria-hidden="true">✓</span>
+			<span class="check-icon" aria-hidden="true"><Icon icon={Tick02Icon} /></span>
 			<span>Upgrade confirmed — welcome to Pro!</span>
 			{#if resume}
 				<a

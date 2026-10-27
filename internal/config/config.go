@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/BurntSushi/toml"
 )
@@ -86,6 +88,27 @@ type Config struct {
 	// production, set them to the canonical public URLs so the
 	// metadata document matches the cert and the URL agents paste into
 	// Claude Desktop.
+	// PushGatewayURL is where the push dispatcher sends notifications
+	// (PAD_PUSH_GATEWAY_URL, TASK-3938). Non-empty means push is configured;
+	// empty means this server offers no push and the device routes answer 404
+	// push_unavailable.
+	PushGatewayURL string `toml:"push_gateway_url"`
+	// PushGatewaySecret is the X-Cloud-Secret sent to the push gateway
+	// (PAD_PUSH_GATEWAY_SECRET, TASK-3939). Empty falls back to the cloud
+	// outbound secret: see resolvePushGatewaySecret in cmd/pad.
+	PushGatewaySecret string `toml:"push_gateway_secret"`
+	// The push dispatch timing knobs (PAD_PUSH_DISPATCH_INTERVAL, _SETTLE,
+	// _LEASE, _LEASE_MARGIN; TASK-3939 part C, ruling 77a8fae7), kept as the
+	// raw env strings. They are parsed by PushDispatchTimings at server
+	// startup, not in Load, so a malformed value refuses `pad server start`
+	// rather than breaking every other pad command. Empty means unset: the
+	// dispatcher keeps its default; a value of only whitespace is set and malformed,
+	// not unset. Env only; there is no config.toml key.
+	PushDispatchIntervalRaw    string `toml:"-"`
+	PushDispatchSettleRaw      string `toml:"-"`
+	PushDispatchLeaseRaw       string `toml:"-"`
+	PushDispatchLeaseMarginRaw string `toml:"-"`
+
 	MCPPublicURL  string `toml:"mcp_public_url"`  // Canonical URL clients paste into their MCP client (e.g. https://mcp.getpad.dev — matches mcp.stripe.com / mcp.linear.app convention). Published verbatim as RFC 9728 `resource` and used as the OAuth audience binding; pad mounts the transport internally at /mcp and pad-cloud's nginx router transparently rewrites mcp.* root → /mcp so external clients see a single canonical URL regardless of internal path.
 	AuthServerURL string `toml:"auth_server_url"` // Canonical URL of the OAuth authorization server (TASK-951), e.g. https://app.getpad.dev. Embedded in protected-resource metadata's authorization_servers field.
 	// OpenAIAppsChallenge is the domain-verification token OpenAI's plugin
@@ -272,15 +295,103 @@ func (c *Config) PushAutoArm() *bool {
 // precedence Load() uses (PAD_DATA_DIR, then PAD_DB_PATH's directory,
 // overriding), so a strict reader lands on exactly the file Load would.
 func userConfigPath() string {
+	if dir, _, set := envDataDir(); set {
+		return filepath.Join(dir, "config.toml")
+	}
 	home, _ := os.UserHomeDir()
-	path := filepath.Join(home, ".pad", "config.toml")
+	return filepath.Join(home, ".pad", "config.toml")
+}
+
+// envDataDir is the ONE reader of PAD_DATA_DIR and PAD_DB_PATH (Load and
+// userConfigPath both call it): PAD_DATA_DIR sets the data dir and its
+// pad.db; PAD_DB_PATH, applied second, wins, and its directory is the data
+// dir. set is false when neither is set.
+//
+// BUG-4066 phase 1 (lead ruling 4b4cb4ff): a relative value still resolves
+// verbatim, against this process's own cwd, exactly as before. Because a CLI
+// and a server in different directories then use different data, the
+// process warns once (warnRelativeDataDir). Phase 2 (TASK-4072) refuses it.
+func envDataDir() (dataDir, dbPath string, set bool) {
+	var name, value string
 	if v := os.Getenv("PAD_DATA_DIR"); v != "" {
-		path = filepath.Join(v, "config.toml")
+		dataDir, dbPath, set = v, filepath.Join(v, "pad.db"), true
+		name, value = "PAD_DATA_DIR", v
 	}
 	if v := os.Getenv("PAD_DB_PATH"); v != "" {
-		path = filepath.Join(filepath.Dir(v), "config.toml")
+		dataDir, dbPath, set = filepath.Dir(v), v, true
+		name, value = "PAD_DB_PATH", v
 	}
-	return path
+	// The data dir is what decides the database, the attachments and the key;
+	// an absolute PAD_DB_PATH makes a relative PAD_DATA_DIR irrelevant.
+	if set && !filepath.IsAbs(dataDir) {
+		warnRelativeDataDir(name, value)
+	}
+	return dataDir, dbPath, set
+}
+
+// InternalNoDataDirWarningEnv, set to "1", silences the relative data-dir
+// warning in a process. It is set ONLY by the MCP stdio dispatcher on the
+// `pad` children it execs per tool call: their stderr is folded into the
+// agent-facing error text, and `pad mcp serve` has already warned once on its
+// own stderr. It is deliberately NOT a user setting and is not documented
+// for users, so the deprecation cannot be silenced before phase 2
+// (TASK-4072; lead ruling on BUG-4066 r1).
+const InternalNoDataDirWarningEnv = "PAD_INTERNAL_NO_DATA_DIR_WARNING"
+
+// WarnOnRelativeDataDir runs the relative data-dir check without loading the
+// config, for a process that never calls Load (`pad mcp serve`).
+func WarnOnRelativeDataDir() {
+	envDataDir()
+}
+
+var (
+	relativeDataDirMu     sync.Mutex
+	relativeDataDirWarned bool
+	// relativeDataDirSink receives the warning; nil writes it to stderr.
+	relativeDataDirSink func(msg string)
+)
+
+// SetRelativeDataDirWarningSink routes the relative data-dir warning: the
+// server sets it so the line goes through slog; a machine-read stream (the
+// plugin monitor's `pad watch --stream`) sets a no-op so nothing reaches it.
+// Call it before the first Load.
+func SetRelativeDataDirWarningSink(fn func(msg string)) {
+	relativeDataDirMu.Lock()
+	defer relativeDataDirMu.Unlock()
+	relativeDataDirSink = fn
+}
+
+// warnRelativeDataDir emits the warning once per process, naming the
+// absolute path this process resolved, however many times config is read.
+func warnRelativeDataDir(name, value string) {
+	relativeDataDirMu.Lock()
+	defer relativeDataDirMu.Unlock()
+	if relativeDataDirWarned {
+		return
+	}
+	relativeDataDirWarned = true
+	if os.Getenv(InternalNoDataDirWarningEnv) == "1" {
+		return
+	}
+	// The data dir is what splits (config, attachments, key), so a relative
+	// PAD_DB_PATH names the directory of the file, not the file.
+	target, what := value, "it"
+	if name == "PAD_DB_PATH" {
+		target, what = filepath.Dir(value), "the data dir"
+	}
+	abs, err := filepath.Abs(target)
+	if err != nil {
+		abs = target
+	}
+	msg := fmt.Sprintf("%s is relative (%s); this process resolves %s to %s. A CLI and a server in different directories will use different data. Set an absolute path; relative values will be refused in a future release.", name, value, what, abs)
+	if strings.HasPrefix(value, "~") {
+		msg += " The leading ~ was not expanded by your shell, so it names a directory literally called ~."
+	}
+	if relativeDataDirSink != nil {
+		relativeDataDirSink(msg)
+		return
+	}
+	fmt.Fprintln(os.Stderr, "Warning: "+msg)
 }
 
 // LoadPushConfigAutoArm reads ONLY the [push] auto_arm value from the
@@ -348,15 +459,10 @@ func Load() (*Config, error) {
 	cfg := DefaultConfig()
 
 	// Data-dir overrides affect where config.toml lives, so apply them first.
-	if v := os.Getenv("PAD_DATA_DIR"); v != "" {
-		cfg.DataDir = v
-		cfg.DBPath = filepath.Join(v, "pad.db")
-		cfg.ConfigPath = filepath.Join(v, "config.toml")
-	}
-	if v := os.Getenv("PAD_DB_PATH"); v != "" {
-		cfg.DBPath = v
-		cfg.DataDir = filepath.Dir(cfg.DBPath)
-		cfg.ConfigPath = filepath.Join(cfg.DataDir, "config.toml")
+	if dir, db, set := envDataDir(); set {
+		cfg.DataDir = dir
+		cfg.DBPath = db
+		cfg.ConfigPath = filepath.Join(dir, "config.toml")
 	}
 
 	// Ensure data directory exists
@@ -449,6 +555,16 @@ func Load() (*Config, error) {
 	if v := os.Getenv("PAD_CLOUD_OUTBOUND_SECRET"); v != "" {
 		cfg.CloudOutboundSecret = v
 	}
+	if v := os.Getenv("PAD_PUSH_GATEWAY_URL"); v != "" {
+		cfg.PushGatewayURL = v
+	}
+	if v := os.Getenv("PAD_PUSH_GATEWAY_SECRET"); v != "" {
+		cfg.PushGatewaySecret = v
+	}
+	cfg.PushDispatchIntervalRaw = os.Getenv("PAD_PUSH_DISPATCH_INTERVAL")
+	cfg.PushDispatchSettleRaw = os.Getenv("PAD_PUSH_DISPATCH_SETTLE")
+	cfg.PushDispatchLeaseRaw = os.Getenv("PAD_PUSH_DISPATCH_LEASE")
+	cfg.PushDispatchLeaseMarginRaw = os.Getenv("PAD_PUSH_DISPATCH_LEASE_MARGIN")
 	if v := os.Getenv("PAD_MCP_PUBLIC_URL"); v != "" {
 		cfg.MCPPublicURL = v
 	}
@@ -875,4 +991,42 @@ func (c *Config) EnsureEncryptionKey(allowGenerate bool) error {
 
 func (c *Config) LogFile() string {
 	return filepath.Join(c.DataDir, "logs", "server.log")
+}
+
+// PushDispatchTimings is the parsed push dispatch timing knobs. A zero field
+// means the knob was unset and the dispatcher keeps its default.
+type PushDispatchTimings struct {
+	Interval, Settle, Lease, LeaseMargin time.Duration
+}
+
+// PushDispatchTimings parses the four PAD_PUSH_DISPATCH_* knobs (TASK-3939
+// part C, ruling 77a8fae7). A knob that is set but is not a Go duration, or is
+// not positive, is an error naming its variable; it never falls back to the
+// default. A value of only whitespace is malformed, not unset (only the empty
+// string is unset), so it refuses too (TASK-3939 part C, ruling 37e3eafa).
+// The message is fixed: it does not echo the value.
+func (c *Config) PushDispatchTimings() (PushDispatchTimings, error) {
+	var t PushDispatchTimings
+	for _, k := range []struct {
+		env, raw string
+		dst      *time.Duration
+	}{
+		{"PAD_PUSH_DISPATCH_INTERVAL", c.PushDispatchIntervalRaw, &t.Interval},
+		{"PAD_PUSH_DISPATCH_SETTLE", c.PushDispatchSettleRaw, &t.Settle},
+		{"PAD_PUSH_DISPATCH_LEASE", c.PushDispatchLeaseRaw, &t.Lease},
+		{"PAD_PUSH_DISPATCH_LEASE_MARGIN", c.PushDispatchLeaseMarginRaw, &t.LeaseMargin},
+	} {
+		if k.raw == "" {
+			continue
+		}
+		d, err := time.ParseDuration(strings.TrimSpace(k.raw))
+		if err != nil {
+			return PushDispatchTimings{}, fmt.Errorf("%s is not a valid duration (use a Go duration such as 5s or 1m30s)", k.env)
+		}
+		if d <= 0 {
+			return PushDispatchTimings{}, fmt.Errorf("%s must be greater than zero", k.env)
+		}
+		*k.dst = d
+	}
+	return t, nil
 }

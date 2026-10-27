@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
 	import { page } from '$app/state';
 	import { titleStore } from '$lib/stores/title.svelte';
 	import { goto } from '$app/navigation';
@@ -19,6 +20,8 @@
 	import ArchivedCollections from '$lib/components/collections/ArchivedCollections.svelte';
 	import StorageTab from '$lib/components/settings/StorageTab.svelte';
 	import AppsTab from '$lib/components/settings/apps/AppsTab.svelte';
+	import AgentsTab from '$lib/components/settings/AgentsTab.svelte';
+	import { BotIcon } from '@hugeicons/core-free-icons';
 	import Chip from '$lib/components/common/Chip.svelte';
 	import Button from '$lib/components/common/Button.svelte';
 	import ContentError from '$lib/components/common/ContentError.svelte';
@@ -107,13 +110,12 @@
 	 * so this is a cheap client-side URL swap.
 	 */
 	function clearAttachmentItem() {
-		const url = new URL(page.url);
+		const url = new URL(page.url.href);
 		if (!url.searchParams.has('attachment_item')) return;
 		url.searchParams.delete('attachment_item');
 		void goto(`${url.pathname}${url.search}${url.hash}`, {
 			replaceState: true,
-			noScroll: true,
-			keepFocus: true,
+			reset: false,
 		});
 	}
 	let loading = $state(true);
@@ -176,6 +178,8 @@
 		{ id: 'storage', label: 'Storage', icon: '\uD83D\uDCBE', ownerOnly: false },
 		// SPEC-6 U9a (TASK-3413): installed apps, owner-only like the server's doors.
 		{ id: 'apps', label: 'Apps', icon: '\uD83E\uDDE9', ownerOnly: true },
+		// SPEC-15 (TASK-20): agent join links and joined agents; links are owner-only on the server.
+		{ id: 'agents', label: 'Agents', icon: BotIcon, ownerOnly: true },
 		{ id: 'danger', label: 'Danger Zone', icon: '\u26A0\uFE0F', ownerOnly: true },
 	];
 	// BUG-2978: gate the owner-only tab on a STICKY read of the permission, not
@@ -1026,7 +1030,7 @@
 					tabindex={activeTab === tab.id ? 0 : -1}
 					onclick={() => switchTab(tab.id)}
 				>
-					<span class="tab-icon">{tab.icon}</span>
+					<span class="tab-icon"><Icon icon={tab.icon} /></span>
 					{tab.label}
 				</button>
 			{/each}
@@ -1231,7 +1235,7 @@
 																checked={accessCollectionIds.includes(coll.id)}
 																onchange={() => toggleAccessCollection(coll.id)}
 															/>
-															<span class="access-coll-icon">{coll.icon || '#'}</span>
+															<span class="access-coll-icon"><Icon icon={coll.icon || '#'} /></span>
 															<span class="access-coll-name">{coll.name}</span>
 														</label>
 													{/each}
@@ -1242,7 +1246,7 @@
 																checked={accessCollectionIds.includes(coll.id)}
 																onchange={() => toggleAccessCollection(coll.id)}
 															/>
-															<span class="access-coll-icon">{coll.icon || '#'}</span>
+															<span class="access-coll-icon"><Icon icon={coll.icon || '#'} /></span>
 															<span class="access-coll-name">{coll.name}</span>
 															<Chip size="sm" color="var(--accent-gray)">system</Chip>
 														</label>
@@ -1361,7 +1365,7 @@
 							{@const schema = parseSchema(coll)}
 							{#snippet collCardBody()}
 								<div class="coll-header">
-									<span class="coll-icon">{coll.icon || '#'}</span>
+									<span class="coll-icon"><Icon icon={coll.icon || '#'} /></span>
 									<span class="coll-name">{coll.name}</span>
 									<span class="coll-slug mono">/{coll.slug}</span>
 									<span class="coll-count">{coll.item_count ?? 0} items</span>
@@ -1449,6 +1453,12 @@
 					Webhooks are managed from the command line (<code>pad webhook list</code>,
 					<code>create</code>, <code>delete</code>, <code>test</code>) or the REST API, not from this page.
 				</p>
+			</section>
+		{:else if activeTab === 'agents'}
+			<section class="section">
+				{#key `${wsSlug}:${authStore.identityEpoch}`}
+					<AgentsTab {wsSlug} />
+				{/key}
 			</section>
 		{:else if activeTab === 'danger'}
 			<section class="section">

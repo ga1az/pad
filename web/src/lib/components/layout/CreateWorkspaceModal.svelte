@@ -21,6 +21,8 @@
 </script>
 
 <script lang="ts">
+	import { MultiplicationSignIcon, SparklesIcon } from '@hugeicons/core-free-icons';
+	import Icon from '$lib/icons/Icon.svelte';
 	import { onMount, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { workspaceStore } from '$lib/stores/workspace.svelte';
@@ -32,7 +34,7 @@
 	import PlanLimitPrompt from '$lib/components/billing/PlanLimitPrompt.svelte';
 	import { toastStore } from '$lib/stores/toast.svelte';
 	import { ERROR_DURATION } from '$lib/stores/toast.svelte';
-	import { describeImportSummary } from '$lib/workspaces/importSummary';
+	import { describeImportDrops, describeImportSummary } from '$lib/workspaces/importSummary';
 	import MoveToCloudLink from '$lib/components/workspaces/MoveToCloudLink.svelte';
 	import type { Workspace, WorkspaceTemplate } from '$lib/types';
 	import { groupTemplatesByCategory } from '$lib/utils/templates';
@@ -389,6 +391,11 @@
 					ERROR_DURATION
 				);
 			}
+			// TASK-3842: unique values the import dropped (BUG-3825), as the
+			// CLI prints them. Held as long as the counts: each is a value the
+			// person may need to restore by hand.
+			const drops = describeImportDrops(ws.dropped_unique_values);
+			if (drops) toastStore.show(drops, 'info', ERROR_DURATION);
 			goto(`/${ws.owner_username}/${ws.slug}`);
 		} catch (err) {
 			// The FAILURE path needs the same fence (codex round 7). An import
@@ -513,7 +520,7 @@
 >
 	<div class="modal-header">
 		<h2 id="create-workspace-title">New Workspace</h2>
-		<button type="button" class="modal-close" onclick={close} aria-label="Close" title="Close"><span aria-hidden="true">✕</span></button>
+		<button type="button" class="modal-close" onclick={close} aria-label="Close" title="Close"><span aria-hidden="true"><Icon icon={MultiplicationSignIcon} /></span></button>
 	</div>
 
 		<div class="modal-tabs">
@@ -555,7 +562,7 @@
 					onclick={selectBlank}
 					aria-pressed={selectedTemplate === 'blank'}
 				>
-					<span class="blank-card-icon" aria-hidden="true">✨</span>
+					<span class="blank-card-icon" aria-hidden="true"><Icon icon={SparklesIcon} /></span>
 					<span class="blank-card-text">
 						<span class="blank-card-title">Start blank</span>
 						<span class="blank-card-desc">
@@ -614,7 +621,7 @@
 											onclick={() => pickTemplate(tpl.name)}
 										>
 											{#if tpl.icon}
-												<span class="tpl-icon">{tpl.icon}</span>
+												<span class="tpl-icon"><Icon icon={tpl.icon} /></span>
 											{/if}
 											<span class="tpl-text">
 												<span class="tpl-name">{tpl.name}</span>

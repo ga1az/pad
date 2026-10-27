@@ -1,7 +1,9 @@
 import type {
 	BuiltinListEntry,
+	CatchUpResponse,
 	BuiltinStateResponse,
 	DecisionSettings,
+	AppsSettings,
 	MCPSettings,
 	DecisionSettingsInput,
 	Workspace,
@@ -83,6 +85,11 @@ import type {
 	AttachmentTransformResult,
 	ServerCapabilities,
 	LiveSessionsResponse,
+	ChatConversation,
+	ChatConversationSummary,
+	ChatConversationsResponse,
+	ChatMessagesResponse,
+	ChatUnreadResponse,
 	ItemPushResult,
 	WorkspaceStorageInfo,
 	AttachmentListFilters,
@@ -99,14 +106,24 @@ import type {
 	ImportArtifactResult,
 	ItemAppAction,
 	WorkspaceApp,
+	AgentJoinLink,
+	AgentJoinLinkWithCode,
+	WorkspaceAgent,
 	TutorialsResponse,
 	UIDismissalKey,
 	UIDismissalsResponse,
+	NotificationSettings,
 	ImportOutcome,
 	ArchivedCollection,
 	CollectionFieldUsage
 } from '$lib/types';
-import type { ImportSummary } from '$lib/types';
+import type { ImportSummary, ImportUniqueDrop } from '$lib/types';
+import type {
+	NeedsListParams,
+	NeedsResponse,
+	NeedsSnooze,
+	NeedsSnoozeRequest
+} from '$lib/types';
 import { runSessionExpiryKeepers } from '$lib/stores/sessionExpiryKeep';
 import { reportWorkspaceWrite } from './workspaceWrites';
 import { noteServerDate } from './serverClock';
@@ -1288,6 +1305,10 @@ export interface AuthSession {
 	// replace "we emailed you a link" with host-recovery guidance, since no
 	// email can actually be sent. Absent on older servers — treat as true.
 	email_configured?: boolean;
+	// push_available is true when this server can deliver push notifications
+	// (a gateway is configured). Sent only to signed-in callers (TASK-3938);
+	// absent means off, so the Notifications settings section stays hidden.
+	push_available?: boolean;
 	// account_disabled is true when the request's credential belongs to a
 	// disabled account (BUG-3349): authenticated is false, and the sign-in
 	// page explains why instead of offering a sign-in that cannot work.
@@ -1575,7 +1596,13 @@ export const api = {
 				onUploaded?: () => void;
 				signal?: AbortSignal;
 			} = {}
-		): Promise<Workspace & { stale_bodies?: number; import_summary?: ImportSummary }> => {
+		): Promise<
+			Workspace & {
+				stale_bodies?: number;
+				import_summary?: ImportSummary;
+				dropped_unique_values?: ImportUniqueDrop[];
+			}
+		> => {
 			const headers: Record<string, string> = { 'Content-Type': 'application/gzip' };
 			const csrf = getCSRFToken();
 			if (csrf) headers['X-CSRF-Token'] = csrf;
@@ -1610,7 +1637,10 @@ export const api = {
 				if (body?.error) throw new PadApiError(body.error);
 				throw new Error(`API error: ${resp.status}`);
 			}
-			const ws = parsed as Workspace & { import_summary?: ImportSummary };
+			const ws = parsed as Workspace & {
+				import_summary?: ImportSummary;
+				dropped_unique_values?: ImportUniqueDrop[];
+			};
 			// Absent, unparseable or zero all mean "nothing to report": the
 			// field stays undefined rather than 0, so a caller can render on
 			// presence without treating a clean import as a fact worth showing.
@@ -2412,6 +2442,46 @@ export const api = {
 		list: () => request<LiveSessionsResponse>('/sessions')
 	},
 
+	/**
+	 * Chat (TASK-4039): global conversations between the signed-in human and
+	 * their agents. Not workspace-scoped. `n` is the owner's conversation
+	 * number. A send with `op_key` is idempotent: retry with the SAME key.
+	 */
+	chat: {
+		listConversations: () => request<ChatConversationsResponse>('/me/conversations'),
+
+		/** Create-or-reuse the DM with `agent_key`; 201 when created, 200 when reused. */
+		ensureConversation: (agent_key: string) =>
+			request<{ conversation: ChatConversation; created: boolean }>('/me/conversations', {
+				method: 'POST',
+				body: JSON.stringify({ agent_key })
+			}),
+
+		getConversation: (n: number) =>
+			request<ChatConversationSummary>(`/me/conversations/${n}`),
+
+		listMessages: (
+			n: number,
+			opts?: { before_seq?: number; after_seq?: number; limit?: number }
+		) => {
+			const params = new URLSearchParams();
+			if (opts?.before_seq !== undefined) params.set('before_seq', String(opts.before_seq));
+			if (opts?.after_seq !== undefined) params.set('after_seq', String(opts.after_seq));
+			if (opts?.limit !== undefined) params.set('limit', String(opts.limit));
+			const qs = params.toString();
+			return request<ChatMessagesResponse>(`/me/conversations/${n}/messages${qs ? `?${qs}` : ''}`);
+		},
+
+		/** `seq` is the sequence the client DISPLAYED; the server clamps and never moves backward. */
+		markRead: (n: number, seq: number) =>
+			request<{ read_seq: number }>(`/me/conversations/${n}/read`, {
+				method: 'POST',
+				body: JSON.stringify({ seq })
+			}),
+
+		unread: () => request<ChatUnreadResponse>('/me/chat/unread')
+	},
+
 	// ── Versions ──────────────────────────────────────────────────────────────
 
 	versions: {
@@ -2596,6 +2666,15 @@ export const api = {
 			request<DashboardResponse>(`/workspaces/${ws}/dashboard`)
 	},
 
+	// ── Catch-up digest (TASK-3615) ──────────────────────────────────────────
+	// `get` never moves the cursor; only `markCaughtUp` does, and it takes no
+	// body because the server stamps the time.
+	catchUp: {
+		get: (ws: string) => request<CatchUpResponse>(`/workspaces/${ws}/catch-up`),
+		markCaughtUp: (ws: string) =>
+			request<{ seen_at: string }>(`/workspaces/${ws}/me/seen`, { method: 'PUT' })
+	},
+
 	// ── Project intelligence: next / standup / changelog (PLAN-1888 / TASK-1894) ──
 	// Same data `pad project next|standup|changelog` computes — see the Go
 	// handlers in internal/server/handlers_project_intel.go.
@@ -2756,6 +2835,17 @@ export const api = {
 		list: () => request<UIDismissalsResponse>('/me/ui-dismissals'),
 		dismiss: (key: UIDismissalKey) =>
 			request<UIDismissalsResponse>(`/me/ui-dismissals/${encodeURIComponent(key)}`, { method: 'PUT' })
+	},
+
+	// Which events send the caller a push notification (TASK-3940). PUT is a
+	// full replace: the server refuses a body that omits or adds a key.
+	notificationSettings: {
+		get: () => request<NotificationSettings>('/me/notification-settings'),
+		put: (settings: NotificationSettings) =>
+			request<NotificationSettings>('/me/notification-settings', {
+				method: 'PUT',
+				body: JSON.stringify(settings)
+			})
 	},
 
 	activity: {
@@ -3436,6 +3526,33 @@ export const api = {
 	// only — the route returns 404 outside cloud mode, the page hides
 	// the nav link in self-host.
 
+	// Agents that join through a link (SPEC-15, TASK-20). Links are
+	// owner-only; any member may list the agents (to assign work to one),
+	// and `all` (revoked agents too) is owner-only.
+	agentLinks: {
+		list: (ws: string) =>
+			request<{ links: AgentJoinLink[] | null }>(`/workspaces/${encodeURIComponent(ws)}/agent-links`),
+		create: (ws: string, label?: string) =>
+			request<AgentJoinLinkWithCode>(`/workspaces/${encodeURIComponent(ws)}/agent-links`, {
+				method: 'POST',
+				body: JSON.stringify(label ? { label } : {})
+			}),
+		revoke: (ws: string, id: string) =>
+			request<void>(`/workspaces/${encodeURIComponent(ws)}/agent-links/${encodeURIComponent(id)}`, {
+				method: 'DELETE'
+			})
+	},
+	agents: {
+		list: (ws: string, opts?: { all?: boolean }) =>
+			request<{ agents: WorkspaceAgent[] | null }>(
+				`/workspaces/${encodeURIComponent(ws)}/agents${opts?.all ? '?all=true' : ''}`
+			),
+		revoke: (ws: string, id: string) =>
+			request<void>(`/workspaces/${encodeURIComponent(ws)}/agents/${encodeURIComponent(id)}`, {
+				method: 'DELETE'
+			})
+	},
+
 	// Installed apps, owner-only (SPEC-6 U8/U9a, TASK-3413).
 	apps: {
 		list: (ws: string) => request<AppInstallList>(`/workspaces/${encodeURIComponent(ws)}/apps`),
@@ -3517,6 +3634,33 @@ export const api = {
 		removeWorkspace: (id: string, workspaceSlug: string) =>
 			request<ConnectedApp>(
 				`/connected-apps/${encodeURIComponent(id)}/workspaces/${encodeURIComponent(workspaceSlug)}`,
+				{ method: 'DELETE' }
+			)
+	},
+
+	// ── Needs you (TASK-3923, IDEA-3906 A6) ──────────────────────────────────
+	needs: {
+		/** GET /me/needs. Only the params given go on the URL. */
+		list: (params: NeedsListParams = {}) => {
+			const q = new URLSearchParams();
+			if (params.sort) q.set('sort', params.sort);
+			if (params.view) q.set('view', params.view);
+			if (params.workspace) q.set('workspace', params.workspace);
+			if (params.limit) q.set('limit', String(params.limit));
+			if (params.cursor) q.set('cursor', params.cursor);
+			const qs = q.toString();
+			return request<NeedsResponse>(`/me/needs${qs ? `?${qs}` : ''}`);
+		},
+		/** Dismiss or defer one item for the caller. `ref` is the issue ref (TASK-5). */
+		snooze: (ws: string, ref: string, body: NeedsSnoozeRequest) =>
+			request<{ ref: string; snooze: NeedsSnooze }>(
+				`/workspaces/${encodeURIComponent(ws)}/items/${encodeURIComponent(ref)}/needs/snooze`,
+				{ method: 'PUT', body: JSON.stringify(body) }
+			),
+		/** Restore: DELETE the caller's snooze. Idempotent, sends no body. */
+		restore: (ws: string, ref: string) =>
+			request<{ ref: string; snooze: null }>(
+				`/workspaces/${encodeURIComponent(ws)}/items/${encodeURIComponent(ref)}/needs/snooze`,
 				{ method: 'DELETE' }
 			)
 	},
@@ -3615,6 +3759,11 @@ export const api = {
 		getMCPSettings: () => request<MCPSettings>('/admin/mcp'),
 		updateMCPSettings: (enabled: boolean) =>
 			request<MCPSettings>('/admin/mcp', { method: 'PUT', body: JSON.stringify({ enabled }) }),
+		// Apps (TASK-3980). PUT sends only `enabled`, so private_origins
+		// stay as stored; 403 managed_by_operator on Pad Cloud.
+		getAppsSettings: () => request<AppsSettings>('/admin/apps'),
+		updateAppsSettings: (enabled: boolean) =>
+			request<AppsSettings>('/admin/apps', { method: 'PUT', body: JSON.stringify({ enabled }) }),
 		// Decision provider (TASK-3121). The response never carries the API
 		// key — only whether one is set. api_key is write-only.
 		getDecisionSettings: () => request<DecisionSettings>('/admin/decision-provider'),

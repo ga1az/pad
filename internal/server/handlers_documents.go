@@ -9,7 +9,6 @@ import (
 	"reflect"
 	"sort"
 	"strings"
-	"unicode"
 
 	"github.com/go-chi/chi/v5"
 
@@ -394,36 +393,6 @@ func actorFromRequest(r *http.Request) (actor, source string) {
 	return actor, source
 }
 
-// maxAgentNameRunes bounds the self-declared agent name (BUG-3372).
-const maxAgentNameRunes = 64
-
-// agentNameFromRequest is the X-Pad-Agent header as stored: trimmed, control
-// characters removed, at most maxAgentNameRunes. The header is a client's
-// self-description and cannot be verified; it only ever labels the caller's
-// OWN writes (user_id is still the authenticated account), so it is kept as
-// the agent signal. What it may not do is carry an unbounded or
-// control-laden string into every activity row and timeline chip
-// (BUG-3372).
-func agentNameFromRequest(r *http.Request) string {
-	raw := r.Header.Get("X-Pad-Agent")
-	if raw == "" {
-		return ""
-	}
-	var b strings.Builder
-	n := 0
-	for _, c := range strings.TrimSpace(raw) {
-		if unicode.IsControl(c) {
-			continue
-		}
-		if n == maxAgentNameRunes {
-			break
-		}
-		b.WriteRune(c)
-		n++
-	}
-	return strings.TrimSpace(b.String())
-}
-
 // stampCommentAttribution sets a new comment's author, created_by and source
 // from the request, whatever the body said (BUG-3372). The body could name any
 // author: a member posting as another member, or as "Support team", in the
@@ -492,13 +461,21 @@ func (s *Server) activityForRequest(workspaceID, documentID, action string, r *h
 }
 
 func (s *Server) logActivityWithMetaReturningID(workspaceID, documentID, action string, r *http.Request, metadata string) (string, error) {
-	uid := currentUserID(r)
 	id, err := s.store.CreateActivityDebounced(s.activityForRequest(workspaceID, documentID, action, r, metadata))
 	// Bump last_write_at on the actor. Every action that flows through this
-	// helper (created/updated/archived/restored/moved/commented) is a write.
+	// helper (created/updated/archived/restored/moved/reordered) is a write.
 	// PLAN-1542 / TASK-1543. TouchUserWrite is throttled + no-ops on empty
-	// userID, so we can call unconditionally.
-	s.store.TouchUserWrite(r.Context(), uid)
+	// userID, so we can call unconditionally. On the funnel (TASK-3926) an
+	// item action is kind=item (comments and attachments touch from their own
+	// handlers). The one caller with no item, a workspace restore, still
+	// records the write but is never counted as an item: if it is an
+	// account's first write, that first write goes uncounted (r1, Codex and
+	// the hunter).
+	if documentID == "" {
+		s.store.TouchUserWrite(r.Context(), currentUserID(r))
+	} else {
+		s.touchUserWrite(r, writeKindItem)
+	}
 	return id, err
 }
 

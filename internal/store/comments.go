@@ -164,6 +164,10 @@ func (s *Store) createCommentTx(tx *sql.Tx, workspaceID, itemID, userID string, 
 	if err != nil {
 		return "", fmt.Errorf("insert comment: %w", err)
 	}
+	mentioned, err := s.reindexCommentMentionsTx(tx, id, workspaceID, itemID, input.Body, true, ts)
+	if err != nil {
+		return "", err
+	}
 
 	// The choke point (SPEC-3 / TASK-2658): comment.created commits with the
 	// comment it describes. Read back in-tx so the payload is the stored row
@@ -180,14 +184,39 @@ func (s *Store) createCommentTx(tx *sql.Tx, workspaceID, itemID, userID string, 
 	if err := s.enqueueDecisionJobsForItemTx(tx, itemID); err != nil {
 		return "", err
 	}
+	// TASK-3937: at the tail, after every other in-tx step.
+	if err := s.enqueueCommentNotificationsTx(tx, created, mentioned, userID, createdBy == "agent"); err != nil {
+		return "", err
+	}
 	return id, nil
 }
 
-// UpdateComment replaces a comment's body and bumps updated_at. The
+// UpdateComment edits a comment as its own author. Production does not use
+// it: the edit handler calls UpdateCommentAs with the request's actor, so a
+// mention an admin adds is attributed to the admin (TASK-3946 ruling
+// e6a86278). It remains for tests.
+func (s *Store) UpdateComment(id, body string) (*models.Comment, error) {
+	return s.updateComment(id, body, nil)
+}
+
+// CommentEditor is who made an edit, for attributing the mentions it adds.
+type CommentEditor struct {
+	UserID  string
+	IsAgent bool
+}
+
+// UpdateCommentAs replaces a comment's body and bumps updated_at. The
 // comments_fts_update trigger re-indexes the new body. Returns
 // sql.ErrNoRows when no live comment matches. Permission (author or
-// admin) is enforced by the handler, not here.
-func (s *Store) UpdateComment(id, body string) (*models.Comment, error) {
+// admin) is enforced by the handler, not here. editor is who made the
+// edit: a mention it adds is from them, and they are never told about
+// mentioning themselves.
+func (s *Store) UpdateCommentAs(id, body string, editor CommentEditor) (*models.Comment, error) {
+	return s.updateComment(id, body, &editor)
+}
+
+// updateComment is UpdateComment/UpdateCommentAs; a nil editor is the author.
+func (s *Store) updateComment(id, body string, editor *CommentEditor) (*models.Comment, error) {
 	ts := now()
 	// Transactional for the same BUG-2415 reason as CreateComment: the
 	// new body and its pad-attachment: reference stamp commit together.
@@ -197,15 +226,15 @@ func (s *Store) UpdateComment(id, body string) (*models.Comment, error) {
 	}
 	defer tx.Rollback()
 
-	var workspaceID, bodyBefore string
-	var deleted int
-	lockQ := `SELECT workspace_id, body, CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END FROM comments WHERE id = ?`
+	var workspaceID, itemIDOfComment, bodyBefore string
+	var deleted, importedComment int
+	lockQ := `SELECT workspace_id, item_id, body, CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END, imported FROM comments WHERE id = ?`
 	if s.dialect.Driver() == DriverPostgres {
 		// A tombstoning delete holds this row FOR UPDATE; waiting on it
 		// here means the check below sees the tombstone it commits.
 		lockQ += ` FOR NO KEY UPDATE`
 	}
-	if err := tx.QueryRow(s.q(lockQ), id).Scan(&workspaceID, &bodyBefore, &deleted); err != nil {
+	if err := tx.QueryRow(s.q(lockQ), id).Scan(&workspaceID, &itemIDOfComment, &bodyBefore, &deleted, &importedComment); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, sql.ErrNoRows
 		}
@@ -226,6 +255,16 @@ func (s *Store) UpdateComment(id, body string) (*models.Comment, error) {
 	n, _ := res.RowsAffected()
 	if n == 0 {
 		return nil, sql.ErrNoRows
+	}
+	// An imported comment is never indexed, edited or not: the reindex
+	// covers the whole body, so its unedited source-instance @handles would
+	// bind to local users (TASK-3917 lead ruling bb0c9fc6).
+	// Accepted cost (TASK-3917 lead ruling, day 20): a mention a local user ADDS while editing an imported comment is not indexed either.
+	var mentioned []string
+	if importedComment == 0 {
+		if mentioned, err = s.reindexCommentMentionsTx(tx, id, workspaceID, itemIDOfComment, body, true, ts); err != nil {
+			return nil, err
+		}
 	}
 
 	// Two gates, and the second one is the real no-op gate.
@@ -261,6 +300,14 @@ func (s *Store) UpdateComment(id, body string) (*models.Comment, error) {
 	// a nil result.
 	out, err := s.getCommentQ(tx, id)
 	if err != nil {
+		return nil, err
+	}
+	// TASK-3946: users the edit newly mentioned, at the tail.
+	by := CommentEditor{UserID: out.UserID, IsAgent: out.CreatedBy == "agent"}
+	if editor != nil {
+		by = *editor
+	}
+	if err := s.enqueueMentionNotificationsTx(tx, out, mentioned, by.UserID, by.IsAgent); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -516,6 +563,9 @@ func (s *Store) DeleteComment(id string) error {
 		}
 		if _, err := tx.Exec(s.q(`UPDATE comments SET body = '', deleted_at = ? WHERE id = ?`), now(), id); err != nil {
 			return fmt.Errorf("delete comment: tombstone: %w", err)
+		}
+		if _, err := s.reindexCommentMentionsTx(tx, id, target.workspaceID, target.itemID, "", false, ""); err != nil {
+			return err
 		}
 	} else {
 		if _, err := tx.Exec(s.q(`DELETE FROM comments WHERE id = ?`), id); err != nil {

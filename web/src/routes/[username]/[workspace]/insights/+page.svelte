@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
@@ -334,7 +335,7 @@
 
 	function collLabel(slug: string): string {
 		const c = collections.find((x) => x.slug === slug);
-		return c ? `${c.icon} ${c.name}` : slug;
+		return c ? c.name : slug;
 	}
 
 	// ── Derived chart data ─────────────────────────────────────────────────────
@@ -519,7 +520,7 @@
 					aria-pressed={selectedCollections.includes(coll.slug)}
 					onclick={() => toggleCollection(coll.slug)}
 				>
-					<span class="chip-icon">{coll.icon}</span>
+					<span class="chip-icon"><Icon icon={coll.icon} /></span>
 					{coll.name}
 				</button>
 			{/each}

@@ -61,6 +61,8 @@ var lifecycleSites = map[string]string{
 	// Dashboard open-work sections.
 	"internal/server/handlers_item_context.go::handleGetItemContext::isItemDone": "exclude: item-context conflicts (PLAN-3598) mirror the dashboard: the subject item checks isReferenceCollection first; a blocker keeps a reference BLOCKER, an explicit link; a closed parent of any collection is an anomaly (the close guard skips only reference children)",
 	"internal/server/handlers_dashboard.go::buildDashboardResponse::isItemDone":  "exclude: overdue, blocked, suggested_next and by_role read workItems; orphaned_task checks isReferenceCollection; the blocker check keeps a reference BLOCKER, an explicit link",
+	"internal/server/handlers_dashboard.go::firstActiveBlockers::isItemDone":     "keep: the done check on a BLOCKER, moved out of buildDashboardResponse (TASK-3615); a reference blocker is an explicit link and still blocks",
+	"internal/server/handlers_catch_up.go::catchUpNeedsYou::isItemDone":          "exclude: needs_you's blocked items skip isReferenceCollection first, as the dashboard's blocked attention reads workItems (TASK-3615)",
 
 	// Close guard.
 	"internal/server/handlers_items_open_children_guard.go::runOpenChildrenGuard::isItemDone": "exclude: a reference child is skipped before the done check",
@@ -80,6 +82,8 @@ var lifecycleSites = map[string]string{
 	"internal/server/handlers_graph.go::handleGetWorkspaceGraph::isItemDone":            "keep: the graph renders every item, done or not, and only colours by state",
 	"internal/server/handlers_reminders.go::collectPendingRemindersBounded::isItemDone": "keep: a reminder is the user's own instruction, on any item",
 	"internal/store/item_stars.go::isTerminalWithContext::IsTerminalItem":               "keep: starred items are the user's own picks",
+	"internal/server/handlers_me_needs.go::needsForWorkspace::IsTerminalItem":           "keep: an @mention is a real ask of a person in any non-system collection, reference collections included (TASK-3920, lead ruling Q2); only a terminal item is dropped",
+	"internal/server/needs_scorers.go::isOpen::IsTerminalItem":                          "keep: the importance scorer counts what an item BLOCKS over explicit blocks links, as the dashboard keeps a reference blocker; an explicit link names held-up work in any collection, and only a terminal item is left out (TASK-3959)",
 }
 
 func TestPLAN3535_LifecycleHelperCallSitesAreClassified(t *testing.T) {

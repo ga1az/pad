@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
+	import { MultiplicationSignIcon, Tick02Icon } from '@hugeicons/core-free-icons';
 	// 2D directional dependency-graph renderer for a single item's neighborhood
 	// (PLAN-1780 / TASK-1783).
 	//
@@ -912,14 +914,14 @@
 						type="button"
 						class="detail-close"
 						aria-label="Close details"
-						onclick={() => (selectedRef = null)}>✕</button
+						onclick={() => (selectedRef = null)}><Icon icon={MultiplicationSignIcon} /></button
 					>
 				</div>
 				<p class="detail-title">{sel.title}</p>
 				<div class="detail-meta">
 					<span class="detail-chip" style:background-color="color-mix(in srgb, {sel.color} 22%, transparent)" style:border-color={sel.color}>{sel.collection}</span>
 					{#if selStatus}<span class="detail-stat">{selStatus}</span>{/if}
-					{#if sel.isTerminal}<span class="detail-stat done">✓ done</span>{/if}
+					{#if sel.isTerminal}<span class="detail-stat done"><Icon icon={Tick02Icon} /> done</span>{/if}
 					{#if sel.childCount > 0}
 						<span class="detail-stat">{sel.childCount} child{sel.childCount === 1 ? '' : 'ren'}</span>
 					{/if}

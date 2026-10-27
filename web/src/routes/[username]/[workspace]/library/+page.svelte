@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
 	import { onDestroy, untrack } from 'svelte';
 	import { ownValue } from '$lib/utils/ownValue';
 	import { page } from '$app/state';
@@ -109,11 +110,18 @@
 
 	function selectTab(tab: 'conventions' | 'playbooks', focus = false) {
 		if (tab !== activeTab) {
-			const url = new URL(page.url);
+			const url = new URL(page.url.href);
 			url.searchParams.set('tab', tab);
 			// replaceState: switching tabs is not a navigation to come back
-			// through. Not noScroll: each tab restores its own offset.
-			void goto(url, { replaceState: true, keepFocus: true });
+			// through. Not reset: false, because each tab restores its own
+			// offset. Kit 3 folded keepFocus into `reset`, which also resets
+			// focus, so a tab that held focus gets it back once the navigation
+			// lands (TASK-3423).
+			const tabHadFocus = document.activeElement?.getAttribute('role') === 'tab';
+			void goto(url, { replaceState: true }).then(() => {
+				if (focus || tabHadFocus) document.getElementById(`library-tab-${tab}`)?.focus();
+			});
+			return;
 		}
 		if (focus) document.getElementById(`library-tab-${tab}`)?.focus();
 	}
@@ -454,7 +462,7 @@
 			{#each categories as category (category.name)}
 				<section class="category">
 					<div class="category-header">
-						<span class="category-icon">{categoryIcons[category.name] ?? '\u{1F4E6}'}</span>
+						<span class="category-icon"><Icon icon={categoryIcons[category.name] ?? '\u{1F4E6}'} /></span>
 						<div>
 							<h2>{category.name}</h2>
 							{#if category.description}
@@ -545,7 +553,7 @@
 			{#each playbookCategories as category (category.name)}
 				<section class="category">
 					<div class="category-header">
-						<span class="category-icon">{categoryIcons[category.name] ?? '\u{1F4D8}'}</span>
+						<span class="category-icon"><Icon icon={categoryIcons[category.name] ?? '\u{1F4D8}'} /></span>
 						<div>
 							<h2>{category.name}</h2>
 							{#if category.description}

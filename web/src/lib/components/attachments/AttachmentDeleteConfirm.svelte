@@ -78,6 +78,7 @@
 </script>
 
 <script lang="ts">
+	import { Delete02Icon } from '@hugeicons/core-free-icons';
 	import MenuItem from '$lib/components/common/MenuItem.svelte';
 
 	interface Props {
@@ -99,7 +100,7 @@
 <div class="attachment-delete-prompt" role="presentation" id={promptId}>{prompt}</div>
 <MenuItem icon="‹" onclick={oncancel}>Cancel</MenuItem>
 <div class="attachment-delete-divider" role="separator"></div>
-<MenuItem icon="🗑" danger describedBy={promptId} onclick={onconfirm}>Delete file</MenuItem>
+<MenuItem icon={Delete02Icon} danger describedBy={promptId} onclick={onconfirm}>Delete file</MenuItem>
 
 <style>
 	/* Logical properties throughout: the prompt carries a filename, which may

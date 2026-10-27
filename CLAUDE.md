@@ -157,6 +157,25 @@ PAD_EMAIL_FROM_NAME=Pad                 # Sender display name (default: Pad)
 
 ## CLI
 
+Global chat targets are `C<n>`, `<n>`, or `@<name>` for your DM with an agent.
+All chat commands support `--format json`.
+
+```bash
+pad chat list
+pad chat inbox [--agent NAME]
+pad chat show <target> [--since N] [--limit N] [--no-mark]
+pad chat send <target> <body|-> [--reply-to N] [--op-key K] [--context-workspace SLUG]
+pad chat delete <target> <seq>
+pad chat read <target> --to N
+```
+
+Show marks only the messages returned by the page read (unless `--no-mark`).
+Replying marks read only to `--reply-to`; plain sends mark nothing. Send
+ensures an unknown `@name` DM; other commands return not found. Body `-`
+reads stdin. Reference context defaults to the cwd's `.pad.toml` workspace
+link when present. Chat itself is global and needs no workspace.
+
+
 Items are referenced by **issue ID** (e.g. `TASK-5`, `BUG-8`) wherever a `<ref>` argument appears.
 Slugs also work but issue IDs are preferred.
 
@@ -242,6 +261,7 @@ pad project dashboard         # Project dashboard
 pad project next              # Recommended next task
 pad project standup [--days N]  # Daily standup report
 pad project changelog [--days N] [--parent REF]  # Release notes from completed items
+pad project catch-up          # Your own catch-up digest, read-only (Mark caught up is web-only)
 pad item block <source> <target>  # e.g. pad item block TASK-5 TASK-8
 pad item blocked-by <item> <blocker>
 pad item deps <ref>           # Show dependencies
@@ -271,8 +291,8 @@ pad github status [item-ref]  # Show PR status for linked items
 pad github unlink <item-ref>  # Remove PR link from item
 pad item bulk-update --status done TASK-5 TASK-8  # Batch operations
 pad webhook list/create/delete/test               # Webhook management
-pad session register [--agent NAME]   # Record this session (harness pid + agent name) in ~/.pad/sessions; the plugin monitor runs it on start
-pad session list [--agent X] [--cwd D] [--all]  # Registered sessions on this machine with a liveness verdict each (alive/dead/unknown); --format json is the stable shape
+pad session register [--agent NAME]   # Record this session (harness pid + agent name) in ~/.pad/sessions; the plugin runs it on the session's first use of Pad, never at start (TASK-3970)
+pad session list [--agent X] [--cwd D] [--all]  # Registered sessions on this machine with a liveness verdict each (alive/dead/unknown; a session registered by this version in another PID or mount namespace, e.g. read from a sandbox, reads unknown, not dead; a row from before this version may still read dead there — BUG-4090); --format json is the stable shape
 pad session prune [--older-than DUR]  # Remove dead sessions' records; unknown-liveness ones only under an explicit age bound
 pad auth setup                # Initialize a fresh instance with the first admin
 pad auth login                # Log in

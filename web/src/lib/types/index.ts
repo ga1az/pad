@@ -288,6 +288,18 @@ export interface ImportSummary {
 	imported: ImportCounts;
 }
 
+/** One unique value an import dropped because another item already held it
+ *  (BUG-3825). Sent on the import's 201 as `dropped_unique_values`. Mirrors
+ *  `models.ImportUniqueDrop`. */
+export interface ImportUniqueDrop {
+	/** The imported item that lost the value. */
+	item: string;
+	key: string;
+	value: string;
+	/** The item that holds it. */
+	holder: string;
+}
+
 export interface Workspace {
 	id: string;
 	name: string;
@@ -510,6 +522,12 @@ export interface CollectionSettings {
 	 * Read it through collectionTracksWork, never directly.
 	 */
 	tracks_work?: boolean;
+	/**
+	 * true: the collection's items are asks of a person (IDEA-3906), routed to
+	 * their assignee's needs-you list. Absent means false. Read it through
+	 * collectionAwaitsHuman.
+	 */
+	awaits_human?: boolean;
 }
 
 export interface Collection {
@@ -1927,6 +1945,45 @@ export interface DashboardSuggestion {
 	reason: string;
 }
 
+/** One line of the catch-up digest (TASK-3615; GET /workspaces/{ws}/catch-up). */
+export interface CatchUpLine {
+	ref: string;
+	title: string;
+	collection: string;
+	what: string;
+	actor?: string;
+	agent?: string;
+	at?: string;
+}
+
+/** A catch-up section: at most 5 lines, and the total the lines were cut from. */
+export interface CatchUpSection {
+	total: number;
+	lines: CatchUpLine[];
+}
+
+export interface CatchUpAgentGroup {
+	agent: string;
+	changes: number;
+	items: number;
+	lines: CatchUpLine[];
+}
+
+/**
+ * The caller's "catch me up" digest. The window runs from
+ * max(cursor, now - 14 days) to now; `has_cursor` is false until the first
+ * Mark caught up, and the GET never writes one.
+ */
+export interface CatchUpResponse {
+	window: { since: string; until: string; has_cursor: boolean; capped_at_ceiling: boolean };
+	needs_you: CatchUpSection;
+	finished: CatchUpSection;
+	new_and_reopened: CatchUpSection;
+	comments: CatchUpSection;
+	agents: { total: number; groups: CatchUpAgentGroup[] };
+	degraded?: string[];
+}
+
 export interface DashboardResponse {
 	summary: {
 		total_items: number;
@@ -2496,12 +2553,18 @@ export interface ServerCapabilities {
  * delivery guarantee, and consumers must not word it as one — "one session
  * connected" is honest, "this will be delivered" is not.
  *
- * `label` and `pid` are SELF-DECLARED by the connecting client (S2) and
+ * `label`, `pid`, `agent` and `worker` are SELF-DECLARED by the connecting client and
  * verified against nothing. That is safe only because the list is self-scoped
  * — a lying client corrupts nobody's list but its own. Never build anything
  * on them that needs them to be true.
  */
 export interface LiveSession {
+	/** Sanitized, self-declared agent name. */
+	agent?: string;
+	/** Short worker display id (wk_3f2a), never the full worker id. */
+	worker?: string;
+	/** Busy activity expires after 30 minutes; otherwise state follows armed. */
+	state: 'online' | 'busy' | 'connected_not_accepting';
 	/** Server-generated per CONNECTION, not per client: a reconnect (including
 	 *  a Last-Event-ID resume) gets a new id. Not a stable client identity. */
 	id: string;
@@ -2741,8 +2804,9 @@ export type AppInstallState = 'active' | 'disabling' | 'inactive' | 'uninstallin
 /** An install's webhook as its owner sees it (U10a/U10c). */
 export interface AppWebhookStatus {
 	url: string;
-	/** awaiting_secret: held until the app redeems a new install code. */
-	status: 'awaiting_secret' | 'active' | string;
+	/** awaiting_secret: held until the app redeems a new install code.
+	 *  paused: the install is disabled, so nothing delivers (TASK-3980). */
+	status: 'awaiting_secret' | 'active' | 'paused' | string;
 	notice?: string;
 	/** Deliveries dropped undelivered after 24 h. */
 	undelivered_dropped: number;
@@ -2849,7 +2913,6 @@ export interface AppInstallPreview {
 	events: AppManifestEvent[];
 	webhook_url?: string;
 	item_actions: AppManifestItemAction[];
-	deferred_notice?: string;
 	artifacts: AppPreviewArtifact[];
 	redirect_uris: string[];
 	docs?: string;
@@ -2999,6 +3062,18 @@ export function collectionTracksWork(collection: Pick<Collection, 'settings'>): 
 		return JSON.parse(collection.settings || '{}')?.tracks_work !== false;
 	} catch {
 		return true;
+	}
+}
+
+/**
+ * Whether a collection's items are asks of a person (IDEA-3906). Absent or
+ * unparseable settings mean false, as the server reads them.
+ */
+export function collectionAwaitsHuman(collection: Pick<Collection, 'settings'>): boolean {
+	try {
+		return JSON.parse(collection.settings || '{}')?.awaits_human === true;
+	} catch {
+		return false;
 	}
 }
 
@@ -3209,6 +3284,16 @@ export interface ResolvedItemIdentity {
 
 // Decision provider settings (TASK-3121) — GET/PUT /admin/decision-provider.
 // The API key is never returned, masked or otherwise: only api_key_set.
+// Apps (SPEC-6; TASK-3980 item 1): GET/PUT /api/v1/admin/apps. `available`
+// is `enabled` plus the https OAuth issuer apps need; on Cloud the PUT is
+// operator-managed.
+export interface AppsSettings {
+	enabled: boolean;
+	available: boolean;
+	https_issuer: boolean;
+	cloud: boolean;
+}
+
 // MCP over HTTP (PLAN-2310 DR-2 / DR-7): GET/PUT /api/v1/admin/mcp.
 export interface MCPSettings {
 	enabled: boolean;
@@ -3289,6 +3374,47 @@ export interface WorkspaceApp {
 	role: string;
 }
 
+// ── Agents that join through a link (SPEC-15, TASK-20) ───────────────────
+
+/**
+ * An owner-minted agent join link (GET/POST /workspaces/{ws}/agent-links).
+ * Expired once `expires_at` is past; `agent_count` counts agents not revoked.
+ */
+export interface AgentJoinLink {
+	id: string;
+	workspace_id: string;
+	label: string;
+	created_by?: string;
+	max_agents: number;
+	agent_count: number;
+	expires_at: string;
+	revoked_at?: string;
+	created_at: string;
+}
+
+/** The create response: the only time `code` and `url` are shown. */
+export interface AgentJoinLinkWithCode extends AgentJoinLink {
+	code: string;
+	url: string;
+}
+
+/**
+ * An agent registered through a join link. It acts as the bot user
+ * `user_id`, an editor member of the workspace, so assigning a task to it
+ * sets the item's assigned user to `user_id`.
+ */
+export interface WorkspaceAgent {
+	id: string;
+	workspace_id: string;
+	user_id: string;
+	link_id?: string;
+	display_name: string;
+	icon?: string;
+	created_at: string;
+	last_seen_at?: string;
+	revoked_at?: string;
+}
+
 // ── In-app tutorials (TASK-3452) ─────────────────────────────────────────
 
 export interface TutorialChapter {
@@ -3332,6 +3458,20 @@ export interface TutorialsResponse {
 /** One-time UI suggestions the user dismissed (models.UIDismissalKeys). */
 export type UIDismissalKey = 'tutorials.console' | 'tutorials.launchpad';
 
+/**
+ * The caller's push notification settings (models.NotificationSettings).
+ * PUT replaces all seven; the server refuses a body missing or adding a key.
+ */
+export interface NotificationSettings {
+	push_enabled: boolean;
+	notify_assigned: boolean;
+	notify_comments: boolean;
+	notify_replies: boolean;
+	notify_reminders: boolean;
+	notify_mentions: boolean;
+	include_agent_activity: boolean;
+}
+
 export interface UIDismissalsResponse {
 	dismissed: UIDismissalKey[];
 }
@@ -3367,4 +3507,211 @@ export interface ArchivedCollection {
 	icon?: string;
 	item_count: number;
 	archived_at: string;
+}
+
+// ── Needs you (TASK-3923, IDEA-3906 unit A6) ───────────────────────────────
+// Mirrors the Go JSON tags in internal/needs/needs.go and
+// internal/server/handlers_me_needs.go.
+
+export type NeedsSort = 'age' | 'importance' | 'simplicity';
+export type NeedsView = 'active' | 'hidden';
+
+export interface NeedsWorkspaceLabel {
+	slug: string;
+	name: string;
+	owner_username: string;
+}
+
+export interface NeedsItemInfo {
+	ref: string;
+	title: string;
+	collection: string;
+	collection_slug: string;
+	status?: string;
+	priority?: string;
+	created_at: string;
+	updated_at: string;
+	path: string;
+}
+
+export interface NeedsWhy {
+	rule: 'asked' | 'mentioned' | 'assigned' | 'admin_fallback' | string;
+	text: string;
+	by?: string;
+	at?: string;
+	comment_id?: string;
+}
+
+export interface NeedsBecause {
+	kind: 'human_task' | 'needs_human' | 'mention' | string;
+	at: string;
+	by?: string;
+	comment_id?: string;
+}
+
+/** What the person had seen of an item; echoed back verbatim on dismiss/defer. */
+export interface NeedsSnoozeMarker {
+	seen_comment_at: string;
+	seen_comment_ids: string[];
+	seen_transition_seq: number;
+}
+
+export interface NeedsSnooze {
+	item_id: string;
+	workspace_id: string;
+	kind: 'dismiss' | 'defer';
+	defer_until?: string;
+	marker: NeedsSnoozeMarker;
+	created_at: string;
+	holds: boolean;
+}
+
+export interface NeedsScore {
+	value: number;
+	hint?: string;
+	why?: string[];
+}
+
+export interface NeedsRow {
+	workspace: NeedsWorkspaceLabel;
+	item: NeedsItemInfo;
+	why: NeedsWhy;
+	because: NeedsBecause[];
+	needs_human?: string;
+	waiting_since: string;
+	marker?: NeedsSnoozeMarker;
+	snooze?: NeedsSnooze;
+	importance?: NeedsScore;
+	simplicity?: NeedsScore;
+}
+
+export interface NeedsWorkspaceCount extends NeedsWorkspaceLabel {
+	count: number;
+}
+
+export interface NeedsResponse {
+	rows: NeedsRow[];
+	next_cursor?: string;
+	total: number;
+	hidden: number;
+	workspaces: NeedsWorkspaceCount[];
+	degraded?: string[];
+}
+
+export interface NeedsListParams {
+	sort?: NeedsSort;
+	view?: NeedsView;
+	workspace?: string;
+	limit?: number;
+	cursor?: string;
+}
+
+export type NeedsSnoozeRequest =
+	| { kind: 'dismiss'; marker?: NeedsSnoozeMarker }
+	| { kind: 'defer'; defer_until: string; marker?: NeedsSnoozeMarker };
+
+// ── Chat (TASK-4039 / TASK-4044) ─────────────────────────────────────────────
+// Wire shapes of /api/v1/me/conversations*, mirroring internal/server/handlers_chat_dto.go
+// and handlers_chat_enrich.go. Chat is global (no workspace); `number` is the
+// owner's namespace, not a global id.
+
+/** `Conv`: a conversation as the create route returns it. */
+export interface ChatConversation {
+	id: string;
+	number: number;
+	kind: 'direct' | 'group';
+	title: string;
+	agent_key: string;
+	last_seq: number;
+	created_at: string;
+	updated_at: string;
+}
+
+/** `ConvDetail` plus `delivered_seq` (single-conversation GET only) and the
+ *  optional `last_message` (inbox rows only). */
+export interface ChatConversationSummary extends ChatConversation {
+	read_seq: number;
+	unread: number;
+	/** Present on `GET /me/conversations/{n}`; inbox rows omit it. */
+	delivered_seq?: number;
+	/** Inbox rows only; excerpt, never a full body. */
+	last_message?: ChatLastMessage;
+}
+
+export interface ChatLastMessage {
+	seq: number;
+	author_agent_key: string;
+	author_is_human: boolean;
+	excerpt: string;
+	deleted: boolean;
+	created_at: string;
+}
+
+/** The store's bounded preview of the message a reply quotes. */
+export interface ChatQuote {
+	seq: number;
+	author_agent_key: string;
+	author_is_human: boolean;
+	excerpt: string;
+	deleted: boolean;
+}
+
+export interface ChatMessage {
+	id: string;
+	conversation_id: string;
+	seq: number;
+	author_agent_key: string;
+	author_is_human: boolean;
+	mine: boolean;
+	source: string;
+	/** Empty for a tombstone (`deleted: true`). */
+	body: string;
+	reply_to_seq?: number;
+	reply_to?: ChatQuote;
+	/** Omitted when absent or no longer visible to the reader. */
+	context_workspace?: { slug: string; name: string };
+	created_at: string;
+	deleted: boolean;
+	deleted_at?: string;
+}
+
+/** `restricted` and `unresolved` carry neither title nor collection_slug. */
+export interface ChatRef {
+	workspace: string;
+	ref: string;
+	state: 'visible' | 'restricted' | 'unresolved';
+	title?: string;
+	collection_slug?: string;
+}
+
+export interface ChatMessagesResponse {
+	messages: ChatMessage[];
+	oldest_seq: number;
+	newest_seq: number;
+	last_seq: number;
+	read_seq: number;
+	has_more: boolean;
+	refs: ChatRef[];
+	refs_truncated: boolean;
+}
+
+/** One row of `GET /me/chat/unread` (only rows with unread > 0). */
+export interface ChatUnread {
+	conversation_id: string;
+	number: number;
+	agent_key: string;
+	unread: number;
+	last_seq: number;
+	read_seq: number;
+	delivered_seq: number;
+}
+
+export interface ChatUnreadResponse {
+	conversations: ChatUnread[];
+	total: number;
+}
+
+export interface ChatConversationsResponse {
+	conversations: ChatConversationSummary[];
+	unread_total: number;
 }

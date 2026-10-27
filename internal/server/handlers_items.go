@@ -1146,6 +1146,7 @@ func (s *Server) createItemChecked(r *http.Request, workspaceID string, coll *mo
 			Kind:           watchevents.KindAssignment,
 			Actor:          actor,
 			ActorName:      actorNameForCreate,
+			ActorUserID:    currentUserID(r),
 			Summary:        fmt.Sprintf("assigned to %s on creation", name),
 			AssignedUserID: *item.AssignedUserID,
 		})
@@ -1304,7 +1305,7 @@ func (s *Server) handleGetItem(w http.ResponseWriter, r *http.Request) {
 	// failure here is logged and the member omitted rather than failing the
 	// item read: decisions are advisory, and an item that cannot be fetched
 	// because a secondary read failed is a worse answer than one without them.
-	if decisions, derr := s.decisionRunner().Decisions(item.ID); derr != nil {
+	if decisions, derr := s.decisionRunner().ItemReadDecisions(item.ID); derr != nil {
 		slog.Warn("item read: decisions unavailable", "item_id", item.ID, "error", derr)
 	} else if len(decisions) > 0 {
 		item.Decisions = decisions
@@ -2339,6 +2340,20 @@ func (s *Server) updateItem(w http.ResponseWriter, r *http.Request, b *builtinIt
 			if s.metrics != nil {
 				s.metrics.ContentWritesUnguardedTotal.WithLabelValues(door, kind).Inc()
 			}
+			// TASK-4062: the counter is zeroed by every restart and has no
+			// scraper, so the same event is logged once per Inc() and the
+			// week's count is read from the log. Identifiers only: never the
+			// body, the title or a field value.
+			actorKind, _ := actorFromRequest(r)
+			slog.Info("content write unguarded",
+				"door", door,
+				"kind", kind,
+				"item_ref", item.Ref,
+				"item_id", item.ID,
+				"workspace_id", workspaceID,
+				"actor_kind", actorKind,
+				"actor_user_id", currentUserID(r),
+			)
 			unguardedContentWrite = kind == writeKindContent && door != writeDoorWeb
 		}
 	}
@@ -2861,7 +2876,7 @@ func (s *Server) updateItem(w http.ResponseWriter, r *http.Request, b *builtinIt
 	}
 	actorNameForUpdate := actorNameFromRequest(r)
 	s.publishItemEventWithName(sseItemUpdated, workspaceID, updated.ID, updated.Title, updated.CollectionSlug, actor, actorNameForUpdate, source, updated.Seq)
-	s.publishWatchNotifications(workspaceID, updated, actor, actorNameForUpdate)
+	s.publishWatchNotifications(workspaceID, updated, actor, actorNameForUpdate, currentUserID(r))
 
 	// If a comment was attached to this update (e.g. explaining a status change),
 	// create a comment linked to the activity entry. The comment reads its
@@ -2922,6 +2937,7 @@ func (s *Server) updateItem(w http.ResponseWriter, r *http.Request, b *builtinIt
 				Kind:         watchevents.KindComment,
 				Actor:        actor,
 				ActorName:    actorNameForUpdate,
+				ActorUserID:  currentUserID(r),
 				Summary:      truncateForSummary(comment.Body, 120),
 			})
 		}
@@ -3580,7 +3596,7 @@ func (s *Server) handleMoveItem(w http.ResponseWriter, r *http.Request) {
 	// Publish events for both old and new collections
 	actorNameForMove := actorNameFromRequest(r)
 	s.publishItemEventWithName(sseItemMoved, workspaceID, moved.ID, moved.Title, targetColl.Slug, actor, actorNameForMove, source, moved.Seq)
-	s.publishWatchNotifications(workspaceID, moved, actor, actorNameForMove)
+	s.publishWatchNotifications(workspaceID, moved, actor, actorNameForMove, currentUserID(r))
 
 	// The visibility checked before the write (BUG-3334).
 	if err := s.enrichItemForResponse(r, moved, targetVisibleIDs); err != nil {

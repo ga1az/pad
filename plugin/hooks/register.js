@@ -1,9 +1,12 @@
 // The Pad pane inside Claude Code (IDEA-3477; folded into the pad plugin by TASK-3486).
 //
-// One command, /pad-pane, opens a pane on the linked workspace. Nothing else:
-// no blocking, no band, no changes to what Claude sees. Until you run the
-// command, the mod only listens for Claude touching Pad so an open pane stays
-// fresh.
+// One command, /pad-pane, opens a pane on the linked workspace. Nothing else
+// changes what Claude sees, and nothing blocks. The one band is the chat-seen
+// band (TASK-4071): chat delivered to the agent, shown to the person too. Session start runs
+// nothing (TASK-3970); after a plugin reload it only picks back up a pane that
+// was already open. Otherwise the mod listens for Claude touching Pad: the
+// first touch wakes the session (presence, live events; see wake), and an
+// open pane stays fresh.
 //
 // Views: Now (n), Next (x), Browse (b), Find (f), Activity (a), Settings (g).
 // Item view: status (s), comment (c), work on it (w), copy ref (y), open in
@@ -1028,6 +1031,12 @@ function draw($, e) {
 // no notice. /pad:connect keeps its own on-skill-invoke monitor, which is also
 // the path where mods do not load; pad-monitor.sh's lockfile keeps the two from
 // streaming twice in one session.
+//
+// Nothing of this runs at session start (TASK-3970): a session that never
+// touches Pad never runs the CLI, never opens a socket and never starts a
+// timer. Presence and the arm check run on the session's first use of Pad
+// instead (wake): the first `pad` command or Pad MCP tool call, or opening the
+// pane. A .pad.toml push.auto_arm opt-in is therefore read then, not at start.
 
 const WATCH_BURST_MS = 1500 // a burst ends after this much quiet, and goes to Claude as one message
 const WATCH_BURST_MAX_MS = 10000 // a stream that never goes quiet still flushes this often
@@ -1076,8 +1085,42 @@ async function flushWatch($) {
   }
 }
 
+let woken = null // wake's promise for this session (reset by an end that stops the stream)
+
+// The session's first use of Pad: presence, then the arm check (startWatch).
+// Once per session, so later pad commands run nothing extra. Resolves once
+// presence is recorded, not when the arm check answers: `pad session register`
+// mints the worker id the CLI sends on every call (leases key on it), so the
+// tool.call hook waits for it before the first pad command runs. A register
+// that fails is not retried in this session: it stays unregistered, as it
+// did when start-time registration failed.
+function wake($) {
+  if (woken) return woken
+  let registered = () => {}
+  woken = new Promise((r) => { registered = r })
+  startWatch($, registered).catch(() => {}).finally(registered)
+  // TASK-4071: the chat-seen reader starts with the session's first use of
+  // Pad too, armed or not: /pad:connect may arm the session later, and its
+  // monitor writes the same file.
+  startSeen($).catch(() => {})
+  return woken
+}
+
+// A Bash command that runs the pad CLI, or a call of a Pad MCP tool. `pad` as
+// a whole word: not inside a longer name (`padd`, `.padrc`, `pad-monitor.sh`),
+// whatever stands around it otherwise (a quote, `\`, `$(`, `;`, a path). Wide
+// on purpose: a false positive (`cd ~/pad`) only wakes early, while a miss
+// runs that first pad call unregistered. Rounds r1 and r2 each found a missed
+// shape; the shapes are tabled in watch.test.ts rather than listed here.
+function usesPad(e) {
+  if (e.tool === 'Bash') return /(^|[^\w.-])pad($|[^\w.-])/.test(String(e.command || ''))
+  // Any server name: Pad's tools are pad_* whatever the person called the server
+  // (Codex r3: `.*pad.*` in the server part missed a server named otherwise).
+  return /^mcp__.+__pad_[a-z0-9_]+$/i.test(String(e.tool || ''))
+}
+
 // Silent by construction: every failure here leaves the session as it was.
-async function startWatch($) {
+async function startWatch($, registered = () => {}) {
   if (watch) return
   const epoch = watchEpoch
   const pid = await sessionPid($)
@@ -1085,6 +1128,7 @@ async function startWatch($) {
   // Presence is a fact about the session, kept whether or not it consents
   // (TASK-2767): `pad session list` reads it back.
   try { await $.process.run(['pad', 'session', 'register'], { env, timeoutMs: 10000 }) } catch {}
+  registered()
   let armed = false
   try {
     armed = (await $.process.run(['pad', 'session', 'should-arm'], { env, timeoutMs: 10000 })).exitCode === 0
@@ -1130,6 +1174,7 @@ async function startWatch($) {
 }
 
 function stopWatch() {
+  woken = null
   watchEpoch++
   const it = watch
   watch = null
@@ -1141,6 +1186,242 @@ function stopWatch() {
   if (it) {
     try { it.return() } catch {}
   }
+}
+
+// The pane's auto-refresh. It runs only while the pane is open (TASK-3970):
+// a closed pane leaves no timer behind.
+let refresh = null
+
+function startRefresh($) {
+  if (refresh) return
+  refresh = $.clock.every(5000, () => {
+    if (!open || !settings.refreshSec || busy || mode || view === 'find' || view === 'settings') return
+    if (!loadedAt || Date.now() - Date.parse(loadedAt) >= settings.refreshSec * 1000) load($)
+  })
+}
+
+function stopRefresh() {
+  if (refresh) refresh.cancel()
+  refresh = null
+}
+
+// ---------------------------------------------------------------- chat seen
+
+// TASK-4071: a chat line delivered to the agent is shown to the person at this
+// terminal too. `pad watch --stream --for-session` appends each chat line it
+// prints to ~/.pad/chat-seen/<harness pid>.log; this tails that file into a band
+// above the prompt (the last few lines, until the person's next prompt) and a
+// toast per burst. One reader for both launch paths: the mod's own stream and
+// the /pad:connect monitor write the same file, keyed by the same pid.
+//
+// It is a display cue, never a record (the agent's stdout is). Reading starts
+// at the end of whatever the file holds, so a /clear or a recycled pid never
+// replays old lines. A rotation (the writer moves a full log to .1) is seen as
+// the file shrinking; lines that rotated away between two polls are not shown,
+// and nothing catches them up (TASK-4071 C3). A rotated log that grows back past
+// the old position within one poll is misread as a continuation, for one poll.
+const SEEN_POLL_MS = 1000
+const SEEN_BAND_LINES = 3
+const SEEN_LINE_MAX = 300
+let seenTimer = null
+let seenStarting = false
+let seenEpoch = 0 // bumped by stopSeen: a start or poll still awaiting then changes nothing
+let seenPath = ''
+let seenSize = -1 // bytes at the last successful look; -1 until the first
+let seenChars = 0 // characters of the file already handled, up to its last newline
+let seenPrimed = false // the first look only finds the end
+let seenPolling = false
+let seenBand = [] // the lines the band shows
+let toastLines = [] // new lines not yet toasted: one toast per burst
+let toastTimer = null
+let toastStart = 0
+
+// Chat text is another party's words, drawn on the person's terminal: drop
+// control characters (C0, DEL, C1, so no escape sequence reaches it) and the
+// bidirectional controls that can make a line read as something else. The
+// log itself stays byte for byte what the agent got.
+const UNSAFE = /[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g
+export const displayLine = (s) => String(s).replace(UNSAFE, '')
+
+// Cut by code points, so an emoji at the edge is never split in half.
+export function clipLine(s, n) {
+  const cps = Array.from(s)
+  return cps.length > n ? cps.slice(0, n - 1).join('') + '…' : s
+}
+
+// The person's own prompt, typed here or through Remote Control: what clears
+// the band. A prompt this mod relays, or a background task's, does not.
+export function isPersonPrompt(e) {
+  const kind = e?.origin?.kind
+  return kind === 'composer' || kind === 'bridge'
+}
+
+async function chatSeenPath($) {
+  const pid = await sessionPid($)
+  if (!pid) return ''
+  try {
+    const r = await $.process.run(['sh', '-c', 'printf %s "$HOME"'], { timeoutMs: 5000 })
+    const home = String(r.stdout || '')
+    return home.startsWith('/') ? home.replace(/\/+$/, '') + '/.pad/chat-seen/' + pid + '.log' : ''
+  } catch {
+    return ''
+  }
+}
+
+async function startSeen($) {
+  if (seenTimer || seenStarting) return
+  seenStarting = true
+  const epoch = seenEpoch
+  try {
+    const path = await chatSeenPath($)
+    if (!path || epoch !== seenEpoch) return
+    seenPath = path
+    await pollSeen($)
+    if (epoch !== seenEpoch) return
+    seenTimer = $.clock.every(SEEN_POLL_MS, () => { pollSeen($).catch(() => {}) })
+  } finally {
+    if (epoch === seenEpoch) seenStarting = false
+  }
+}
+
+function stopSeen() {
+  seenEpoch++
+  seenStarting = false
+  seenPolling = false // a poll still in flight finishes under the old epoch
+  if (seenTimer) seenTimer.cancel()
+  seenTimer = null
+  if (toastTimer) toastTimer.cancel()
+  toastTimer = null
+  toastLines = []
+  toastStart = 0
+  seenPath = ''
+  seenSize = -1
+  seenChars = 0
+  seenPrimed = false
+  seenBand = []
+}
+
+async function pollSeen($) {
+  if (seenPolling || !seenPath) return
+  const epoch = seenEpoch
+  const path = seenPath
+  seenPolling = true
+  try {
+    let size = -1 // unknown: the stat failed, or the path is a symlink
+    try {
+      const st = await $.fs.stat(path)
+      if (st.kind === 'file' && !st.isLink) size = st.size
+    } catch {}
+    if (epoch !== seenEpoch) return
+    if (size < 0) {
+      // No log at the first look: every line from now on is new. A look that
+      // only FAILED proves nothing, so it leaves the start to the first good
+      // read; and once started, an unreadable moment changes nothing. Either
+      // way it cannot cause a replay.
+      if (!seenPrimed && (await logAbsent($, path)) && epoch === seenEpoch) {
+        seenSize = 0
+        seenChars = 0
+        seenPrimed = true
+      }
+      return
+    }
+    if (size === seenSize) return
+    if (!size) {
+      seenSize = 0
+      seenChars = 0
+      seenPrimed = true
+      return
+    }
+    let text
+    try {
+      text = await $.fs.read(path)
+    } catch {
+      return // nothing advanced: the next poll tries again
+    }
+    if (epoch !== seenEpoch) return
+    // Rotated (or removed and recreated): read the new log from its start. In
+    // bytes here and in characters below, since a log of multi-byte text can
+    // shrink in one while it grows in the other.
+    if (size < seenSize) seenChars = 0
+    seenSize = size
+    if (!seenPrimed) {
+      // The first look skips what the file held at the stat; a line written
+      // between that stat and this read is new, and shows.
+      const cut = charIndexAtByte(text, size)
+      seenChars = text.lastIndexOf('\n', cut - 1) + 1
+      seenPrimed = true
+    }
+    if (text.length < seenChars) seenChars = 0
+    const end = text.lastIndexOf('\n') + 1 // a line still being written waits for its newline
+    if (end <= seenChars) return
+    const fresh = text.slice(seenChars, end).split('\n').map(displayLine).filter((l) => l.trim())
+    seenChars = end
+    if (!fresh.length) return
+    seenBand = [...seenBand, ...fresh].slice(-SEEN_BAND_LINES).map((l) => clipLine(l, SEEN_LINE_MAX))
+    redraw($)
+    await queueToast($, fresh, epoch)
+  } finally {
+    if (epoch === seenEpoch) seenPolling = false
+  }
+}
+
+// True only when the listing shows no log at path (or no directory for it).
+async function logAbsent($, path) {
+  const cut = path.lastIndexOf('/')
+  const dir = path.slice(0, cut)
+  const name = path.slice(cut + 1)
+  try {
+    return !(await $.fs.list(dir)).some((e) => e.name === name)
+  } catch {}
+  const up = dir.lastIndexOf('/')
+  try {
+    return !(await $.fs.list(dir.slice(0, up))).some((e) => e.name === dir.slice(up + 1))
+  } catch {
+    return false
+  }
+}
+
+// The index in text (UTF-16 units) where its first `bytes` UTF-8 bytes end.
+export function charIndexAtByte(text, bytes) {
+  let b = 0
+  let i = 0
+  while (i < text.length && b < bytes) {
+    const cp = text.codePointAt(i)
+    b += cp < 0x80 ? 1 : cp < 0x800 ? 2 : cp < 0x10000 ? 3 : 4
+    i += cp > 0xffff ? 2 : 1
+  }
+  return i
+}
+
+// One toast per burst, on the same clock as the lines relayed to Claude: a
+// burst ends after WATCH_BURST_MS of quiet, or WATCH_BURST_MAX_MS after it began.
+async function queueToast($, lines, epoch) {
+  toastLines.push(...lines)
+  const now = await $.clock.now()
+  if (epoch !== seenEpoch) return
+  if (!toastStart) toastStart = now
+  if (toastTimer) toastTimer.cancel()
+  const wait = Math.max(0, Math.min(WATCH_BURST_MS, toastStart + WATCH_BURST_MAX_MS - now))
+  toastTimer = $.clock.after(wait, () => {
+    toastTimer = null
+    toastStart = 0
+    const burst = toastLines
+    toastLines = []
+    if (!burst.length) return
+    const last = clipLine(burst[burst.length - 1], 120)
+    $.ui.toast(burst.length > 1 ? last + ' (+' + (burst.length - 1) + ' more)' : last)
+  })
+}
+
+function drawSeenBand($, e) {
+  const { Box, Text } = $.ui.resolve(e)
+  return Box({
+    flexDirection: 'column',
+    children: [
+      Text({ dimColor: true, children: ['Pad chat (delivered to the agent)'] }),
+      ...seenBand.map((l) => Text({ wrap: 'truncate-end', children: [l] })),
+    ],
+  })
 }
 
 // ---------------------------------------------------------------- hooks
@@ -1156,15 +1437,12 @@ export function register(on) {
       const panes = await $.ui.panes()
       if (panes.some((p) => p.id === PANE)) {
         open = true
+        startRefresh($)
         load($)
+        wake($)
       }
     } catch {}
-    $.clock.every(5000, () => {
-      if (!open || !settings.refreshSec || busy || mode || view === 'find' || view === 'settings') return
-      if (!loadedAt || Date.now() - Date.parse(loadedAt) >= settings.refreshSec * 1000) load($)
-    })
-    // Not awaited: the first prompt never waits on the CLI.
-    startWatch($).catch(() => {})
+    // Nothing else (TASK-3970): no CLI, no stream, no timer. See wake.
     return next(e)
   })
 
@@ -1172,7 +1450,10 @@ export function register(on) {
   // what consent is keyed on, and session.start does not fire again after
   // them: the stream stays. Any other end stops it.
   on('session.end', async ($, e, next) => {
-    if (e.reason !== 'clear' && e.reason !== 'resume') stopWatch()
+    if (e.reason !== 'clear' && e.reason !== 'resume') {
+      stopWatch()
+      stopSeen()
+    }
     return next(e)
   })
 
@@ -1180,6 +1461,7 @@ export function register(on) {
     if (open) {
       await $.ui.close({ id: PANE })
       open = false
+      stopRefresh()
       return {}
     }
     view = settings.startView
@@ -1190,7 +1472,9 @@ export function register(on) {
     // The command runs while its own text is still in the prompt, and a pane only
     // takes the keys from an empty prompt: ask again once the prompt has cleared.
     $.clock.after(150, () => { if (open) $.ui.open(OPEN_ARGS) })
+    startRefresh($)
     load($)
+    wake($)
     return {}
   })
 
@@ -1206,6 +1490,7 @@ export function register(on) {
       return { value: undefined }
     }
     open = false
+    stopRefresh()
     return next(e)
   })
 
@@ -1243,6 +1528,21 @@ export function register(on) {
     return {}
   })
 
+  // The chat-seen band (TASK-4071) stays until the person's own next prompt;
+  // a prompt this mod or anything else submits does not clear it.
+  on('prompt.submit', async ($, e, next) => {
+    if (seenBand.length && isPersonPrompt(e)) {
+      seenBand = []
+      redraw($)
+    }
+    return next(e)
+  })
+
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    if (!seenBand.length || e.props?.hasSurvey) return next(e)
+    return drawSeenBand($, e)
+  })
+
   on('ui.render', { component: 'Pane' }, async ($, e, next) => {
     if (e.requestId !== PANE) return next(e)
     return draw($, e)
@@ -1250,12 +1550,16 @@ export function register(on) {
 
   // Keep an open pane fresh when Claude changes Pad, through the CLI or MCP.
   on('tool.call', async ($, e, next) => {
+    // The first pad command runs after presence is recorded (see wake).
+    if (usesPad(e)) {
+      try { await wake($) } catch {}
+    }
     const result = await next(e)
     // Never let the pane's refresh disturb the tool call it watched.
     try {
       if (!open || busy || mode) return result
       const viaCli = e.tool === 'Bash' && /\bpad\s+(item|project|collection)\b/.test(String(e.command || ''))
-      const viaMcp = /^mcp__.*pad.*__pad_(item|project|collection)$/i.test(String(e.tool || ''))
+      const viaMcp = /^mcp__.+__pad_(item|project|collection)$/i.test(String(e.tool || ''))
       if (viaCli || viaMcp) load($).catch(() => {})
     } catch {}
     return result

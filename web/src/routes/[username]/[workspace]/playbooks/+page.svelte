@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
+	import { BookOpen01Icon, LibraryIcon } from '@hugeicons/core-free-icons';
 	import { untrack } from 'svelte';
 	import { fieldMatches, safeText } from '$lib/fields/fieldShape';
 	import { page } from '$app/state';
@@ -488,7 +490,7 @@
 			{#snippet actions()}
 				{#if !showNewForm}
 					<div style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
-						<a href="/{username}/{wsSlug}/library?tab=playbooks" class="new-btn" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);">📚 Browse Library</a>
+						<a href="/{username}/{wsSlug}/library?tab=playbooks" class="new-btn" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);"><Icon icon={LibraryIcon} /> Browse Library</a>
 						{#if canImport}
 						<Button
 							variant="secondary"
@@ -592,7 +594,7 @@
 			</EmptyState>
 		{:else if sorted.length === 0 && !showNewForm}
 			<EmptyState
-				icon="📘"
+				icon={BookOpen01Icon}
 				title="No playbooks yet"
 				message="Playbooks are multi-step workflows that guide agents through complex tasks."
 			>

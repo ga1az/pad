@@ -19,7 +19,9 @@ import (
 // Add new entries here whenever a new sensitive query key is
 // introduced. The list is intentionally short — most secrets should
 // move to the request body or a header instead.
-var redactedQueryKeys = regexp.MustCompile(`(?i)(\b(?:token|password|secret|api[_-]?key)=)[^&]*`)
+// `code` covers an agent join link (?code=padjoin_..., SPEC-15) and, as a
+// side effect, an OAuth authorization code on a redirect.
+var redactedQueryKeys = regexp.MustCompile(`(?i)(\b(?:token|password|secret|api[_-]?key|code)=)[^&]*`)
 
 // redactQueryString replaces sensitive query-key values with REDACTED
 // while leaving the rest of the query string intact for diagnostics.

@@ -266,6 +266,10 @@ func (s *Server) handleCreateCollection(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
 		return
 	}
+	if err := models.ValidateAwaitsHumanSetting(input.Settings); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
+		return
+	}
 
 	if input.Schema != "" {
 		var schema models.CollectionSchema
@@ -332,6 +336,14 @@ func (s *Server) handleCreateCollection(w http.ResponseWriter, r *http.Request) 
 		// prefix and any wrapping the call path added.
 		if v, ok := store.AsValidationError(err); ok {
 			writeError(w, http.StatusBadRequest, "bad_request", v.Reason)
+			return
+		}
+		// BUG-3976, defensive: unreachable over HTTP today, because
+		// CollectionCreate.UnmarshalJSON refuses settings that are not an
+		// object (IDEA-1488) and reads whitespace-only as "" (BUG-3985).
+		// Kept so the create door answers like update if that ever changes.
+		if errors.Is(err, models.ErrSettingsNotObject) {
+			writeError(w, http.StatusBadRequest, "validation_error", err.Error())
 			return
 		}
 		writeInternalError(w, err)
@@ -425,6 +437,10 @@ func (s *Server) handleUpdateCollection(w http.ResponseWriter, r *http.Request) 
 
 	if input.Settings != nil {
 		if err := models.ValidateTracksWorkSetting(*input.Settings); err != nil {
+			writeError(w, http.StatusBadRequest, "bad_request", err.Error())
+			return
+		}
+		if err := models.ValidateAwaitsHumanSetting(*input.Settings); err != nil {
 			writeError(w, http.StatusBadRequest, "bad_request", err.Error())
 			return
 		}
@@ -536,6 +552,14 @@ func (s *Server) handleUpdateCollection(w http.ResponseWriter, r *http.Request) 
 		// error occurred" while the store had composed the rule and an example.
 		if v, ok := store.AsValidationError(err); ok {
 			writeError(w, http.StatusBadRequest, "bad_request", v.Reason)
+			return
+		}
+		// BUG-3976: a typed tracks_work / awaits_human member over STORED
+		// settings that are not an object (a hand edit, an old row). The
+		// caller's input is fine but the write cannot be done; a full
+		// settings write repairs the row.
+		if errors.Is(err, models.ErrSettingsNotObject) {
+			writeError(w, http.StatusBadRequest, "validation_error", err.Error())
 			return
 		}
 		writeInternalError(w, err)

@@ -658,6 +658,13 @@ func (s *Store) createItemTxWithID(tx *sql.Tx, id, workspaceID, collectionID str
 	if err := s.enqueueDecisionJobsTx(tx, item.WorkspaceID, item.ID, item.CollectionID); err != nil {
 		return nil, err
 	}
+	// TASK-3937: an item created with an assignee tells them, here rather
+	// than in tryCreateItem so a cross-workspace copy is covered too.
+	if input.AssignedUserID != nil {
+		if err := s.enqueueAssignedNotificationTx(tx, item, *input.AssignedUserID, input.ActorUserID, item.CreatedBy == "agent"); err != nil {
+			return nil, err
+		}
+	}
 	// TASK-3585: the caller's last word inside this transaction.
 	if input.AfterWriteTx != nil {
 		if err := input.AfterWriteTx(tx, item); err != nil {
@@ -3572,6 +3579,13 @@ func (s *Store) updateItemWithParentLinkOnce(
 	if err := s.emitItemUpdateEventsTx(tx, existing, updated, mutSignal.StatusChanged, mutSignal.FromStatus, doneKey, opt.batchID, hierarchyChanged); err != nil {
 		return nil, err
 	}
+	// TASK-3937: tell a new assignee, on this transaction. Self-assignment
+	// notifies nobody; an empty actor (a system writer) is not the assignee.
+	if mutSignal.AssignmentChanged {
+		if err := s.enqueueAssignedNotificationTx(tx, updated, mutSignal.ToAssignedUserID, input.ActorUserID, updated.LastModifiedBy == "agent"); err != nil {
+			return nil, err
+		}
+	}
 	// Enqueued on EVERY update, including ones that change nothing a
 	// question can see: whether the state changed is the runner's state-hash
 	// check, not a guess made here (TASK-3117). No-op with no provider.
@@ -5682,6 +5696,11 @@ type BlocksEdge struct {
 	SourceTitle        string
 	SourceCollectionID string
 	SourceFields       string
+	// TargetCollectionID and TargetFields are the blocked item's visibility
+	// and done-state inputs: the needs scorers walk blocks forward and count
+	// only targets the viewer may see and that are still open (TASK-3959).
+	TargetCollectionID string
+	TargetFields       string
 }
 
 // GetBlocksEdges returns every `blocks` link in the workspace whose source and
@@ -5692,7 +5711,7 @@ type BlocksEdge struct {
 // GetItemLinks + per-link GetItem N+1 (BUG-2002).
 func (s *Store) GetBlocksEdges(workspaceID string) ([]BlocksEdge, error) {
 	rows, err := s.db.Query(s.q(`
-		SELECT l.target_id, l.source_id, s.title, s.collection_id, s.fields
+		SELECT l.target_id, l.source_id, s.title, s.collection_id, s.fields, t.collection_id, t.fields
 		FROM item_links l
 		JOIN items s ON s.id = l.source_id AND s.deleted_at IS NULL AND s.workspace_id = l.workspace_id
 		JOIN items t ON t.id = l.target_id AND t.deleted_at IS NULL AND t.workspace_id = l.workspace_id
@@ -5709,7 +5728,7 @@ func (s *Store) GetBlocksEdges(workspaceID string) ([]BlocksEdge, error) {
 	var edges []BlocksEdge
 	for rows.Next() {
 		var e BlocksEdge
-		if err := rows.Scan(&e.TargetID, &e.SourceID, &e.SourceTitle, &e.SourceCollectionID, &e.SourceFields); err != nil {
+		if err := rows.Scan(&e.TargetID, &e.SourceID, &e.SourceTitle, &e.SourceCollectionID, &e.SourceFields, &e.TargetCollectionID, &e.TargetFields); err != nil {
 			return nil, err
 		}
 		edges = append(edges, e)

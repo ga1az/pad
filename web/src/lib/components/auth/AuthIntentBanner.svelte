@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
+	import { PlugSocketIcon } from '@hugeicons/core-free-icons';
 	// Contextual banner shown on /login and /register when the user landed
 	// there mid-OAuth-flow, e.g. by clicking "Connect to Claude" on the
 	// marketing site → an OAuth client redirected them to
@@ -39,7 +41,7 @@
 
 {#if isOAuthFlow}
 	<div class="intent-banner" role="status" aria-live="polite">
-		<span class="intent-emoji" aria-hidden="true">🔌</span>
+		<span class="intent-emoji" aria-hidden="true"><Icon icon={PlugSocketIcon} /></span>
 		<span class="intent-text">
 			You're <strong>{verb}</strong> to connect an AI agent to your Pad workspaces.
 		</span>

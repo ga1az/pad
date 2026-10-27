@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
 	import { SvelteMap } from 'svelte/reactivity';
 	import { api } from '$lib/api/client';
 	import { authStore } from '$lib/stores/auth.svelte';
@@ -208,7 +209,7 @@
 			{#each groups as group (group.key)}
 				<div class="group">
 					<div class="group-header">
-						<span class="group-icon" aria-hidden="true">{group.icon}</span>
+						<span class="group-icon" aria-hidden="true"><Icon icon={group.icon} /></span>
 						<span class="group-label">{capitalize(group.slug)}</span>
 						{#if group.workspaceSlug}
 							<span class="group-ws" title="From workspace {group.workspaceSlug}">

@@ -4,11 +4,17 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
+	"regexp"
 	"strings"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
+
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/PerpetualSoftware/pad/internal/models"
+	"github.com/PerpetualSoftware/pad/internal/textguard"
 )
 
 // Typed-decision storage and its job queue (PLAN-3114 unit 2, TASK-3117).
@@ -55,9 +61,83 @@ func (s *Store) decisionSetResolver() DecisionSetResolver {
 	return *p
 }
 
+// DecisionDebounce returns the re-ask window for a question set (TASK-3916):
+// how long after the item's latest evaluation for that set a new write's job
+// waits before it is claimable. Zero means no wait.
+type DecisionDebounce func(questionSet string) time.Duration
+
+// SetDecisionDebounce installs the window function, or removes it with nil
+// (no set waits). Atomic for the same reason as the resolver: every write
+// door reads it.
+func (s *Store) SetDecisionDebounce(d DecisionDebounce) {
+	if d == nil {
+		s.decisionDebounce.Store(nil)
+		return
+	}
+	s.decisionDebounce.Store(&d)
+}
+
+func (s *Store) decisionDebounceFunc() DecisionDebounce {
+	p := s.decisionDebounce.Load()
+	if p == nil {
+		return nil
+	}
+	return *p
+}
+
+// decisionWindowFor is debounce(set), or zero when no debounce is installed.
+func decisionWindowFor(debounce DecisionDebounce, questionSet string) time.Duration {
+	if debounce == nil {
+		return 0
+	}
+	return debounce(questionSet)
+}
+
+// latestDecisionEvaluationSQL reads the item's latest evaluation for a set;
+// bind item_id, question_set. Run on the caller's own handle (a tx or the db)
+// and passed to decisionNotBefore as the row.
+const latestDecisionEvaluationSQL = `
+		SELECT MAX(evaluated_at) FROM item_decisions WHERE item_id = ? AND question_set = ?`
+
+// decisionNotBefore is the not_before a job gets, from the row of
+// latestDecisionEvaluationSQL: that evaluation plus window, or "" (NULL,
+// claimable now) when the window is zero, the item has never been evaluated
+// for the set (a first evaluation is never delayed), or the window has
+// already passed. The arithmetic is in Go, on decisionTime TEXT, so SQLite
+// and Postgres agree. A caller with no window skips the read entirely.
+func decisionNotBefore(latest *sql.Row, window time.Duration, now time.Time) (string, error) {
+	var last sql.NullString
+	if err := latest.Scan(&last); err != nil {
+		return "", fmt.Errorf("read latest evaluation: %w", err)
+	}
+	if !last.Valid || last.String == "" {
+		return "", nil
+	}
+	t, err := time.Parse(time.RFC3339Nano, last.String)
+	if err != nil {
+		// An unreadable timestamp must not hold a job back: ask now.
+		return "", nil
+	}
+	nb := t.Add(window)
+	if !nb.After(now) {
+		return "", nil
+	}
+	return decisionTime(nb), nil
+}
+
+func nullableText(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
+}
+
 // decisionSetsPtr is the Store field's type, named so store.go's struct can
 // declare it without importing sync/atomic for one line.
 type decisionSetsPtr = atomic.Pointer[DecisionSetResolver]
+
+// decisionDebouncePtr is the debounce field's type, named for the same reason.
+type decisionDebouncePtr = atomic.Pointer[DecisionDebounce]
 
 // decisionTimeFormat is FIXED-WIDTH, unlike RFC3339Nano, which drops trailing
 // zeros. These columns are compared and ordered as TEXT, and a variable-width
@@ -76,6 +156,11 @@ func decisionTime(t time.Time) string { return t.UTC().Format(decisionTimeFormat
 // generation instead of adding a row, and clears the failure history, because
 // the new generation is new work. enqueued_at is NOT moved: an item edited
 // continuously would otherwise sort to the back of the claim scan forever.
+//
+// DEBOUNCE (TASK-3916): a fresh row gets not_before from decisionNotBefore.
+// A conflicting enqueue KEEPS the row's existing not_before when it has one
+// (COALESCE(old, new)), so a stream of comments cannot keep pushing the
+// re-ask back; it only fills one in when the row had none.
 func (s *Store) enqueueDecisionJobsTx(tx *sql.Tx, workspaceID, itemID, collectionID string) error {
 	resolve := s.decisionSetResolver()
 	if resolve == nil {
@@ -89,21 +174,115 @@ func (s *Store) enqueueDecisionJobsTx(tx *sql.Tx, workspaceID, itemID, collectio
 	if len(sets) == 0 {
 		return nil
 	}
-	ts := decisionTime(time.Now())
+	debounce := s.decisionDebounceFunc()
+	now := time.Now()
+	ts := decisionTime(now)
 	for _, set := range sets {
-		if _, err := tx.Exec(s.q(`
-			INSERT INTO decision_jobs (item_id, workspace_id, question_set, generation, enqueued_at, attempts)
-			VALUES (?, ?, ?, 1, ?, 0)
-			ON CONFLICT (item_id, question_set) DO UPDATE SET
-				generation = decision_jobs.generation + 1,
-				attempts   = 0,
-				last_error = NULL`),
-			itemID, workspaceID, set, ts,
-		); err != nil {
-			return fmt.Errorf("enqueue decision job %s/%s: %w", itemID, set, err)
+		if err := s.owedDecisionJobTx(tx, workspaceID, itemID, set, debounce, now, ts); err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+// owedDecisionJobTx is the per-(item, set) body of enqueueDecisionJobsTx,
+// shared with OweDecisionJobs so the backfill and the write doors cannot
+// drift: same upsert, same coalescing, same debounce.
+func (s *Store) owedDecisionJobTx(tx *sql.Tx, workspaceID, itemID, set string, debounce DecisionDebounce, now time.Time, ts string) error {
+	notBefore := ""
+	if window := decisionWindowFor(debounce, set); window > 0 {
+		var err error
+		if notBefore, err = decisionNotBefore(tx.QueryRow(s.q(latestDecisionEvaluationSQL), itemID, set), window, now); err != nil {
+			return fmt.Errorf("enqueue decision job %s/%s: %w", itemID, set, err)
+		}
+	}
+	if _, err := tx.Exec(s.q(`
+		INSERT INTO decision_jobs (item_id, workspace_id, question_set, generation, enqueued_at, attempts, not_before)
+		VALUES (?, ?, ?, 1, ?, 0, ?)
+		ON CONFLICT (item_id, question_set) DO UPDATE SET
+			generation = decision_jobs.generation + 1,
+			attempts   = 0,
+			last_error = NULL,
+			not_before = COALESCE(decision_jobs.not_before, excluded.not_before)`),
+		itemID, workspaceID, set, ts, nullableText(notBefore),
+	); err != nil {
+		return fmt.Errorf("enqueue decision job %s/%s: %w", itemID, set, err)
+	}
+	return nil
+}
+
+// oweDecisionChunk bounds the items one OweDecisionJobs transaction covers.
+const oweDecisionChunk = 500
+
+// OweDecisionJobs makes the one question set owed for each item, in chunked
+// transactions, under the installed debounce (an item evaluated inside the
+// window gets a future not_before, exactly as a write would give it). It does
+// not consult the set resolver or any eligibility: the caller has decided.
+// Re-owing an item that already has a job bumps its generation and keeps one
+// row. Used by the one-shot effort backfill (TASK-3921).
+func (s *Store) OweDecisionJobs(workspaceID, set string, itemIDs []string) error {
+	debounce := s.decisionDebounceFunc()
+	for start := 0; start < len(itemIDs); start += oweDecisionChunk {
+		end := start + oweDecisionChunk
+		if end > len(itemIDs) {
+			end = len(itemIDs)
+		}
+		if err := s.oweDecisionChunk(workspaceID, set, itemIDs[start:end], debounce); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Store) oweDecisionChunk(workspaceID, set string, itemIDs []string, debounce DecisionDebounce) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck // no-op after commit
+	now := time.Now()
+	ts := decisionTime(now)
+	for _, id := range itemIDs {
+		if err := s.owedDecisionJobTx(tx, workspaceID, id, set, debounce, now, ts); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// DecisionBackfillCandidate is one live item the backfill may owe a job for.
+type DecisionBackfillCandidate struct {
+	ItemID      string
+	WorkspaceID string
+}
+
+// ItemsMissingDecisionKey lists the live items that have a stored answer for
+// withKey in the set (in any state or hash) and NONE for missingKey: the items
+// the set has been asked about before the question missingKey existed. The
+// caller filters by the set's current eligibility. Ordered for stable chunks.
+func (s *Store) ItemsMissingDecisionKey(set, withKey, missingKey string) ([]DecisionBackfillCandidate, error) {
+	rows, err := s.db.Query(s.q(`
+		SELECT i.workspace_id, i.id
+		FROM items i
+		WHERE i.deleted_at IS NULL
+		  AND EXISTS (SELECT 1 FROM item_decisions d
+		              WHERE d.item_id = i.id AND d.question_set = ? AND d.question_key = ?)
+		  AND NOT EXISTS (SELECT 1 FROM item_decisions e
+		              WHERE e.item_id = i.id AND e.question_set = ? AND e.question_key = ?)
+		ORDER BY i.workspace_id, i.id`), set, withKey, set, missingKey)
+	if err != nil {
+		return nil, fmt.Errorf("list decision backfill candidates: %w", err)
+	}
+	defer rows.Close()
+	var out []DecisionBackfillCandidate
+	for rows.Next() {
+		var c DecisionBackfillCandidate
+		if err := rows.Scan(&c.WorkspaceID, &c.ItemID); err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
 }
 
 // enqueueDecisionJobsForItemTx is the comment door's form: a comment knows its
@@ -134,8 +313,9 @@ type DecisionJob struct {
 
 // decisionJobClaimable is the single definition of "this job may be taken",
 // used by BOTH the candidate scan and the claim UPDATE's arbiter so the two
-// cannot drift (the reminderFireable lesson). Its one parameter is the current
-// time: an unclaimed row, or one whose lease has expired.
+// cannot drift (the reminderFireable lesson). Its TWO parameters are both the
+// current time: an unclaimed row, or one whose lease has expired, and whose
+// debounce (not_before, TASK-3916) has passed or was never set.
 //
 // A job whose WORKSPACE is soft-deleted is not claimable: it is held in place
 // so a workspace restore finds the work still owed (codex round 5). Nothing
@@ -143,6 +323,7 @@ type DecisionJob struct {
 // the row is the only thing that makes a restore resume. A purge hard-deletes
 // the items, and the composite FK cascades the held rows away.
 const decisionJobClaimable = `(claimed_by IS NULL OR lease_expires_at IS NULL OR lease_expires_at < ?)
+	AND (not_before IS NULL OR not_before <= ?)
 	AND NOT EXISTS (SELECT 1 FROM workspaces w WHERE w.id = decision_jobs.workspace_id AND w.deleted_at IS NOT NULL)`
 
 // ClaimDecisionJobs claims up to limit owed jobs for runner, oldest first,
@@ -164,7 +345,7 @@ func (s *Store) ClaimDecisionJobs(runner string, limit int, lease time.Duration)
 		FROM decision_jobs
 		WHERE `+decisionJobClaimable+`
 		ORDER BY enqueued_at, item_id, question_set
-		LIMIT ?`), nowS, limit)
+		LIMIT ?`), nowS, nowS, limit)
 	if err != nil {
 		return nil, fmt.Errorf("scan decision jobs: %w", err)
 	}
@@ -190,7 +371,7 @@ func (s *Store) ClaimDecisionJobs(runner string, limit int, lease time.Duration)
 			UPDATE decision_jobs SET claimed_by = ?, lease_expires_at = ?
 			WHERE item_id = ? AND question_set = ? AND generation = ?
 			  AND `+decisionJobClaimable),
-			runner, until, j.ItemID, j.QuestionSet, j.Generation, nowS)
+			runner, until, j.ItemID, j.QuestionSet, j.Generation, nowS, nowS)
 		if err != nil {
 			return claimed, fmt.Errorf("claim decision job %s/%s: %w", j.ItemID, j.QuestionSet, err)
 		}
@@ -202,12 +383,54 @@ func (s *Store) ClaimDecisionJobs(runner string, limit int, lease time.Duration)
 	return claimed, nil
 }
 
+// CountClaimableDecisionJobs counts the set's jobs for itemIDs that
+// ClaimDecisionJobs could take RIGHT NOW at `now`: the very decisionJobClaimable
+// predicate, so the two cannot drift. A job that is claimed (lease live), held
+// by the re-ask debounce (not_before ahead), held by a soft-deleted workspace,
+// answered or deleted is not counted. The effort backfill uses it to tell
+// whether its last chunk has drained (TASK-3921).
+func (s *Store) CountClaimableDecisionJobs(set string, itemIDs []string, now time.Time) (int, error) {
+	nowS := decisionTime(now)
+	total := 0
+	for start := 0; start < len(itemIDs); start += oweDecisionChunk {
+		end := start + oweDecisionChunk
+		if end > len(itemIDs) {
+			end = len(itemIDs)
+		}
+		part := itemIDs[start:end]
+		args := make([]any, 0, len(part)+3)
+		args = append(args, set)
+		marks := make([]string, len(part))
+		for i, id := range part {
+			marks[i] = "?"
+			args = append(args, id)
+		}
+		args = append(args, nowS, nowS)
+		var n int
+		if err := s.db.QueryRow(s.q(`
+			SELECT COUNT(*) FROM decision_jobs
+			WHERE question_set = ? AND item_id IN (`+strings.Join(marks, ",")+`)
+			  AND `+decisionJobClaimable), args...).Scan(&n); err != nil {
+			return 0, fmt.Errorf("count claimable decision jobs: %w", err)
+		}
+		total += n
+	}
+	return total, nil
+}
+
 // CompleteDecisionJob retires a claimed job.
 //
 // The job is deleted only if its generation is still the one claimed. If a
 // write re-enqueued it mid-evaluation, the row stays and the claim is
 // released, so the next tick evaluates the newer state — the finished run
 // must not delete work it never saw.
+//
+// That released row's not_before is RECOMPUTED (TASK-3916): the write that
+// bumped it read the latest evaluation BEFORE this run's answers landed, so
+// it may have found the window past and left the row claimable at once. The
+// recomputation sees them, and the newer state is asked about a window after
+// this run, not on the very next tick. A run that stored nothing (its state
+// was already answered) moves nothing, so this never invents a delay.
 func (s *Store) CompleteDecisionJob(j DecisionJob) error {
 	res, err := s.db.Exec(s.q(`
 		DELETE FROM decision_jobs
@@ -219,7 +442,22 @@ func (s *Store) CompleteDecisionJob(j DecisionJob) error {
 	if n, _ := res.RowsAffected(); n == 1 {
 		return nil
 	}
-	return s.releaseDecisionJob(j, "", 0)
+	notBefore := ""
+	if window := decisionWindowFor(s.decisionDebounceFunc(), j.QuestionSet); window > 0 {
+		if notBefore, err = decisionNotBefore(s.db.QueryRow(s.q(latestDecisionEvaluationSQL), j.ItemID, j.QuestionSet), window, time.Now()); err != nil {
+			return fmt.Errorf("debounce superseded decision job %s/%s: %w", j.ItemID, j.QuestionSet, err)
+		}
+	}
+	if notBefore != "" {
+		if _, err := s.db.Exec(s.q(`
+			UPDATE decision_jobs SET not_before = ?
+			WHERE item_id = ? AND question_set = ? AND claimed_by = ?
+			  AND (not_before IS NULL OR not_before < ?)`),
+			notBefore, j.ItemID, j.QuestionSet, j.ClaimedBy, notBefore); err != nil {
+			return fmt.Errorf("debounce superseded decision job %s/%s: %w", j.ItemID, j.QuestionSet, err)
+		}
+	}
+	return s.releaseDecisionClaim(j)
 }
 
 // FailDecisionJob records a failed attempt and holds the job until retryAfter
@@ -232,7 +470,10 @@ func (s *Store) FailDecisionJob(j DecisionJob, cause error, retryAfter time.Dura
 	if cause != nil {
 		msg = cause.Error()
 	}
-	return s.releaseDecisionJob(j, msg, retryAfter)
+	if msg == "" {
+		msg = noDecisionErrorMessage
+	}
+	return s.recordDecisionFailure(j, msg, retryAfter)
 }
 
 // DropDecisionJob abandons a claimed job: the item is gone, the set no
@@ -258,36 +499,106 @@ func (s *Store) DropDecisionJob(j DecisionJob) error {
 
 // ReleaseDecisionJob gives a claimed job back without recording a failure:
 // the runner stopped before finishing it (shutdown), which says nothing about
-// the job. It is claimable again at once.
+// the job. It is claimable again at once, unless its debounce (not_before)
+// is still ahead.
 func (s *Store) ReleaseDecisionJob(j DecisionJob) error {
-	return s.releaseDecisionJob(j, "", 0)
+	return s.releaseDecisionClaim(j)
 }
 
-func (s *Store) releaseDecisionJob(j DecisionJob, failure string, retryAfter time.Duration) error {
-	if failure == "" {
-		// Superseded: release the claim so the newer generation is claimable
-		// at once.
-		_, err := s.db.Exec(s.q(`
-			UPDATE decision_jobs SET claimed_by = NULL, lease_expires_at = NULL
-			WHERE item_id = ? AND question_set = ? AND claimed_by = ?`),
-			j.ItemID, j.QuestionSet, j.ClaimedBy)
-		if err != nil {
-			return fmt.Errorf("release decision job %s/%s: %w", j.ItemID, j.QuestionSet, err)
-		}
-		return nil
-	}
+// releaseDecisionClaim gives a claim back without recording anything: attempts
+// and last_error are untouched, so the job is claimable again as soon as its
+// not_before allows. Complete (superseded generation) and Release use it.
+func (s *Store) releaseDecisionClaim(j DecisionJob) error {
 	_, err := s.db.Exec(s.q(`
+		UPDATE decision_jobs SET claimed_by = NULL, lease_expires_at = NULL
+		WHERE item_id = ? AND question_set = ? AND claimed_by = ?`),
+		j.ItemID, j.QuestionSet, j.ClaimedBy)
+	if err != nil {
+		return fmt.Errorf("release decision job %s/%s: %w", j.ItemID, j.QuestionSet, err)
+	}
+	return nil
+}
+
+// noDecisionErrorMessage stands in for a failure whose cause carries no text
+// (a nil error, or one whose Error() is ""). A failure must always count an
+// attempt: reading an empty message as "superseded" released the claim with
+// no attempt and no last_error, so the job was re-run on every tick (BUG-4022).
+const noDecisionErrorMessage = "decision evaluation failed with no error message"
+
+// unrecordableDecisionError is the last_error written when the store refused
+// the real message. It is a constant on purpose: anything read out of the
+// error that just failed is driver text, which is what may be unrecordable.
+// The SQLSTATE, when the driver gives one in its fixed shape, is appended.
+const unrecordableDecisionError = "failure not recordable: the store refused the message"
+
+// decisionSQLState returns the five-character SQLSTATE of a Postgres error,
+// or "" for anything else (SQLite has none) or a code of an unexpected shape.
+func decisionSQLState(err error) string {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) || !decisionSQLStateRe.MatchString(pgErr.Code) {
+		return ""
+	}
+	return pgErr.Code
+}
+
+var decisionSQLStateRe = regexp.MustCompile(`^[0-9A-Z]{5}$`)
+
+// recordDecisionFailure counts a failed attempt: attempts+1, last_error, and
+// the lease moved to the retry time. Generation- and claim-matched.
+//
+// It fails OPEN (BUG-4022): if the UPDATE carrying the message is refused,
+// one fallback UPDATE with the same WHERE and lease records the attempt with
+// a fixed last_error instead. Without it a refused message left attempts at 0,
+// so the backoff never grew, the permanent drop never fired, and the job was
+// re-run (a paid provider call) every lease, forever. If the fallback also
+// fails, both errors are returned.
+//
+// The fallback also requires attempts to still be the value read at claim.
+// An error from the first UPDATE does not prove it did not commit (a reply
+// lost after the commit); if it did, attempts has already moved and the
+// fallback matches nothing rather than counting the attempt twice. A
+// fallback that matches nothing returns the first error, as before BUG-4022,
+// so the runner still logs an outcome it could not confirm.
+func (s *Store) recordDecisionFailure(j DecisionJob, failure string, retryAfter time.Duration) error {
+	const q = `
 		UPDATE decision_jobs
 		SET attempts = attempts + 1, last_error = ?, lease_expires_at = ?
-		WHERE item_id = ? AND question_set = ? AND generation = ? AND claimed_by = ?`),
-		truncateDecisionError(failure), decisionTime(time.Now().Add(retryAfter)),
+		WHERE item_id = ? AND question_set = ? AND generation = ? AND claimed_by = ?`
+	lease := decisionTime(time.Now().Add(retryAfter))
+	res, err := s.db.Exec(s.q(q), truncateDecisionError(failure), lease,
 		j.ItemID, j.QuestionSet, j.Generation, j.ClaimedBy)
-	if err != nil {
-		return fmt.Errorf("fail decision job %s/%s: %w", j.ItemID, j.QuestionSet, err)
+	if err == nil {
+		if n, _ := res.RowsAffected(); n == 1 {
+			return nil
+		}
+		// Zero rows means the job was re-enqueued; the enqueue already reset
+		// its failure history, so release the claim for the new generation.
+		return s.releaseSupersededDecisionJob(j)
 	}
-	// Zero rows means the job was re-enqueued; the enqueue already reset its
-	// failure history, so release the claim for the new generation.
-	return s.releaseSupersededDecisionJob(j)
+	firstErr := fmt.Errorf("fail decision job %s/%s: %w", j.ItemID, j.QuestionSet, err)
+	fallback := unrecordableDecisionError
+	if code := decisionSQLState(err); code != "" {
+		fallback += " (SQLSTATE " + code + ")"
+	}
+	res, ferr := s.db.Exec(s.q(q+` AND attempts = ?`), fallback, lease,
+		j.ItemID, j.QuestionSet, j.Generation, j.ClaimedBy, j.Attempts)
+	if ferr != nil {
+		return errors.Join(firstErr,
+			fmt.Errorf("fail decision job %s/%s (fallback): %w", j.ItemID, j.QuestionSet, ferr))
+	}
+	if n, _ := res.RowsAffected(); n == 1 {
+		slog.Warn("decision failure message not stored; recorded a fixed one",
+			"item_id", j.ItemID, "question_set", j.QuestionSet)
+		return nil
+	}
+	// Zero rows: either the first UPDATE committed after all (attempts has
+	// moved) or the job was re-enqueued. The superseded release covers the
+	// second and is a no-op for the first; the first error is returned either
+	// way, since this call cannot confirm what was recorded.
+	if rerr := s.releaseSupersededDecisionJob(j); rerr != nil {
+		return errors.Join(firstErr, rerr)
+	}
+	return firstErr
 }
 
 func (s *Store) releaseSupersededDecisionJob(j DecisionJob) error {
@@ -305,11 +616,22 @@ func (s *Store) releaseSupersededDecisionJob(j DecisionJob) error {
 // response body, and this column is diagnostics, not a log.
 const maxDecisionErrorBytes = 1024
 
+// truncateDecisionError makes a failure message safe to record: valid UTF-8,
+// NUL-free and at most maxDecisionErrorBytes. A provider's response body is
+// arbitrary bytes, and a byte cut can land inside a multi-byte rune; Postgres
+// TEXT refuses invalid UTF-8 (SQLSTATE 22021) and the NUL guard refuses a NUL,
+// and either way the UPDATE fails, so the failure goes unrecorded (BUG-4018).
+// Sanitise first, then cut at a rune start. Short clean ASCII is unchanged.
 func truncateDecisionError(s string) string {
+	s = strings.ToValidUTF8(textguard.Repair(s, false), textguard.Replacement)
 	if len(s) <= maxDecisionErrorBytes {
 		return s
 	}
-	return s[:maxDecisionErrorBytes]
+	cut := maxDecisionErrorBytes
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut]
 }
 
 // DecisionJobState is a test/diagnostic read of one job row.
@@ -318,23 +640,25 @@ type DecisionJobState struct {
 	Attempts   int
 	ClaimedBy  string
 	LastError  string
+	// NotBefore is the debounce instant (TASK-3916), "" when claimable now.
+	NotBefore string
 }
 
 // GetDecisionJob returns a job's row, or nil when no evaluation is owed.
 func (s *Store) GetDecisionJob(itemID, questionSet string) (*DecisionJobState, error) {
 	var st DecisionJobState
-	var claimedBy, lastError sql.NullString
+	var claimedBy, lastError, notBefore sql.NullString
 	err := s.db.QueryRow(s.q(`
-		SELECT generation, attempts, claimed_by, last_error FROM decision_jobs
+		SELECT generation, attempts, claimed_by, last_error, not_before FROM decision_jobs
 		WHERE item_id = ? AND question_set = ?`), itemID, questionSet).
-		Scan(&st.Generation, &st.Attempts, &claimedBy, &lastError)
+		Scan(&st.Generation, &st.Attempts, &claimedBy, &lastError, &notBefore)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get decision job: %w", err)
 	}
-	st.ClaimedBy, st.LastError = claimedBy.String, lastError.String
+	st.ClaimedBy, st.LastError, st.NotBefore = claimedBy.String, lastError.String, notBefore.String
 	return &st, nil
 }
 

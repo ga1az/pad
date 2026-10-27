@@ -314,7 +314,7 @@ func (s *Server) handleBulkItems(w http.ResponseWriter, r *http.Request) {
 		// that's an accepted noise-discipline tradeoff for Phase 1.
 		// No-op when updated.LastMutation is nil (most bulk ops:
 		// archive/restore/tag/untag never touch status or assignment).
-		s.publishWatchNotifications(workspaceID, updated, actor, actorName)
+		s.publishWatchNotifications(workspaceID, updated, actor, actorName, currentUserID(r))
 
 		// Per-row activity log keeps the audit trail intact — it's a
 		// DB write, not the SSE/webhook fan-out the task is avoiding.

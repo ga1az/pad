@@ -1,9 +1,11 @@
 <script lang="ts">
+	import { Alert02Icon, ClipboardIcon, SparklesIcon, StarIcon } from '@hugeicons/core-free-icons';
+	import Icon from '$lib/icons/Icon.svelte';
 	import { categoricalValueFor } from '$lib/collections/categoricalFieldValue';
 	import { ATTENTION_CAP, PLANS_CAP, orderAttention, visibleRows, loadExpanded, saveExpanded } from '$lib/dashboard/caps';
 	import { page } from '$app/state';
 	import { onMount, onDestroy, untrack } from 'svelte';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import { statusColor, priorityColor } from '$lib/utils/fieldColors';
 	import { api, PadApiError } from '$lib/api/client';
 	import { workspaceStore } from '$lib/stores/workspace.svelte';
@@ -27,6 +29,7 @@
 	import { collectionTracksWork } from '$lib/types';
 	import { statusState } from '$lib/collections/childProgress';
 	import PartialImportBanner from '$lib/components/PartialImportBanner.svelte';
+	import CatchUpCard from '$lib/components/activity/CatchUpCard.svelte';
 
 	let wsSlug = $derived(page.params.workspace ?? '');
 	let username = $derived(page.params.username ?? '');
@@ -657,7 +660,7 @@
 			</div>
 			<div class="dash-header-actions">
 				{#if firstCollection}
-					<Button variant="secondary" onclick={() => uiStore.requestQuickAdd(firstCollection.slug)}>{firstCollection.icon} New {firstCollection.name.replace(/s$/, '')}</Button>
+					<Button variant="secondary" onclick={() => uiStore.requestQuickAdd(firstCollection.slug)}><Icon icon={firstCollection.icon} /> New {firstCollection.name.replace(/s$/, '')}</Button>
 				{/if}
 				{#if hasTasksCollection}
 					<Button variant="primary" onclick={() => uiStore.requestQuickAdd('tasks')}>+ New Task</Button>
@@ -679,7 +682,7 @@
 			affected sections aren't misread as genuinely empty. -->
 		{#if dashboard.degraded}
 			<div class="degraded-banner" role="status">
-				<span class="degraded-icon">⚠</span>
+				<span class="degraded-icon"><Icon icon={Alert02Icon} /></span>
 				<span>
 					Some dashboard data couldn't be loaded and may be incomplete.
 					{#if dashboard.degraded_sections && dashboard.degraded_sections.length > 0}
@@ -718,7 +721,7 @@
 					the launchpad. Hidden once any user collection exists.
 				-->
 				<div class="empty-escape">
-					<span class="empty-escape-icon" aria-hidden="true">📋</span>
+					<span class="empty-escape-icon" aria-hidden="true"><Icon icon={ClipboardIcon} /></span>
 					<div class="empty-escape-body">
 						<p class="empty-escape-title">Your workspace is empty</p>
 						<p class="empty-escape-text">
@@ -756,7 +759,7 @@
 				<div class="attention-list">
 					{#each visibleRows(attentionOrdered, ATTENTION_CAP, attentionExpanded) as alert (`${alert.type}:${alert.item_slug}`)}
 						<div class="attention-card">
-							<span class="attention-icon">{attentionIcon(alert.type)}</span>
+							<span class="attention-icon"><Icon icon={attentionIcon(alert.type)} /></span>
 							<div class="attention-content">
 								<a href="/{username}/{wsSlug}/{alert.collection}/{alert.item_slug}" class="attention-title">{alert.item_title}</a>
 								<span class="attention-reason">{alert.reason}</span>
@@ -771,6 +774,9 @@
 				{/if}
 			</section>
 		{/if}
+
+		<!-- Catch-up digest (TASK-3615): above Active Work, per DOC-3616. -->
+		<CatchUpCard {username} {wsSlug} />
 
 		<!-- 3. Active Work -->
 		{#if dashboard.active_items.length > 0}
@@ -791,13 +797,13 @@
 						{@const cardPriority = categoricalValueFor(collections, item, 'priority', item.priority)}
 						<a href="/{username}/{wsSlug}/{item.collection_slug}/{item.slug}" class="active-card" class:just-created={justCreatedSlugs.has(item.slug)}>
 							{#if justCreatedSlugs.has(item.slug)}
-								<span class="just-created-badge">✨ your agent just created this</span>
+								<span class="just-created-badge"><Icon icon={SparklesIcon} /> your agent just created this</span>
 							{/if}
 							<div class="active-card-top">
 								{#if item.item_ref}
 									<span class="active-ref">{item.item_ref}</span>
 								{/if}
-								<span class="active-icon">{item.collection_icon}</span>
+								<span class="active-icon"><Icon icon={item.collection_icon} /></span>
 							</div>
 							<div class="active-title">{item.title}</div>
 							<div class="active-card-bottom">
@@ -821,7 +827,7 @@
 		{#if dashboard.starred_items && dashboard.starred_items.length > 0}
 			<section class="section">
 				<div class="section-header">
-					<span class="section-label">⭐ Starred</span>
+					<span class="section-label"><Icon icon={StarIcon} /> Starred</span>
 					<span class="section-badge">{dashboard.starred_items.length}</span>
 					<a href="/{username}/{wsSlug}/starred" class="section-link">View all</a>
 				</div>
@@ -840,7 +846,7 @@
 								{#if item.item_ref}
 									<span class="active-ref">{item.item_ref}</span>
 								{/if}
-								<span class="active-icon">{item.collection_icon}</span>
+								<span class="active-icon"><Icon icon={item.collection_icon} /></span>
 							</div>
 							<div class="active-title">{item.title}</div>
 							<div class="active-card-bottom">
@@ -896,7 +902,7 @@
 					<a href="/{username}/{wsSlug}/{coll.slug}" class="coll-card">
 						<div class="coll-card-header">
 							<span class="coll-card-name">
-								{#if coll.icon}<span class="coll-icon">{coll.icon}</span>{/if}
+								{#if coll.icon}<span class="coll-icon"><Icon icon={coll.icon} /></span>{/if}
 								{coll.name}
 							</span>
 							<span class="coll-card-count">{prog.total}</span>
@@ -998,7 +1004,7 @@
 							{:else if activity.source === 'cli'}
 								<span class="actor-badge cli">cli</span>
 							{/if}
-							<span class="activity-dot" style="color: {activity.action === 'created' ? 'var(--accent-green)' : activity.action === 'archived' ? 'var(--text-muted)' : 'var(--status-blue)'};">{activityIcon(activity.action)}</span>
+							<span class="activity-dot" style="color: {activity.action === 'created' ? 'var(--accent-green)' : activity.action === 'archived' ? 'var(--text-muted)' : 'var(--status-blue)'};"><Icon icon={activityIcon(activity.action)} /></span>
 							<span class="activity-verb">{activityVerb(activity.action)}</span>
 							{#if activity.reorder_count}
 								<!-- one entry for a whole reorder batch (TASK-3517) -->
@@ -1027,7 +1033,7 @@
 		     the flat "No dashboard data available." message that reads
 		     as "nothing here". -->
 		<div class="dash-error">
-			<div class="dash-error-icon">⚠️</div>
+			<div class="dash-error-icon"><Icon icon={Alert02Icon} /></div>
 			<h2>Couldn't load the dashboard</h2>
 			<p>Something went wrong while loading. It may be a temporary network or server issue.</p>
 			<Button variant="primary" onclick={() => { if (wsSlug) load(wsSlug); }}>Retry</Button>

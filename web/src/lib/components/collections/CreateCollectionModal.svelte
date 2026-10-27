@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/icons/Icon.svelte';
 	import { isRelationType } from '$lib/items/relationFieldTypes';
 	import { tick } from 'svelte';
 	import { api } from '$lib/api/client';
@@ -493,7 +494,7 @@
 								type="button"
 								onclick={() => selectTemplate(template)}
 							>
-								<span class="template-icon" aria-hidden="true">{template.icon}</span>
+								<span class="template-icon" aria-hidden="true"><Icon icon={template.icon} /></span>
 								<span class="template-name">{template.name}</span>
 								<span class="template-desc">{template.description}</span>
 							</button>

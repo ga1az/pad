@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { RulerIcon } from '@hugeicons/core-free-icons';
+	import Icon from '$lib/icons/Icon.svelte';
 	import { untrack } from 'svelte';
 	import { modKeyLabel } from '$lib/utils/platform';
 	import { page } from '$app/state';
@@ -713,7 +715,7 @@
 						<select bind:value={newTrigger}>
 							{#each createTriggers as t (t)}
 								{@const meta = triggerMeta(t)}
-								<option value={t}>{meta.icon} {meta.label}</option>
+								<option value={t}>{meta.label}</option>
 							{/each}
 						</select>
 					</label>
@@ -769,7 +771,7 @@
 
 		{#if conventions.length === 0 && !showCreate}
 			<EmptyState
-				icon="📏"
+				icon={RulerIcon}
 				title="No conventions yet"
 				message="Add rules from the library or create your own."
 			/>
@@ -788,7 +790,7 @@
 						<div class="group-header-row">
 							<button class="group-header" onclick={() => toggleGroup(group.trigger)}>
 								<span class="group-chevron" class:collapsed>{collapsed ? '\u25B6' : '\u25BC'}</span>
-								<span class="group-icon">{meta.icon}</span>
+								<span class="group-icon"><Icon icon={meta.icon} /></span>
 								<span class="group-label">{meta.label}</span>
 								<span class="group-count">{group.activeCount}/{group.items.length} active</span>
 							</button>
@@ -862,7 +864,7 @@
 															<select bind:value={editTrigger}>
 																{#each withCurrent(createTriggers, editMetaBase.trigger) as t (t)}
 																	{@const meta = triggerMeta(t)}
-																	<option value={t}>{meta.icon} {meta.label}</option>
+																	<option value={t}>{meta.label}</option>
 																{/each}
 															</select>
 														</label>

@@ -26,6 +26,7 @@ func TestReadOnlyCatalog_AllToolsRegistered(t *testing.T) {
 		"pad_collection": false,
 		"pad_project":    false,
 		"pad_role":       false,
+		"pad_chat":       false,
 		"pad_search":     false,
 		"pad_item":       false,
 		"pad_playbook":   false,
@@ -79,6 +80,12 @@ func TestReadOnlyCatalog_ActionsMatchCmdhelp(t *testing.T) {
 	// handlers (workspace audit-log) appear here too — they dispatch
 	// to the listed cmdPath even though the input shape differs.
 	expected := map[[2]string][]string{
+		{"pad_chat", "list"}:           {"chat", "list"},
+		{"pad_chat", "inbox"}:          {"chat", "inbox"},
+		{"pad_chat", "show"}:           {"chat", "show"},
+		{"pad_chat", "send"}:           {"chat", "send"},
+		{"pad_chat", "delete"}:         {"chat", "delete"},
+		{"pad_chat", "read"}:           {"chat", "read"},
 		{"pad_workspace", "list"}:      {"workspace", "list"},
 		{"pad_workspace", "members"}:   {"workspace", "members"},
 		{"pad_workspace", "invite"}:    {"workspace", "invite"},
@@ -107,6 +114,7 @@ func TestReadOnlyCatalog_ActionsMatchCmdhelp(t *testing.T) {
 		{"pad_project", "changelog"}: {"project", "changelog"},
 		{"pad_project", "report"}:    {"project", "report"},
 		{"pad_project", "activity"}:  {"project", "activity"},
+		{"pad_project", "catch-up"}:  {"project", "catch-up"},
 
 		{"pad_role", "list"}:   {"role", "list"},
 		{"pad_role", "create"}: {"role", "create"},
@@ -251,6 +259,12 @@ func TestReadOnlyCatalog_ActionsDispatchExpectedCmdPath(t *testing.T) {
 	// renamed cmdPath fails THIS test loudly with the actual
 	// dispatched path printed in the error message.
 	expected := map[[2]string][]string{
+		{"pad_chat", "list"}:           {"chat", "list"},
+		{"pad_chat", "inbox"}:          {"chat", "inbox"},
+		{"pad_chat", "show"}:           {"chat", "show"},
+		{"pad_chat", "send"}:           {"chat", "send"},
+		{"pad_chat", "delete"}:         {"chat", "delete"},
+		{"pad_chat", "read"}:           {"chat", "read"},
 		{"pad_workspace", "list"}:      {"workspace", "list"},
 		{"pad_workspace", "members"}:   {"workspace", "members"},
 		{"pad_workspace", "invite"}:    {"workspace", "invite"},
@@ -279,6 +293,7 @@ func TestReadOnlyCatalog_ActionsDispatchExpectedCmdPath(t *testing.T) {
 		{"pad_project", "changelog"}: {"project", "changelog"},
 		{"pad_project", "report"}:    {"project", "report"},
 		{"pad_project", "activity"}:  {"project", "activity"},
+		{"pad_project", "catch-up"}:  {"project", "catch-up"},
 
 		{"pad_role", "list"}:   {"role", "list"},
 		{"pad_role", "create"}: {"role", "create"},
@@ -334,6 +349,7 @@ func TestReadOnlyCatalog_ActionsDispatchExpectedCmdPath(t *testing.T) {
 	// surface gets its required args satisfied so BuildCLIArgs reaches
 	// dispatcher.Dispatch instead of returning a missing-arg error.
 	fixtureInput := map[string]any{
+		"target": "C12", "body": "hello", "seq": float64(4), "to": float64(4),
 		"email":             "test@example.com",
 		"name":              "test-name",
 		"slug":              "test-slug",
@@ -488,6 +504,12 @@ func liveCmdhelpDoc(t *testing.T) *cmdhelp.Document {
 		CmdhelpVersion: "0.1",
 		Binary:         "pad",
 		Commands: map[string]cmdhelp.Command{
+			"chat list":   {},
+			"chat inbox":  {Flags: mkFlags("agent")},
+			"chat show":   {Args: mkArgs("target"), Flags: mkFlags("since", "limit", "no-mark")},
+			"chat send":   {Args: mkArgs("target", "body"), Flags: mkFlags("reply-to", "op-key", "context-workspace")},
+			"chat delete": {Args: mkArgs("target", "seq")},
+			"chat read":   {Args: mkArgs("target"), Flags: mkFlags("to")},
 			// Workspace
 			"workspace list":    {Summary: "list ws"},
 			"workspace members": {Summary: "list members", Flags: mkFlags("workspace")},
@@ -589,6 +611,10 @@ func liveCmdhelpDoc(t *testing.T) *cmdhelp.Document {
 					"actor":     {Type: "string"},
 					"since":     {Type: "string"},
 				},
+			},
+			"project catch-up": {
+				Summary: "catch-up",
+				Flags:   map[string]cmdhelp.Flag{"workspace": {Type: "string"}},
 			},
 			// Role
 			"role list": {Summary: "list roles", Flags: mkFlags("workspace")},

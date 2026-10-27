@@ -92,6 +92,68 @@ data_dir() {
 	fi
 }
 
+# anchored_data_dir is data_dir with a RELATIVE value anchored where the
+# restarted server resolves it: config.Load takes the value verbatim, so the
+# server reads it against its own cwd. The restart runs in SERVER_CWD (the cd
+# in section 5) or, before one is captured or when none is, here
+# (BUG-4064 r2 for the log and the pid file; BUG-4066 for the refresh marker
+# and config_value, so every path the script touches is resolved one way).
+anchored_data_dir() {
+	local dir
+	dir="$(data_dir)"
+	case "$dir" in
+	/*) printf '%s' "$dir" ;;
+	*) printf '%s' "${SERVER_CWD:-$PWD}/$dir" ;;
+	esac
+}
+
+# normalize_path collapses "." and ".." segments of an absolute path in pure
+# shell (no realpath -m, which macOS lacks; no arrays, for bash 3.2), so the
+# warning names a clean path for "./x/../data".
+normalize_path() {
+	local rest="$1/" seg out=""
+	while [ -n "$rest" ]; do
+		seg="${rest%%/*}"
+		rest="${rest#*/}"
+		case "$seg" in
+		"" | .) ;;
+		..) out="${out%/*}" ;;
+		*) out="$out/$seg" ;;
+		esac
+	done
+	printf '%s' "${out:-/}"
+}
+
+# warn_relative_data_dir prints config.Load's BUG-4066 warning for a relative
+# PAD_DATA_DIR or PAD_DB_PATH (the value still resolves; a future release
+# refuses it, TASK-4072). It names the DATA DIR the server and this refresh
+# actually use (the directory of a PAD_DB_PATH, not the db file), anchored
+# like anchored_data_dir, so it runs once SERVER_CWD is captured (BUG-4066
+# r1), and still before the marker or the stop.
+warn_relative_data_dir() {
+	local name value dir what base
+	if [ -n "${PAD_DB_PATH:-}" ]; then
+		name=PAD_DB_PATH value="$PAD_DB_PATH" dir="$(dirname "$PAD_DB_PATH")" what="the data dir"
+	elif [ -n "${PAD_DATA_DIR:-}" ]; then
+		name=PAD_DATA_DIR value="$PAD_DATA_DIR" dir="$PAD_DATA_DIR" what="it"
+	else
+		return 0
+	fi
+	case "$dir" in /*) return 0 ;; esac
+	base="${SERVER_CWD:-$PWD}"
+	# ONE line, like config.Load's: phase 1's contract is one warning per
+	# process, so the shell's-directory note and the ~ hint ride in it
+	# (BUG-4066 r4 item 1).
+	local msg resolved
+	resolved="$(normalize_path "$base/$dir")"
+	if [ -n "${SERVER_CWD:-}" ] && [ "$SERVER_CWD" != "$PWD" ]; then
+		resolved="$resolved (the server's directory; from this shell's directory it would be $(normalize_path "$PWD/$dir"))"
+	fi
+	msg="Warning: $name is relative ($value); this process resolves $what to $resolved. A CLI and a server in different directories will use different data. Set an absolute path; relative values will be refused in a future release."
+	case "$value" in "~"*) msg="$msg The leading ~ was not expanded by your shell, so it names a directory literally called ~." ;; esac
+	echo "$msg" >&2
+}
+
 # config_value prints a top-level key from the pad config file, or nothing.
 #
 # The file is FLAT TOML (internal/config/config.go: Host, Port, Mode, ... are
@@ -105,7 +167,7 @@ data_dir() {
 # closing it is a grep and the cost of leaving it is a permanent false alarm.
 config_value() {
 	local key="$1" path
-	path="$(data_dir)/config.toml"
+	path="$(anchored_data_dir)/config.toml"
 	[ -r "$path" ] || return 1
 	# Strip an inline comment before taking the value: `port = 8080 # dev`
 	# is valid TOML and the Go parser accepts it, so a regex that swallows
@@ -335,6 +397,7 @@ listener_pids() {
 }
 
 TARGET_PID=""
+STOPPED_PID=""
 LISTENERS=()
 HIDDEN=""
 while read -r lp; do
@@ -467,6 +530,9 @@ if [ -n "$TARGET_PID" ]; then
 	# directory whose NAME ends in one is not captured exactly.
 	note "captured server cwd: $SERVER_CWD"
 fi
+# BUG-4066: after the capture, so the warning names the anchored path; still
+# before the marker and the stop.
+warn_relative_data_dir
 
 # --- 2. SNAPSHOT the artifact, then check the snapshot ------------------------
 #
@@ -542,6 +608,31 @@ for candidate in "$configured_port" "${PAD_PORT:-}" "$(config_value port || true
 done
 PORT="${PORT:-7777}"
 
+# --- 2a. The server log, proven writable before anything is stopped ----------
+#
+# The restarted server logs where `pad server info` says the log is:
+# cfg.LogFile(), <data dir>/logs/server.log (BUG-4064). This used to be
+# $HOME/.pad/server.log, a second file nothing else reads, and one that also
+# ignored PAD_DATA_DIR. The file is opened for append HERE, before the stop:
+# a redirect that cannot open its target never runs the command, so an
+# unwritable log found after the stop would leave no server at all. A missing
+# parent (a fresh HOME), a read-only mount, a file another user owns (for a
+# non-root caller) or a directory in its place all refuse now, with the
+# running server untouched.
+#
+# A RELATIVE data dir is anchored where the restarted server will resolve it
+# (BUG-4064 r2). config.Load takes PAD_DATA_DIR verbatim, or PAD_DB_PATH's
+# dirname, with no filepath.Abs (config.go), so the server resolves it against
+# its own cwd. The restart runs in SERVER_CWD (the cd in section 5) or, when
+# none was captured, here. Proving the file relative to THIS cwd instead
+# would check one file and then open another after the stop.
+DATA_DIR="$(anchored_data_dir)"
+LOG_FILE="$DATA_DIR/logs/server.log"
+mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null &&
+	{ : >>"$LOG_FILE"; } 2>/dev/null ||
+	die "cannot append to the server log $LOG_FILE. Nothing was stopped; the running server is untouched. Fix the path's permissions and re-run."
+LEGACY_LOG="$HOME/.pad/server.log"
+
 # --- 2b. Claim the stop->restart window (BUG-3215) ---------------------------
 #
 # Between the stop below and the restart answering, nothing serves this port,
@@ -564,7 +655,9 @@ PORT="${PORT:-7777}"
 # waiting CLI returns the moment the server answers; the deadline only
 # decides how long a CLI waits on a refresh that is failing, after which it
 # errors naming this pid rather than spawning.
-REFRESH_MARKER="$(data_dir)/refresh.lock"
+# Anchored like the log (BUG-4066): written here and removed by cleanup()
+# after the cd into SERVER_CWD, so both must name the same file.
+REFRESH_MARKER="$DATA_DIR/refresh.lock"
 MARKER_WRITTEN=""
 probe_budget="$PROBE_TIMEOUT"
 numeric "$probe_budget" || probe_budget=20
@@ -618,7 +711,13 @@ if [ -n "$TARGET_PID" ]; then
 			die "pid $TARGET_PID no longer runs the captured server.
   Nothing was stopped or installed; re-run."
 		fi
-		kill -TERM "$TARGET_PID" 2>/dev/null || true
+		# The pid this refresh signalled: the only pid whose pad.pid record
+		# section 4 may treat as its own (BUG-4068). Recorded only when the
+		# signal was delivered, so a pid that exited and was reused after
+		# still_target is never claimed.
+		if kill -TERM "$TARGET_PID" 2>/dev/null; then
+			STOPPED_PID="$TARGET_PID"
+		fi
 		for _ in 1 2 3 4 5; do
 			kill -0 "$TARGET_PID" 2>/dev/null || break
 			sleep 1
@@ -632,7 +731,107 @@ fi
 # --- 4. Move into place, then check the OUTCOME -------------------------------
 mv -f "$STAGED" "$INSTALLED" || die "could not move the staged binary into $INSTALLED"
 STAGED=""
-rm -f "$HOME/.pad/pad.pid"
+# cfg.PIDFile() is <data dir>/pad.pid (config.go), claimed by `pad server
+# start` (cmd/pad/cmd_server.go); not $HOME/.pad under PAD_DATA_DIR (BUG-4064).
+# DATA_DIR is section 2a's, anchored like the log.
+#
+# The file is removed only when it is provably not someone else's (BUG-4068):
+# it names the pid this refresh stopped, or a pid that is provably DEAD. It is
+# kept when it names any live process, a sibling server sharing the data dir
+# or a reused pid, and when its liveness is unknown (EPERM) or it does not
+# parse. A kept stale file is the safe failure: `pad server stop` refuses a
+# record it cannot prove (BUG-2969).
+pid_file_pid() {
+	# The pid in pad.pid, read by checking each line against the SHAPE that
+	# internal/cli/pidfile.go writes (BUG-4068 r1, r2). This is a line-shape
+	# check, not full JSON validation:
+	#   - the MarshalIndent record: first non-blank line exactly "{", last
+	#     exactly "}", and each line between must START like a two-space-indent
+	#     quoted key ('  "' and a key character); the rest of such a line is
+	#     unchecked. Exactly one of them is "  \"pid\": N" (with or without a
+	#     trailing comma), and "pid" appears nowhere else in the file;
+	#   - or the legacy bare integer: one non-blank line, surrounding space only.
+	# A "\r" is dropped only at a line end. The pid is at most 10 digits,
+	# checked before any arithmetic, and at most 4194304 (Linux's largest
+	# pid_max; macOS's is 99999), so it never wraps as a pid_t. Anything else
+	# does not parse, and the file is kept.
+	local raw line pid="" n=0 lines=()
+	raw="$(cat "$1" 2>/dev/null)" || return 1
+	while IFS= read -r line || [ -n "$line" ]; do
+		line="${line%$'\r'}"
+		case "$line" in *[![:space:]]*) lines+=("$line") ;; esac
+	done <<<"$raw"
+	[ ${#lines[@]} -gt 0 ] || return 1
+	case "$raw" in *'"pid"'*'"pid"'*) return 1 ;; esac
+	if [ "${lines[0]}" = "{" ]; then
+		[ ${#lines[@]} -ge 3 ] && [ "${lines[${#lines[@]} - 1]}" = "}" ] || return 1
+		local i
+		for ((i = 1; i < ${#lines[@]} - 1; i++)); do
+			line="${lines[i]}"
+			case "$line" in
+			'  "pid": '*)
+				pid="${line#'  "pid": '}"
+				pid="${pid%,}"
+				n=$((n + 1))
+				;;
+			'  "'[!\ \"]*) ;;
+			*) return 1 ;;
+			esac
+		done
+		[ "$n" -eq 1 ] || return 1
+	else
+		[ ${#lines[@]} -eq 1 ] || return 1
+		pid="${lines[0]}"
+		while case "$pid" in [[:space:]]*) true ;; *) false ;; esac; do pid="${pid#?}"; done
+		while case "$pid" in *[[:space:]]) true ;; *) false ;; esac; do pid="${pid%?}"; done
+	fi
+	numeric "$pid" && [ ${#pid} -le 10 ] || return 1
+	pid=$((10#$pid))
+	[ "$pid" -gt 0 ] && [ "$pid" -le 4194304 ] || return 1
+	printf '%s' "$pid"
+}
+pid_liveness() {
+	# alive, dead or unknown. DEAD is ESRCH only: kill -0 also fails with EPERM
+	# for a live process this user may not signal (BUG-4068 r1), so the
+	# builtin's own message is read under LC_ALL=C. ps is not asked: a missing,
+	# busybox or hidepid-restricted ps would read a live process as gone.
+	# ESRCH is per pid namespace: a sibling in another container that shares
+	# the data dir reads as dead here (ruled inherent, f8009dad).
+	local out
+	if out="$(LC_ALL=C kill -0 "$1" 2>&1)"; then
+		echo alive
+		return
+	fi
+	case "$out" in
+	*'No such process'*) echo dead ;;
+	*) echo unknown ;;
+	esac
+}
+pid_file_removable() {
+	# pid_file_removable <pad.pid> <stopped pid, or empty>: succeeds when the
+	# file is provably not a live sibling's, the pid this refresh stopped or a
+	# dead one. Otherwise it prints why the file is kept, and fails.
+	local file_pid
+	if ! file_pid="$(pid_file_pid "$1")"; then
+		echo "it does not parse as a pid record"
+		return 1
+	fi
+	[ -n "$2" ] && [ "$file_pid" = "$2" ] && return 0
+	case "$(pid_liveness "$file_pid")" in
+	dead) return 0 ;;
+	alive) echo "it names pid $file_pid, which is alive and is not the server this refresh stopped" ;;
+	*) echo "it names pid $file_pid, whose liveness is unknown" ;;
+	esac
+	return 1
+}
+pid_file="$DATA_DIR/pad.pid"
+if [ -e "$pid_file" ]; then
+	if kept_why="$(pid_file_removable "$pid_file" "$STOPPED_PID")"; then
+		rm -f "$pid_file"
+	else
+		note "kept $pid_file: $kept_why"
+	fi
+fi
 
 # The check TASK-2787 asks for, and it is deliberately on the installed file
 # rather than on any step: read what is now at the install path and require it
@@ -668,12 +867,10 @@ if [ ${#SERVER_ARGV[@]} -gt 0 ]; then
 else
 	restart=("$INSTALLED" server start)
 fi
-# mkdir before the redirect: a missing ~/.pad makes the redirection fail and
-# the server never starts, which the probe then reports as "did not answer" —
-# true, but three steps downstream of the cause. Found by the probe-failure
-# test on a fresh HOME, where the directory does not exist; on a developer's
-# box it exists by luck of history, which is why nothing had caught it.
-mkdir -p "$HOME/.pad"
+# The redirect target exists and is writable: 2a created and opened it
+# before the stop. A missing directory there would make the redirection fail
+# and the server never start, three steps upstream of the probe that reports
+# it (found on a fresh HOME by the probe-failure test).
 # setsid where it exists, plain nohup where it does not. Codex round 2
 # (P1): setsid is Linux-specific and absent from a default macOS
 # environment, where an unconditional call would fail AFTER the old server
@@ -745,9 +942,9 @@ if [ "${#early[@]}" -gt 0 ]; then
 fi
 
 if [ -z "${PAD_NO_SETSID:-}" ] && command -v setsid >/dev/null 2>&1; then
-	setsid nohup "${restart[@]}" >>"$HOME/.pad/server.log" 2>&1 </dev/null &
+	setsid nohup "${restart[@]}" >>"$LOG_FILE" 2>&1 </dev/null &
 else
-	nohup "${restart[@]}" >>"$HOME/.pad/server.log" 2>&1 </dev/null &
+	nohup "${restart[@]}" >>"$LOG_FILE" 2>&1 </dev/null &
 fi
 RESTART_PID=$!
 disown 2>/dev/null || true
@@ -894,10 +1091,17 @@ fi
 if [ ${#failed[@]} -gt 0 ]; then
 	die "server did not answer on: ${failed[*]} (port $PORT, waited ${PROBE_TIMEOUT}s each).
   The binary is installed; the server is not serving those addresses.
-  Restart argv was: ${restart[*]}"
+  Restart argv was: ${restart[*]}
+  Server log: $LOG_FILE"
 fi
 
 note "server restarted and answering on: ${probe_hosts[*]} (port $PORT)"
+note "server log: $LOG_FILE"
+# The old destination is left as it is: it is the operator's file, and an
+# investigation in flight may still be counting from it.
+if [ "$LEGACY_LOG" != "$LOG_FILE" ] && [ -f "$LEGACY_LOG" ]; then
+	note "older refreshes logged to $LEGACY_LOG; it is no longer written, and this server logs to $LOG_FILE"
+fi
 if [ -n "${unattributed:-}" ]; then
 	note "listener ownership NOT verified: neither ss nor lsof can see listeners here, so the process answering was not confirmed to be the restart (pid $RESTART_PID)"
 fi

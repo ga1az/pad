@@ -293,6 +293,44 @@ var nulColumns = []nulColumn{
 	{"idempotency_keys", "key", classText},
 	{"idempotency_keys", "response", classJSON},
 	{"idempotency_keys", "base_body", classText},
+	// TASK-3617: a verification's evidence and evidence_url are the request
+	// body's text (capped, and the URL parsed, but neither refuses a NUL on
+	// its own). created_by and agent_name are the attribution the server
+	// stamps from the request's agent header, the same shape as the
+	// created_by columns above.
+	{"item_verifications", "evidence", classText},
+	{"item_verifications", "evidence_url", classText},
+	{"item_verifications", "created_by", classText},
+	{"item_verifications", "agent_name", classText},
+
+	// push_devices (TASK-3937): all three are to arrive in a registration
+	// request body, whose endpoint lands with TASK-3938.
+	{"push_devices", "connection_id", classText},
+	{"push_devices", "token", classText},
+	{"push_devices", "app_version", classText},
+
+	// conversations (TASK-4038): dm_key is built from the agent key, which is
+	// a request-supplied name; title is reserved for 2b threads. source and
+	// the agent keys are attribution, op_key arrives in the send request.
+	{"conversations", "dm_key", classText},
+	{"conversations", "title", classText},
+	{"conversation_members", "agent_key", classText},
+	{"conversation_messages", "body", classText},
+	{"conversation_messages", "source", classText},
+	{"conversation_messages", "author_agent_key", classText},
+	{"conversation_messages", "op_key", classText},
+	{"conversation_messages", "deleted_by_agent_key", classText},
+
+	// agents that join through a link (TASK-16, SPEC-15): the label, display
+	// name, icon and request ids arrive in requests; an inbox payload and a
+	// replayed response carry comment bodies and titles.
+	{"agent_join_links", "label", classText},
+	{"workspace_agents", "display_name", classText},
+	{"workspace_agents", "icon", classText},
+	{"workspace_agents", "register_request_id", classText},
+	{"agent_inbox", "payload", classJSON},
+	{"agent_requests", "request_id", classText},
+	{"agent_requests", "response", classJSON},
 }
 
 // nulTriggerMigrations are the generated trigger files, in migration order.
@@ -319,6 +357,10 @@ var nulTriggerMigrations = []string{
 	"133_nul_invariant_triggers_post132.sql",
 	"138_nul_invariant_triggers_post137.sql",
 	"140_nul_invariant_triggers_post139.sql",
+	"152_nul_invariant_triggers_post151.sql",
+	"156_nul_invariant_triggers_post155.sql",
+	"159_nul_invariant_triggers_post158.sql",
+	"161_nul_invariant_triggers_post160.sql",
 }
 
 // nulColumnTriggerFile assigns a column to a trigger file other than the
@@ -340,6 +382,32 @@ var nulColumnTriggerFile = map[string]string{
 	"idempotency_keys.key":       "140_nul_invariant_triggers_post139.sql",
 	"idempotency_keys.response":  "140_nul_invariant_triggers_post139.sql",
 	"idempotency_keys.base_body": "140_nul_invariant_triggers_post139.sql",
+	// 151 introduced the table (TASK-3617).
+	"item_verifications.evidence":     "152_nul_invariant_triggers_post151.sql",
+	"item_verifications.evidence_url": "152_nul_invariant_triggers_post151.sql",
+	"item_verifications.created_by":   "152_nul_invariant_triggers_post151.sql",
+	"item_verifications.agent_name":   "152_nul_invariant_triggers_post151.sql",
+	// 155 introduced the table (TASK-3937).
+	"push_devices.connection_id": "156_nul_invariant_triggers_post155.sql",
+	"push_devices.token":         "156_nul_invariant_triggers_post155.sql",
+	"push_devices.app_version":   "156_nul_invariant_triggers_post155.sql",
+	// 158 introduced the tables (TASK-4038).
+	"conversations.dm_key":                       "159_nul_invariant_triggers_post158.sql",
+	"conversations.title":                        "159_nul_invariant_triggers_post158.sql",
+	"conversation_members.agent_key":             "159_nul_invariant_triggers_post158.sql",
+	"conversation_messages.body":                 "159_nul_invariant_triggers_post158.sql",
+	"conversation_messages.source":               "159_nul_invariant_triggers_post158.sql",
+	"conversation_messages.author_agent_key":     "159_nul_invariant_triggers_post158.sql",
+	"conversation_messages.op_key":               "159_nul_invariant_triggers_post158.sql",
+	"conversation_messages.deleted_by_agent_key": "159_nul_invariant_triggers_post158.sql",
+	// 160 introduced the tables (TASK-16).
+	"agent_join_links.label":               "161_nul_invariant_triggers_post160.sql",
+	"workspace_agents.display_name":        "161_nul_invariant_triggers_post160.sql",
+	"workspace_agents.icon":                "161_nul_invariant_triggers_post160.sql",
+	"workspace_agents.register_request_id": "161_nul_invariant_triggers_post160.sql",
+	"agent_inbox.payload":                  "161_nul_invariant_triggers_post160.sql",
+	"agent_requests.request_id":            "161_nul_invariant_triggers_post160.sql",
+	"agent_requests.response":              "161_nul_invariant_triggers_post160.sql",
 }
 
 // nulTriggerFileFor names the trigger file a column's triggers are rendered
@@ -408,7 +476,36 @@ func NULProtectedColumns() []nulColumn {
 // column someone looked at and excluded" — without it, the test's only options
 // on an unlisted column are to fail on every known exclusion or to ignore the
 // class entirely.
+//
+// The push_devices and user_notifications reasons (TASK-3937) state the
+// CONTRACT their writers must keep, and each names the unit that owns the
+// writer: the enqueue (TASK-3937 part B, notifications.go) writes the queue
+// columns tagged part B; the device register endpoint (TASK-3938) and the
+// dispatcher's claim and send columns (TASK-3939) do not exist yet.
+// user_notification_settings is written by PutNotificationSettings.
 var nulExcluded = map[string]string{
+	"push_devices.id":                        "server-minted device UUID (TASK-3938, migration 155)",
+	"push_devices.user_id":                   "the authenticated user's server-minted UUID (TASK-3938)",
+	"push_devices.session_id":                "server-minted session id read from the authenticated session (TASK-3938)",
+	"push_devices.platform":                  "fixed enum ios | android, a CHECK constraint (TASK-3938)",
+	"push_devices.created_at":                "server timestamp from now() (TASK-3938)",
+	"push_devices.updated_at":                "server timestamp from now() (TASK-3938)",
+	"user_notifications.id":                  "server-minted notification UUID (TASK-3937 part B, migration 155)",
+	"user_notifications.user_id":             "server-minted user UUID read from items and comments rows (TASK-3937 part B)",
+	"user_notifications.workspace_id":        "server-minted workspace UUID from the written row (TASK-3937 part B)",
+	"user_notifications.item_id":             "server-minted item UUID from the written row (TASK-3937 part B)",
+	"user_notifications.comment_id":          "server-minted comment UUID from the written row (TASK-3937 part B)",
+	"user_notifications.kind":                "fixed server constant, a CHECK constraint (TASK-3937 part B)",
+	"user_notifications.actor_user_id":       "server-minted user UUID of the authenticated writer (TASK-3937 part B)",
+	"user_notifications.dedupe_key":          "server-built from a fixed kind and server-minted ids and timestamps (TASK-3937 part B)",
+	"user_notifications.created_at":          "server timestamp from now() (TASK-3937 part B)",
+	"user_notifications.push_state":          "fixed server constant, a CHECK constraint (TASK-3939)",
+	"user_notifications.skip_reason":         "fixed server constant set by the dispatcher (TASK-3939)",
+	"user_notifications.claim_token":         "server-minted UUID (TASK-3939)",
+	"user_notifications.claimed_at":          "server timestamp from now() (TASK-3939)",
+	"user_notifications.sent_at":             "server timestamp from now() (TASK-3939)",
+	"user_notification_settings.user_id":     "the authenticated user's server-minted UUID (TASK-3937, migration 155)",
+	"user_notification_settings.updated_at":  "server timestamp from now() (TASK-3937)",
 	"workspace_import_status.workspace_id":   "server-minted workspace UUID, a foreign key to workspaces(id) (TASK-896, migration 131)",
 	"workspace_import_status.status":         "fixed server constant store.ImportStatusPartial (TASK-896); never from a request or a bundle",
 	"workspace_import_status.note":           "composed by the server from a fixed category, a fixed detail and a server-minted correlation id (TASK-896, lead ruling): never request bytes, paths or driver text",
@@ -420,6 +517,33 @@ var nulExcluded = map[string]string{
 	"item_patches.workspace_id":              "server-minted workspace UUID from the resolved item (PLAN-3578 step 3)",
 	"item_patches.version_id":                "server-minted version UUID from the same transaction (PLAN-3578 step 3)",
 	"item_patches.created_at":                "server timestamp from now() (PLAN-3578 step 3)",
+	"workspace_read_cursors.user_id":         "the authenticated user's server-minted UUID (TASK-3615, migration 149)",
+	"workspace_read_cursors.workspace_id":    "server-minted workspace UUID from the resolved request (TASK-3615)",
+	"item_verifications.id":                  "server-minted verification UUID (TASK-3617, migration 151)",
+	"item_verifications.workspace_id":        "server-minted workspace UUID from the resolved item (TASK-3617)",
+	"item_verifications.item_id":             "server-minted item UUID, a foreign key to items(id) (TASK-3617)",
+	"item_verifications.criterion_id":        "refused unless it is a non-placeholder AC-[0-9]+ id that acceptance.Parse finds in the item's body (TASK-3617)",
+	"item_verifications.criterion_hash":      "server-computed sha256 hex of the criterion's parsed text (TASK-3617)",
+	"item_verifications.code_revision":       "refused unless it is empty or 40 lowercase hex digits (TASK-3617)",
+	"item_verifications.verdict":             "fixed enum pass | fail | cant_tell, refused otherwise (TASK-3617)",
+	"item_verifications.via_item_id":         "server-minted item UUID resolved from the request's via ref, a foreign key to items(id) (TASK-3617)",
+	"item_verifications.run_id":              "server-minted UUID, or the request's run_id refused unless it parses as a UUID (TASK-3617)",
+	"item_verifications.user_id":             "the authenticated user's server-minted UUID, or empty before setup (TASK-3617)",
+	"item_verifications.created_at":          "server timestamp from now() in the fixed-width decisionTime format (TASK-3617)",
+	"workspace_read_cursors.seen_at":         "server timestamp from now() in the fixed-width decisionTime format (TASK-3615); never from a request",
+	"item_needs_snoozes.user_id":             "the authenticated user's server-minted UUID (TASK-3918, migration 153)",
+	"item_needs_snoozes.item_id":             "server-minted item UUID from the resolved, visibility-checked item (TASK-3918)",
+	"item_needs_snoozes.workspace_id":        "server-minted workspace UUID from the resolved request (TASK-3918)",
+	"item_needs_snoozes.kind":                "validated against the two-value enum before the write, and a CHECK constraint (TASK-3918)",
+	"item_needs_snoozes.defer_until":         "re-formatted from a parsed RFC3339 time, never the request's text (TASK-3918)",
+	"item_needs_snoozes.seen_comment_at":     "re-formatted from a parsed time and clamped to a stored comments.created_at (TASK-3918)",
+	"item_needs_snoozes.seen_comment_ids":    "JSON array of comment UUIDs read back from the comments table; the client's ids only filter that set (TASK-3918)",
+	"item_needs_snoozes.created_at":          "server timestamp from time.Now (TASK-3918)",
+	"comment_mentions.comment_id":            "server-minted UUID of the comment being indexed (TASK-3917, migration 154)",
+	"comment_mentions.user_id":               "server-minted UUID read from the users table by username lookup (TASK-3917)",
+	"comment_mentions.item_id":               "server-minted UUID of the comment's own item (TASK-3917)",
+	"comment_mentions.workspace_id":          "server-minted UUID of the comment's own workspace (TASK-3917)",
+	"comment_mentions.created_at":            "server timestamp from time.Now (TASK-3917)",
 	"idempotency_keys.workspace_id":          "server-minted workspace UUID from the resolved request (TASK-3585, migration 139)",
 	"idempotency_keys.user_id":               "the authenticated user's server-minted UUID, or empty before setup (TASK-3585)",
 	"idempotency_keys.route":                 "fixed server constant naming the handler (TASK-3585); never from a request",
@@ -447,7 +571,8 @@ var nulExcluded = map[string]string{
 	"decision_jobs.claimed_by":               "runner id minted by the server's decision tick, never request-derived",
 	"items.lease_worker_id":                  "request-derived, but written only after models.ValidWorkerID accepts it (\"wk_\" + 32 lowercase hex, enforced in store.leaseOurs before any SQL), so it cannot hold a NUL (TASK-3613, migration 142)",
 	"items.lease_user_id":                    "the authenticated caller's server-generated user id, set only by ClaimItemLease from the session; never request-derived (BUG-3341, migration 104)",
-	"decision_jobs.last_error":               "Go error string, server-composed",
+	"decision_jobs.last_error":               "may embed the provider response body (it stores cause.Error()), so NOT server-composed; NUL-free because truncateDecisionError sanitises it through textguard.Repair before the write (BUG-4018)",
+	"decision_jobs.not_before":               "server timestamp, decisionTime of an evaluated_at plus a server-installed window (TASK-3916, migration 150)",
 	"item_decisions.answer":                  "json.Marshal of decision.Answer: a NUL anywhere in it is written as the six-byte escape, never a raw byte, and the column is TEXT on both dialects so no jsonb parser decodes it (migration 090)",
 	"item_relation_links.source_field_key":   "only written by replaceRelationLinks, as a field definition's key value read from collections.schema in the same transaction; that column's classJSON trigger checks every decoded value; migration 088 states the derivation (BUG-3108 writer list)",
 	"item_yjs_updates_set_aside.update_data": "BINARY (BLOB/BYTEA): op-log frames a schema rebuild moved here verbatim (BUG-3244), so the same raw Yjs bytes as item_yjs_updates.update_data, NULs included, and exempt for the same reason. A bundle import writes it only after base64-decoding the bundle's bytes.",

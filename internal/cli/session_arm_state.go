@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -68,6 +69,9 @@ import (
 // so a human inspecting this security artifact reads intent at a glance.
 type ArmState struct {
 	Armed bool `json:"armed"`
+	// Generation identifies one explicit arm. Older files still arm delivery;
+	// chat direction alone requires a nonempty matching generation.
+	Generation string `json:"generation,omitempty"`
 	// Disarmed makes the file TRI-STATE (PLAN-2613 S3). S2 had two states:
 	// a present (armed) file or none. S3 adds an explicit-OFF value so a
 	// within-session `pad session disarm` can withdraw consent even in an
@@ -130,6 +134,17 @@ type ArmState struct {
 	// the reader falls back to bare pid-liveness (the documented residual
 	// on the secondary path — see armStateOwnerAlive).
 	ProcStart string `json:"proc_start,omitempty"`
+	// PIDNamespace is the headless owner's PID namespace, as the session
+	// registry records it (SessionOwner.PIDNamespace, BUG-4090): a reader
+	// in another namespace cannot examine the pid, and must neither reap
+	// the file nor trust it. Zero when socket-keyed.
+	PIDNamespace uint64 `json:"pid_ns,omitempty"`
+	// MountNamespace is the mount namespace the socket was seen in, as the
+	// session registry records it (SessionOwner.MountNamespace): set only
+	// when the socket was stat'ed with its identity (lead ruling C1). A
+	// reader with another view of the filesystem cannot take the socket's
+	// absence as the session's. Zero when headless.
+	MountNamespace uint64 `json:"mnt_ns,omitempty"`
 	// Cwd is the working directory at arm time — the fallback key's source
 	// and useful human context when inspecting the file.
 	Cwd string `json:"cwd"`
@@ -223,6 +238,13 @@ func writeArmStateFile(disarmed bool) (path string, err error) {
 		Cwd:       cwd,
 		StartedAt: time.Now().UTC().Format(time.RFC3339),
 	}
+	if !disarmed {
+		var generation [32]byte
+		if _, err := rand.Read(generation[:]); err != nil {
+			return "", fmt.Errorf("generate arm generation: %w", err)
+		}
+		st.Generation = hex.EncodeToString(generation[:])
+	}
 	if socket != "" {
 		// Bind the file to this specific socket instance — its mtime plus,
 		// where available, its inode+device — not just the path, so a
@@ -232,6 +254,7 @@ func writeArmStateFile(disarmed bool) (path string, err error) {
 			st.SocketMtimeUnixNano = info.ModTime().UnixNano()
 			if ino, dev, ok := statIdentity(info); ok {
 				st.SocketIno, st.SocketDev = ino, dev
+				st.MountNamespace = namespaceStamp(mountNamespaceFn)
 			}
 		}
 	} else {
@@ -245,7 +268,7 @@ func writeArmStateFile(disarmed bool) (path string, err error) {
 		if oerr != nil {
 			return "", fmt.Errorf("cannot record arm state: %w", oerr)
 		}
-		st.PID, st.ProcStart, st.PIDSource = owner.PID, owner.ProcStart, owner.PIDSource
+		st.PID, st.ProcStart, st.PIDSource, st.PIDNamespace = owner.PID, owner.ProcStart, owner.PIDSource, owner.PIDNamespace
 	}
 	data, err := json.MarshalIndent(st, "", "  ")
 	if err != nil {
@@ -373,17 +396,19 @@ func armStateOwnerVerdict(st *ArmState) Liveness {
 	owner := SessionOwner{
 		PID:                 st.PID,
 		ProcStart:           st.ProcStart,
+		PIDNamespace:        st.PIDNamespace,
 		Socket:              st.Socket,
 		SocketMtimeUnixNano: st.SocketMtimeUnixNano,
 		SocketIno:           st.SocketIno,
 		SocketDev:           st.SocketDev,
+		MountNamespace:      st.MountNamespace,
 	}
 	if st.Socket != "" {
 		// Socket-keyed: the recorded pid is the short-lived `pad session
 		// arm` command, informational only — it is dead by the time any
 		// reader looks, and OwnerLiveness requires every recorded signal to
 		// agree. The socket is the whole owner here.
-		owner.PID, owner.ProcStart = 0, ""
+		owner.PID, owner.ProcStart, owner.PIDNamespace = 0, "", 0
 	}
 	return ownerLivenessFn(&owner)
 }
@@ -591,7 +616,12 @@ func MarkFirstConnect() (first bool, err error) {
 // closed), never the reverse. Best effort throughout — a lingering file
 // is simply re-evaluated on the next read.
 func reapArmFile(path string) {
-	if st, _, err := readArmState(); err == nil && st != nil && armStateOwnerVerdict(st) != LivenessDead {
+	reapOwnedArmFile(path, func() (*ArmState, error) { st, _, err := readArmState(); return st, err })
+}
+
+// TASK-4041: share the race-safe owner recheck with the independent chat file.
+func reapOwnedArmFile(path string, read func() (*ArmState, error)) {
+	if st, err := read(); err == nil && st != nil && armStateOwnerVerdict(st) != LivenessDead {
 		return // re-written by an owner that is not provably dead — leave it
 	}
 	_ = os.Remove(path)

@@ -7,6 +7,7 @@
 	import { workspaceStore } from '$lib/stores/workspace.svelte';
 	import { tabsStore } from '$lib/stores/tabs.svelte';
 	import { accessStream } from '$lib/services/accessStream.svelte';
+	import { chatStore } from '$lib/stores/chat.svelte';
 	import { authStore } from '$lib/stores/auth.svelte';
 	import {
 		reloadForIdentityChange,
@@ -71,13 +72,17 @@
 	);
 	let isSharePage = $derived(page.url.pathname.startsWith('/s/'));
 	let isConsolePage = $derived(page.url.pathname.startsWith('/console'));
+	// Exactly /messages or below it: /messagesfoo is not the chat inbox.
+	let isMessagesPage = $derived(
+		page.url.pathname === '/messages' || page.url.pathname.startsWith('/messages/')
+	);
 
 	// Inside a workspace route ([username]/[workspace]/…) the mobile chrome is
 	// the BottomNav + YouSheet + contextual bar (PLAN-1694 Phase 2-3), so the
 	// global mobile <TopBar /> is retired there. It's kept for non-workspace
 	// shell pages (the workspace picker / user home) which have no BottomNav.
 	let inWorkspace = $derived(!!page.params.workspace);
-	let showMobileTopbar = $derived(uiStore.isMobile && !inWorkspace);
+	let showMobileTopbar = $derived(uiStore.isMobile && !inWorkspace && !isMessagesPage);
 
 	// `body.has-mobile-topbar` gates the .app-layout top padding in app.css so
 	// the offset only applies when the fixed mobile TopBar is actually rendered.
@@ -275,6 +280,8 @@
 				// Live gain/loss of workspaces (TASK-3275). One per tab; start()
 				// is idempotent and follows identity changes itself.
 				accessStream.start();
+				// The chat unread count (TASK-4044); idempotent, follows identity itself.
+				chatStore.start();
 			}
 		}
 	});
@@ -384,9 +391,10 @@
 	<!-- Auth check in progress — blank screen to avoid flash -->
 {:else if isAuthPage || isSharePage}
 	{@render children()}
-{:else if isConsolePage}
+{:else if isConsolePage || isMessagesPage}
 	<!--
-		Console pages render their own chrome and bypass the app shell
+		Console pages (and /messages, the chat inbox, which has no workspace shell
+		either) render their own chrome and bypass the app shell
 		below, but they still need the global CreateWorkspaceModal +
 		toast surface — the /console "Create Workspace" CTA and the
 		/console/new redirect (TASK-1529) both fire

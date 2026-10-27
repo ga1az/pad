@@ -72,6 +72,22 @@ func NewClient(host string, port int) *Client {
 
 // NewClientFromURL creates a client from a full base URL (e.g., "https://app.getpad.dev").
 func NewClientFromURL(baseURL string) *Client {
+	c := newClientFromURL(baseURL)
+	c.SetAgentName(ResolveAgentName())
+	return c
+}
+
+// NewClientFromURLWithAgentName uses an already resolved agent name without
+// consulting the session registry, workspace configuration or environment for
+// agent identity. Authentication is resolved normally.
+// An empty name explicitly omits X-Pad-Agent.
+func NewClientFromURLWithAgentName(baseURL, agentName string) *Client {
+	c := newClientFromURL(baseURL)
+	c.SetAgentName(agentName)
+	return c
+}
+
+func newClientFromURL(baseURL string) *Client {
 	baseURL = strings.TrimRight(baseURL, "/")
 	c := &Client{
 		baseURL: baseURL + "/api/v1",
@@ -106,13 +122,13 @@ func NewClientFromURL(baseURL string) *Client {
 		}
 	}
 
-	// Resolve the agent identity that becomes X-Pad-Agent. Used to read
-	// .pad.toml's agent_name and nothing else, which meant any workspace that
-	// had not opted in recorded agent writes as human ones (BUG-2542). See
-	// ResolveAgentName for the precedence and for what this signal cannot do.
-	c.agentName = ResolveAgentName()
-
 	return c
+}
+
+// SetAgentName sets X-Pad-Agent verbatim; an empty name omits the header.
+// Call it before the first request.
+func (c *Client) SetAgentName(name string) {
+	c.agentName = name
 }
 
 // SetAuthToken sets the authorization token for API requests.
@@ -289,11 +305,36 @@ func itemListPage(h http.Header) ItemListPage {
 	return p
 }
 
-// ListAllItems is ListItems for a caller that needs every matching row (a
-// report): it follows the server's next-offset until has-more is false
-// (BUG-3704). params' limit and offset are its own. A server older than
-// BUG-3704 sends no paging state and lists everything in one response.
-func (c *Client) ListAllItems(wsSlug string, params url.Values) ([]models.Item, error) {
+// maxListPages bounds how many pages a ListAll* call reads. It is a runaway
+// guard against a server that reports has-more forever, not a size policy:
+// at the server's 1000 rows per page it is about a million rows. A var so a
+// test can use a small cap (BUG-4024).
+var maxListPages = 1000
+
+// SetMaxListPages replaces the page cap and returns a func that restores it.
+// It is a test hook: the production cap is not configurable.
+func SetMaxListPages(n int) (restore func()) {
+	prev := maxListPages
+	maxListPages = n
+	return func() { maxListPages = prev }
+}
+
+// listAllPages is the one pager behind every ListAll* method (BUG-3704,
+// BUG-3793, BUG-4024). It reads from startOffset, follows the server's
+// next-offset until has-more is false, and keeps the FIRST page's
+// UndeclaredKeys (a filter warning is a property of the query, and the first
+// response is where it is raised). A server older than BUG-3704 sends no
+// paging state, so one response is everything. A has-more page must be full
+// and contiguous: the server sets has-more only when it trimmed the probe row
+// (handlers_items.go listItemsPage), so such a page holds exactly `limit` rows
+// and its next-offset is offset+limit, i.e. len(items) > 0 and next-offset ==
+// offset+len(items) (BUG-4024). An empty has-more page, a next-offset that
+// skips rows never returned, or one that falls short is an error, as is a
+// list longer than maxListPages: handing back a short list as though it were
+// the whole one is this bug's own class. A negative startOffset reads from 0,
+// as the server reads any bad offset.
+// params' limit and offset are the pager's own.
+func listAllPages(params url.Values, startOffset int, fetch func(url.Values) ([]models.Item, ItemListPage, error)) ([]models.Item, ItemListPage, error) {
 	q := url.Values{}
 	for k, v := range params {
 		q[k] = v
@@ -301,46 +342,66 @@ func (c *Client) ListAllItems(wsSlug string, params url.Values) ([]models.Item, 
 	q.Del("limit")
 	q.Del("offset")
 	var all []models.Item
-	for offset := 0; ; {
+	var first ItemListPage
+	// A negative offset is sent as none, and the server reads none as 0, so
+	// the contiguity check must count from 0 as well.
+	offset := max(startOffset, 0)
+	for pages := 1; ; pages++ {
 		if offset > 0 {
 			q.Set("offset", strconv.Itoa(offset))
 		}
-		items, page, err := c.ListItemsReport(wsSlug, q)
+		items, page, err := fetch(q)
 		if err != nil {
-			return nil, err
+			return nil, ItemListPage{}, err
+		}
+		if pages == 1 {
+			first = ItemListPage{UndeclaredKeys: page.UndeclaredKeys}
 		}
 		all = append(all, items...)
-		if !page.HasMore || page.NextOffset <= offset {
-			return all, nil
+		if !page.HasMore {
+			first.Known = page.Known
+			return all, first, nil
+		}
+		if len(items) == 0 || page.NextOffset != offset+len(items) {
+			return nil, ItemListPage{}, fmt.Errorf("the server reported more items (X-Pad-Has-More) but its next offset %d does not advance contiguously: the page at offset %d held %d items, so the next offset should be %d; stopped after %d items rather than return a partial list", page.NextOffset, offset, len(items), offset+len(items), len(all))
+		}
+		if pages >= maxListPages {
+			return nil, ItemListPage{}, fmt.Errorf("the list is longer than the %d-page cap (%d items read, server still reports X-Pad-Has-More); narrow the filter or pass --limit", maxListPages, len(all))
 		}
 		offset = page.NextOffset
 	}
 }
 
+// ListAllItems is ListItems for a caller that needs every matching row (a
+// report): it follows the server's next-offset until has-more is false
+// (BUG-3704). params' limit and offset are its own. A server older than
+// BUG-3704 sends no paging state and lists everything in one response.
+func (c *Client) ListAllItems(wsSlug string, params url.Values) ([]models.Item, error) {
+	items, _, err := c.ListAllItemsReport(wsSlug, params, 0)
+	return items, err
+}
+
+// ListAllItemsReport is ListAllItems from startOffset, also returning the
+// first page's UndeclaredKeys (BUG-4024).
+func (c *Client) ListAllItemsReport(wsSlug string, params url.Values, startOffset int) ([]models.Item, ItemListPage, error) {
+	return listAllPages(params, startOffset, func(q url.Values) ([]models.Item, ItemListPage, error) {
+		return c.ListItemsReport(wsSlug, q)
+	})
+}
+
 // ListAllCollectionItems is ListAllItems for one collection: it follows the
 // server's next-offset until has-more is false (BUG-3793).
 func (c *Client) ListAllCollectionItems(wsSlug, collSlug string, params url.Values) ([]models.Item, error) {
-	q := url.Values{}
-	for k, v := range params {
-		q[k] = v
-	}
-	q.Del("limit")
-	q.Del("offset")
-	var all []models.Item
-	for offset := 0; ; {
-		if offset > 0 {
-			q.Set("offset", strconv.Itoa(offset))
-		}
-		items, page, err := c.ListCollectionItemsReport(wsSlug, collSlug, q)
-		if err != nil {
-			return nil, err
-		}
-		all = append(all, items...)
-		if !page.HasMore || page.NextOffset <= offset {
-			return all, nil
-		}
-		offset = page.NextOffset
-	}
+	items, _, err := c.ListAllCollectionItemsReport(wsSlug, collSlug, params, 0)
+	return items, err
+}
+
+// ListAllCollectionItemsReport is ListAllCollectionItems from startOffset,
+// also returning the first page's UndeclaredKeys (BUG-4024).
+func (c *Client) ListAllCollectionItemsReport(wsSlug, collSlug string, params url.Values, startOffset int) ([]models.Item, ItemListPage, error) {
+	return listAllPages(params, startOffset, func(q url.Values) ([]models.Item, ItemListPage, error) {
+		return c.ListCollectionItemsReport(wsSlug, collSlug, q)
+	})
 }
 
 // ListItemsReport is ListItems plus what the response says besides its rows
@@ -789,22 +850,43 @@ func (c *Client) ListWatches() ([]models.Watch, error) {
 	return result, c.get("/watches", &result)
 }
 
+// SessionActivityHTTPTimeout bounds the HTTP request made by SetSessionActivity.
+const SessionActivityHTTPTimeout = 2 * time.Second
+
+// SetSessionActivity reports this worker's activity with a short deadline.
+// It never probes capabilities, starts a server or retries; hook callers may
+// ignore any error so an unavailable Pad cannot interrupt the agent.
+func (c *Client) SetSessionActivity(ctx context.Context, state, at string) error {
+	ctx, cancel := context.WithTimeout(ctx, SessionActivityHTTPTimeout)
+	defer cancel()
+	data, err := json.Marshal(map[string]string{"state": state, "at": at})
+	if err != nil {
+		return err
+	}
+	req, err := c.newRequest("POST", "/sessions/activity", bytes.NewReader(data))
+	if err != nil {
+		return err
+	}
+	req = req.WithContext(ctx)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return c.handleResponse(resp, nil)
+}
+
 // StreamSessionIdentity is what a monitor tells the server about itself
 // when it opens the event stream (PLAN-2558 S2, TASK-2560), so the
 // server's presence registry can name the session instead of showing an
 // opaque uuid.
 //
-// The two fields are the wire-safe subset of what `pad session register`
-// records locally (internal/cli/session_registry.go). What is missing
-// is the point: the messaging socket path and its identity never leave
-// this machine, the cwd travels as a BASENAME, because "docapp" is what
-// a session picker needs while "/home/dave/Dev/docapp" additionally
-// hands over a home directory and an account name — and the agent name
-// the registry carries since TASK-2767 stays local until IDEA-2750 part
-// 2b gives it a reviewed place on the wire.
-//
-// Both fields are optional. A zero value produces the pre-S2 behaviour:
-// an unlabelled session that still receives every event.
+// Label and PID are the wire-safe subset of the local registration:
+// the messaging socket and its identity stay local, and cwd travels only
+// as a basename. Armed declares push consent. The client also sends
+// X-Pad-Agent and X-Pad-Worker through newRequest; presence uses both,
+// with the worker stable across /clear. All identity fields are optional.
 type StreamSessionIdentity struct {
 	// Label names the session for a human — the working directory's
 	// basename ("docapp"). The server sanitizes and truncates it.
@@ -820,6 +902,8 @@ type StreamSessionIdentity struct {
 	// server.sessionArmedQueryParam for why (audit-visible by design, and
 	// reachable by a future non-CLI client that can't set headers).
 	Armed bool
+	// Chat opts into ref-only chat delivery (TASK-4041).
+	Chat bool
 }
 
 // NewWatchEventsStreamRequest builds an authenticated GET request for
@@ -860,7 +944,36 @@ func (c *Client) NewWatchEventsStreamRequest(ctx context.Context, lastEventID st
 		q.Set("armed", "true")
 		req.URL.RawQuery = q.Encode()
 	}
+	if ident.Chat {
+		q := req.URL.Query()
+		q.Set("chat", "true")
+		req.URL.RawQuery = q.Encode()
+	}
 	return req, nil
+}
+
+// MarkChatDelivered acknowledges only messages printed by this monitor (TASK-4041).
+func (c *Client) MarkChatDelivered(number int, seq int64) error {
+	return c.MarkChatDeliveredContext(context.Background(), number, seq)
+}
+
+// MarkChatDeliveredContext bounds the monitor acknowledgement by its context.
+func (c *Client) MarkChatDeliveredContext(ctx context.Context, number int, seq int64) error {
+	data, err := json.Marshal(map[string]int64{"seq": seq})
+	if err != nil {
+		return err
+	}
+	req, err := c.newRequest("POST", fmt.Sprintf("/me/conversations/%d/delivered", number), bytes.NewReader(data))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.httpClient.Do(req.WithContext(ctx))
+	if err != nil {
+		return fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	return c.handleResponse(resp, nil)
 }
 
 // maxHeaderLabelLen bounds the label the client is willing to put on
@@ -1447,6 +1560,78 @@ func (c *Client) ListActivity(wsSlug string, params url.Values) ([]models.Activi
 	return result, c.get(path, &result)
 }
 
+// CatchUpLine, CatchUpSection, CatchUpAgentGroup and CatchUpResponse mirror
+// the GET /workspaces/{ws}/catch-up payload (TASK-4035). They are local
+// copies, not the server's types: internal/cli does not import
+// internal/store. Rendering decodes into them; --format json is printed from the
+// body without this struct (re-indented), so a field added or retyped
+// server-side still reaches the caller (TASK-4035, rulings eedbf63d and
+// cb588bde).
+type CatchUpLine struct {
+	Ref        string `json:"ref"`
+	Title      string `json:"title"`
+	Collection string `json:"collection"`
+	What       string `json:"what"`
+	Actor      string `json:"actor,omitempty"`
+	Agent      string `json:"agent,omitempty"`
+	At         string `json:"at,omitempty"`
+}
+
+type CatchUpSection struct {
+	Total int           `json:"total"`
+	Lines []CatchUpLine `json:"lines"`
+}
+
+type CatchUpAgentGroup struct {
+	Agent   string        `json:"agent"`
+	Changes int           `json:"changes"`
+	Items   int           `json:"items"`
+	Lines   []CatchUpLine `json:"lines"`
+}
+
+type CatchUpResponse struct {
+	Window struct {
+		Since           string `json:"since"`
+		Until           string `json:"until"`
+		HasCursor       bool   `json:"has_cursor"`
+		CappedAtCeiling bool   `json:"capped_at_ceiling"`
+	} `json:"window"`
+	NeedsYou       CatchUpSection `json:"needs_you"`
+	Finished       CatchUpSection `json:"finished"`
+	NewAndReopened CatchUpSection `json:"new_and_reopened"`
+	Comments       CatchUpSection `json:"comments"`
+	Agents         struct {
+		Total  int                 `json:"total"`
+		Groups []CatchUpAgentGroup `json:"groups"`
+	} `json:"agents"`
+	Degraded []string `json:"degraded,omitempty"`
+}
+
+// GetCatchUp reads the caller's catch-up digest (TASK-4035). It is a plain
+// GET: the endpoint never writes, and marking caught up (PUT /me/seen) has no
+// client method on purpose (ruling 380aa793). It returns the server's body
+// undecoded (valid JSON, which the transport guarantees): --format json
+// prints it re-indented through PrintJSON without touching CatchUpResponse,
+// so the server stays the source of truth for json consumers. Only the table
+// and markdown renderers call DecodeCatchUp (ruling cb588bde).
+func (c *Client) GetCatchUp(wsSlug string) (json.RawMessage, error) {
+	var raw json.RawMessage
+	if err := c.get("/workspaces/"+url.PathEscape(wsSlug)+"/catch-up", &raw); err != nil {
+		return nil, err
+	}
+	return raw, nil
+}
+
+// DecodeCatchUp decodes a GetCatchUp body into the typed mirror, for the
+// renderers that read its fields. A shape it cannot hold is an error there.
+func DecodeCatchUp(raw json.RawMessage) (*CatchUpResponse, error) {
+	var resp CatchUpResponse
+	if err := json.Unmarshal(raw, &resp); err != nil {
+		return nil, fmt.Errorf("decode catch-up: %w", err)
+	}
+	return &resp, nil
+}
+
 // --- Convention Library ---
 
 // ConventionLibraryResponse is the response from the convention-library endpoint.
@@ -1567,6 +1752,45 @@ func (c *Client) GetLibraryEntry(title string) (*LibraryEntryResponse, error) {
 	params.Set("title", title)
 	var result LibraryEntryResponse
 	return &result, c.get("/library/entry?"+params.Encode(), &result)
+}
+
+// --- Agents that join through a link (SPEC-15) ---
+
+// CreateAgentJoinLink mints a join link; the response is the only time its
+// code and URL are shown.
+func (c *Client) CreateAgentJoinLink(wsSlug, label string) (*models.AgentJoinLinkWithCode, error) {
+	var result models.AgentJoinLinkWithCode
+	return &result, c.post("/workspaces/"+url.PathEscape(wsSlug)+"/agent-links", map[string]string{"label": label}, &result)
+}
+
+// ListAgentJoinLinks lists a workspace's join links.
+func (c *Client) ListAgentJoinLinks(wsSlug string) ([]models.AgentJoinLink, error) {
+	var result struct {
+		Links []models.AgentJoinLink `json:"links"`
+	}
+	return result.Links, c.get("/workspaces/"+url.PathEscape(wsSlug)+"/agent-links", &result)
+}
+
+// RevokeAgentJoinLink revokes a link and every agent it registered.
+func (c *Client) RevokeAgentJoinLink(wsSlug, linkID string) error {
+	return c.delete("/workspaces/" + url.PathEscape(wsSlug) + "/agent-links/" + url.PathEscape(linkID))
+}
+
+// ListWorkspaceAgents lists the agents registered in a workspace.
+func (c *Client) ListWorkspaceAgents(wsSlug string, all bool) ([]models.WorkspaceAgent, error) {
+	var result struct {
+		Agents []models.WorkspaceAgent `json:"agents"`
+	}
+	path := "/workspaces/" + url.PathEscape(wsSlug) + "/agents"
+	if all {
+		path += "?all=true"
+	}
+	return result.Agents, c.get(path, &result)
+}
+
+// RevokeWorkspaceAgent revokes one agent and its tokens.
+func (c *Client) RevokeWorkspaceAgent(wsSlug, agentID string) error {
+	return c.delete("/workspaces/" + url.PathEscape(wsSlug) + "/agents/" + url.PathEscape(agentID))
 }
 
 // --- Webhooks ---
@@ -2037,8 +2261,13 @@ func (c *Client) Logout() error {
 
 // GetCurrentUser returns the authenticated user's profile.
 func (c *Client) GetCurrentUser() (*LoginUser, error) {
+	return c.GetCurrentUserContext(context.Background())
+}
+
+// GetCurrentUserContext allows callers to bound identity resolution.
+func (c *Client) GetCurrentUserContext(ctx context.Context) (*LoginUser, error) {
 	var result LoginUser
-	return &result, c.get("/auth/me", &result)
+	return &result, c.getContext(ctx, "/auth/me", &result)
 }
 
 // CheckSession returns the current auth status.
@@ -2868,11 +3097,20 @@ func (c *Client) get(path string, result interface{}) error {
 // getWithHeader is get that also returns the response headers (nil when no
 // response arrived).
 func (c *Client) getWithHeader(path string, result interface{}) (http.Header, error) {
+	return c.getWithHeaderContext(context.Background(), path, result)
+}
+
+func (c *Client) getContext(ctx context.Context, path string, result interface{}) error {
+	_, err := c.getWithHeaderContext(ctx, path, result)
+	return err
+}
+
+func (c *Client) getWithHeaderContext(ctx context.Context, path string, result interface{}) (http.Header, error) {
 	req, err := c.newRequest("GET", path, nil)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.httpClient.Do(req.WithContext(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
@@ -2881,6 +3119,10 @@ func (c *Client) getWithHeader(path string, result interface{}) (http.Header, er
 }
 
 func (c *Client) post(path string, body interface{}, result interface{}) error {
+	return c.postContext(context.Background(), path, body, result)
+}
+
+func (c *Client) postContext(ctx context.Context, path string, body interface{}, result interface{}) error {
 	var bodyReader io.Reader
 	if body != nil {
 		data, err := json.Marshal(body)
@@ -2894,7 +3136,7 @@ func (c *Client) post(path string, body interface{}, result interface{}) error {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.httpClient.Do(req.WithContext(ctx))
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
 	}
@@ -3235,4 +3477,134 @@ func (c *Client) AcceptMyInvitation(id string) (role, workspaceSlug string, err 
 // DeclineMyInvitation declines (deletes) a pending invitation by id.
 func (c *Client) DeclineMyInvitation(id string) error {
 	return c.post("/me/invitations/"+url.PathEscape(id)+"/decline", nil, nil)
+}
+
+// --- Global chat ---
+// Keep the wire responses intact so --format json includes refs and future
+// additive fields. The commands decode only the fields they need to render.
+func (c *Client) ListChatConversations() (json.RawMessage, error) {
+	var result json.RawMessage
+	err := c.get("/me/conversations", &result)
+	return result, err
+}
+
+func (c *Client) ChatConversation(number int) (json.RawMessage, error) {
+	return c.ChatConversationContext(context.Background(), number)
+}
+
+// ChatConversationContext allows the monitor's floor GET to share its deadline
+// with identity resolution, including reading the response body.
+func (c *Client) ChatConversationContext(ctx context.Context, number int) (json.RawMessage, error) {
+	var result json.RawMessage
+	err := c.getContext(ctx, fmt.Sprintf("/me/conversations/%d", number), &result)
+	return result, err
+}
+
+func (c *Client) EnsureChatDM(agent string) (json.RawMessage, error) {
+	return c.EnsureChatDMContext(context.Background(), agent)
+}
+
+// EnsureChatDMContext lets the monitor cancel its background DM ensure on exit.
+func (c *Client) EnsureChatDMContext(ctx context.Context, agent string) (json.RawMessage, error) {
+	var result json.RawMessage
+	err := c.postContext(ctx, "/me/conversations", map[string]string{"agent_key": agent}, &result)
+	return result, err
+}
+
+func (c *Client) ChatUnread(agent string) (json.RawMessage, error) {
+	return c.ChatUnreadContext(context.Background(), agent)
+}
+
+// ChatUnreadContext shares the summary deadline with identity resolution.
+func (c *Client) ChatUnreadContext(ctx context.Context, agent string) (json.RawMessage, error) {
+	var result json.RawMessage
+	path := "/me/chat/unread"
+	if agent != "" {
+		path += "?agent=" + url.QueryEscape(agent)
+	}
+	err := c.getContext(ctx, path, &result)
+	return result, err
+}
+
+func (c *Client) ChatMessages(number int, since *int64, limit int) (json.RawMessage, error) {
+	return c.ChatMessagesContext(context.Background(), number, since, limit)
+}
+
+// ChatMessagesContext bounds gap fills, including reading the response body.
+func (c *Client) ChatMessagesContext(ctx context.Context, number int, since *int64, limit int) (json.RawMessage, error) {
+	q := url.Values{}
+	if since != nil {
+		q.Set("after_seq", strconv.FormatInt(*since, 10))
+	}
+	q.Set("limit", strconv.Itoa(limit))
+	var result json.RawMessage
+	err := c.getContext(ctx, fmt.Sprintf("/me/conversations/%d/messages?%s", number, q.Encode()), &result)
+	return result, err
+}
+
+type ChatSendInput struct {
+	Body             string  `json:"body"`
+	ReplyToSeq       *int64  `json:"reply_to_seq,omitempty"`
+	OpKey            *string `json:"op_key,omitempty"`
+	ContextWorkspace string  `json:"context_workspace,omitempty"`
+}
+
+func (c *Client) SendChatMessage(number int, input ChatSendInput) (json.RawMessage, error) {
+	var result json.RawMessage
+	// The caller owns idempotency. Never generate op_key or retry a send.
+	err := c.post(fmt.Sprintf("/me/conversations/%d/messages", number), input, &result)
+	return result, err
+}
+
+func (c *Client) DeleteChatMessage(number int, seq int64) (json.RawMessage, error) {
+	var result json.RawMessage
+	err := c.deleteWithResult(fmt.Sprintf("/me/conversations/%d/messages/%d", number, seq), &result)
+	return result, err
+}
+
+func (c *Client) ReadChat(number int, seq int64) (json.RawMessage, error) {
+	var result json.RawMessage
+	err := c.post(fmt.Sprintf("/me/conversations/%d/read", number), map[string]int64{"seq": seq}, &result)
+	return result, err
+}
+
+func (c *Client) ResolveChatTarget(target string, ensure bool) (int, error) {
+	n, agent, err := ParseChatTarget(target)
+	if err != nil || agent == "" {
+		return n, err
+	}
+	raw, err := c.ListChatConversations()
+	if err != nil {
+		return 0, err
+	}
+	var list struct {
+		Conversations []struct {
+			Number   int    `json:"number"`
+			AgentKey string `json:"agent_key"`
+		} `json:"conversations"`
+	}
+	if err := json.Unmarshal(raw, &list); err != nil {
+		return 0, err
+	}
+	for _, conv := range list.Conversations {
+		if conv.AgentKey == agent {
+			return conv.Number, nil
+		}
+	}
+	if !ensure {
+		return 0, &APIError{Status: http.StatusNotFound, Code: "not_found", Message: fmt.Sprintf("Conversation for @%s not found", agent)}
+	}
+	raw, err = c.EnsureChatDM(agent)
+	if err != nil {
+		return 0, err
+	}
+	var result struct {
+		Conversation struct {
+			Number int `json:"number"`
+		} `json:"conversation"`
+	}
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return 0, err
+	}
+	return result.Conversation.Number, nil
 }
