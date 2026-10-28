@@ -775,9 +775,12 @@
 		   root layout. The mobile TopBar (`.topbar-mobile`) is rendered as a
 		   sibling BEFORE `.app-layout`, so it isn't caught by the
 		   `.app-layout > :not(.app-shell)` rule and needs hiding explicitly —
-		   otherwise a Save-as-PDF from a mobile viewport includes the app bar. */
+		   otherwise a Save-as-PDF from a mobile viewport includes the app bar.
+		   On desktop .main-content sits inside .content-panel (TASK-27), which
+		   app.css prints as display: contents; only its header is hidden. */
 		:global(.app-layout > :not(.app-shell)),
-		:global(.app-shell > :not(.main-content)),
+		:global(.app-shell > :not(.main-content, .content-panel)),
+		:global(.content-panel > :not(.main-content)),
 		:global(.sidebar-expand-btn),
 		:global(.topbar-expand-btn),
 		:global(.topbar-mobile) {

@@ -305,7 +305,7 @@
 	</p>
 {:else}
 	{#each groups as g (g.slug)}
-		<section class="group" aria-label={g.name} data-testid="needs-group">
+		<section class="needs-group" aria-label={g.name} data-testid="needs-group">
 			<h2>{g.name} <span class="count" data-testid="needs-group-count">{g.count}</span></h2>
 			<ul>
 				{#each g.rows as row (keyOf(row))}
@@ -334,19 +334,19 @@
 		gap: var(--space-1);
 		margin: var(--space-3) 0 var(--space-4);
 	}
-	.group {
+	.needs-group {
 		margin-bottom: var(--space-6);
 		border: 1px solid var(--border);
 		border-radius: var(--radius);
 		background: var(--bg-secondary);
 	}
-	.group h2 {
+	.needs-group h2 {
 		margin: 0;
 		padding: var(--space-3) var(--space-4);
 		font-size: 0.95rem;
 		border-bottom: 1px solid var(--border);
 	}
-	.group ul {
+	.needs-group ul {
 		margin: 0;
 		padding: 0;
 	}

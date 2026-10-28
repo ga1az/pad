@@ -154,6 +154,28 @@ describe('AppDialog', () => {
 		expect(onclose).not.toHaveBeenCalled();
 	});
 
+	it('focuses the [autofocus] element, not the first tabbable one, as showModal() did', async () => {
+		const marked = createRawSnippet(() => ({
+			render: () =>
+				`<div><h2 id="modal-title">Heading</h2><button id="close-x" type="button">x</button><input id="url" autofocus /></div>`
+		}));
+		render(AppDialog, { props: baseProps({ children: marked }) });
+		await settle();
+		await new Promise((r) => setTimeout(r, 30));
+		expect(document.activeElement).toBe(document.getElementById('url'));
+	});
+
+	it('CONTROL: without [autofocus] the same input does not take focus (bits-ui picks the first tabbable, or the content in jsdom)', async () => {
+		const plain = createRawSnippet(() => ({
+			render: () => `<div><h2 id="modal-title">Heading</h2><button id="close-x" type="button">x</button><input id="url" /></div>`
+		}));
+		render(AppDialog, { props: baseProps({ children: plain }) });
+		await settle();
+		await new Promise((r) => setTimeout(r, 30));
+		expect(document.activeElement).not.toBe(document.getElementById('url'));
+		expect(getDialog().contains(document.activeElement)).toBe(true);
+	});
+
 	it('restores focus to the previously-focused element on close', async () => {
 		const trigger = document.createElement('button');
 		trigger.type = 'button';

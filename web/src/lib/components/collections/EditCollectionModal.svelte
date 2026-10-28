@@ -923,7 +923,7 @@
 <AppDialog {open} onclose={requestClose} labelledby="edit-collection-title" maxWidth="680px">
 	<div class="modal-header">
 		<h2 id="edit-collection-title">Edit Collection</h2>
-		<button class="close-btn" type="button" onclick={requestClose}>&#10005;</button>
+		<button class="close-btn" type="button" onclick={requestClose} aria-label="Close">&#10005;</button>
 	</div>
 
 			<div class="tab-bar">

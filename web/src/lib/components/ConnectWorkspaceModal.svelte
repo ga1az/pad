@@ -456,7 +456,7 @@
 <AppDialog open={open} onclose={() => (open = false)} labelledby="connect-ws-title" maxWidth="560px">
 	<div class="modal-header">
 		<h2 id="connect-ws-title">{title}</h2>
-		<button class="close-btn" type="button" onclick={() => (open = false)}>&#10005;</button>
+		<button class="close-btn" type="button" onclick={() => (open = false)} aria-label="Close">&#10005;</button>
 	</div>
 
 	<div class="modal-body">

@@ -91,7 +91,7 @@
 	</div>
 	<div class="body">
 		{#each groups as group (group.title)}
-			<div class="group">
+			<div class="shortcut-group">
 				<h3 class="group-title">{group.title}</h3>
 				<div class="shortcut-list">
 					{#each group.shortcuts as shortcut (shortcut.description)}

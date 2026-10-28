@@ -68,6 +68,7 @@ describe('clearPersistentIdentityState', () => {
 		localStorage.setItem(`${LAST_ROUTE_PREFIX}ws`, '/alice/ws/ideas/alphas-secret');
 		localStorage.setItem(`${LAST_SCROLL_PREFIX}ws-/alice/ws/ideas/alphas-secret`, '420');
 		localStorage.setItem('pad-theme', 'dark');
+		localStorage.setItem('pad-sidebar-sections', '{"collections":true}');
 
 		clearPersistentIdentityState();
 
@@ -76,6 +77,7 @@ describe('clearPersistentIdentityState', () => {
 		// And leaves an ordinary UI preference alone — the clear is scoped, not
 		// a localStorage wipe.
 		expect(localStorage.getItem('pad-theme')).toBe('dark');
+		expect(localStorage.getItem('pad-sidebar-sections')).toBe('{"collections":true}');
 	});
 
 	it('LAST_ROUTE_PREFIX still matches the key tabs.svelte.ts builds', async () => {

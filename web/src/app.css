@@ -875,10 +875,23 @@ dialog.attachment-crop-modal::backdrop {
 		min-width: 0 !important;
 		overflow: visible !important;
 	}
+	/* The desktop frame (TASK-27): the content panel prints as if it were
+	   not there, so the page keeps the old unframed layout (no margins,
+	   border, radius or clipping, and no frame colour behind it).
+	   `display: contents` drops the panel's own box. */
+	.content-panel,
+	.content-panel.desktop {
+		display: contents !important;
+	}
+	.app-layout,
+	.app-layout.frame {
+		background: none !important;
+	}
 
 	/* Hide the workspace chrome. */
 	.sidebar,
 	.topbar,
+	.content-panel-header,
 	.sidebar-expand-btn,
 	.topbar-expand-btn,
 	.mobile-header,

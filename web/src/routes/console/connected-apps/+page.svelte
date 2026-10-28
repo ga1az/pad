@@ -476,7 +476,7 @@
 											disabled={!!savingFlag[app.id]}
 										/>
 										<Button
-											variant="ghost"
+											variant="default"
 											onclick={() => saveName(app)}
 											disabled={!!savingFlag[app.id] ||
 												(nameDrafts[app.id] ?? '').trim() === (app.name ?? '')}
@@ -597,7 +597,7 @@
 											{/each}
 										</select>
 										<Button
-											variant="ghost"
+											variant="default"
 											onclick={() => addWorkspaceToApp(app)}
 											disabled={!!savingFlag[app.id] || !addPickerSlug[app.id]}
 										>

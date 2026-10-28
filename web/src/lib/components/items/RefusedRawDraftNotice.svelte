@@ -97,7 +97,7 @@
 			<Button variant="ghost" size="sm" disabled={busy} onclick={onrestore}>Restore it</Button>
 			<Button variant="ghost" size="sm" disabled={busy} onclick={oncopy}>Copy it</Button>
 		{/if}
-		<Button variant="ghost" size="sm" disabled={busy} onclick={ondismiss}>Discard</Button>
+		<Button variant="destructive" size="sm" disabled={busy} onclick={ondismiss}>Discard</Button>
 	</div>
 </div>
 

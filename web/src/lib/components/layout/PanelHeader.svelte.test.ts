@@ -86,6 +86,49 @@ describe('PanelHeader breadcrumb (TASK-27)', () => {
 		expect(crumbs()[1]).toEqual({ text: 'Insights', href: null, current: 'page' });
 	});
 
+	// Sub-routes and page titles (review of TASK-27): the section links back
+	// up, and the page's own title (titleStore.section) is the last crumb.
+	async function mountTitled(path: string, section: string | null) {
+		page.url = new URL(`http://localhost${path}`);
+		page.params = { username: 'u', workspace: 'ws' };
+		titleStore.setPageTitle({ section, item: null });
+		render(PanelHeader);
+		await tick();
+	}
+
+	it('on a tag, Tags links back and the tag is the current page', async () => {
+		await mountTitled('/u/ws/tags/release', '#release');
+		expect(crumbs().slice(1)).toEqual([
+			{ text: 'Tags', href: '/u/ws/tags', current: null },
+			{ text: '#release', href: null, current: 'page' },
+		]);
+	});
+
+	it('on the insights report, Insights links back and Report is the current page', async () => {
+		await mountTitled('/u/ws/insights/print', 'Report');
+		expect(crumbs().slice(1)).toEqual([
+			{ text: 'Insights', href: '/u/ws/insights', current: null },
+			{ text: 'Report', href: null, current: 'page' },
+		]);
+	});
+
+	it('a page the sidebar list does not name falls back to its own title', async () => {
+		// /conventions whose collection was renamed: no collection matches the slug.
+		await mountTitled('/u/ws/conventions', 'Conventions');
+		expect(crumbs().slice(1)).toEqual([{ text: 'Conventions', href: null, current: 'page' }]);
+	});
+
+	it('a title that repeats the section is not shown twice', async () => {
+		await mountTitled('/u/ws/tasks', 'Tasks');
+		expect(crumbs().slice(1)).toEqual([{ text: 'Tasks', href: null, current: 'page' }]);
+	});
+
+	it('below a collection with no title of its own, the collection still links back', async () => {
+		// e.g. /playbooks/<slug>, which sets no title.
+		await mountTitled('/u/ws/tasks/sub-page', null);
+		expect(crumbs().slice(1)).toEqual([{ text: 'Tasks', href: '/u/ws/tasks', current: null }]);
+	});
+
 	it('renders no crumbs outside a workspace route', async () => {
 		page.url = new URL('http://localhost/u');
 		page.params = { username: 'u' };

@@ -207,7 +207,7 @@
 			<div class="error">Couldn't load backlinks.</div>
 		{:else}
 			{#each groups as group (group.key)}
-				<div class="group">
+				<div class="backlink-group">
 					<div class="group-header">
 						<span class="group-icon" aria-hidden="true"><Icon icon={group.icon} /></span>
 						<span class="group-label">{capitalize(group.slug)}</span>
@@ -285,11 +285,11 @@
 		font-weight: 400;
 	}
 
-	.group {
+	.backlink-group {
 		margin-top: var(--space-3);
 	}
 
-	.group:first-of-type {
+	.backlink-group:first-of-type {
 		margin-top: 0;
 	}
 

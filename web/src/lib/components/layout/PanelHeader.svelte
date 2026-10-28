@@ -44,17 +44,31 @@
 
 	// The second crumb: the collection, or the page's own name (from the
 	// sidebar's destination list, so the two never name a page differently).
-	let section = $derived.by((): { label: string; href: string; icon?: string } | null => {
+	// A page's sub-routes (/tags/<tag>, /insights/print, /settings/...) count
+	// under it: the first path segment picks the destination.
+	let section = $derived.by((): { label: string; href: string } | null => {
 		if (!wsPrefix) return null;
-		if (activeColl) return { label: activeColl.name, href: `${wsPrefix}/${activeColl.slug}`, icon: activeColl.icon };
-		const key = activeKey ?? (page.url.pathname.startsWith(`${wsPrefix}/settings`) ? 'settings' : null);
+		if (activeColl) return { label: activeColl.name, href: `${wsPrefix}/${activeColl.slug}` };
+		const path = page.url.pathname;
+		const segment = path.startsWith(`${wsPrefix}/`) ? path.slice(wsPrefix.length + 1).split('/')[0] : '';
+		const key = path === wsPrefix ? 'dashboard' : segment;
 		const dest = key ? getPrimaryDestinations(wsPrefix).find((d) => d.key === key) : undefined;
 		return dest ? { label: dest.label, href: dest.href } : null;
 	});
 
-	// The item on screen (full page or the split pane): ItemDetail writes its
-	// ref to the title store, scoped to the route it was set for.
-	let itemRef = $derived(titleStore.item);
+	// The last crumb, when there is one below the section: the item on screen
+	// (full page or the split pane; ItemDetail writes its ref to the title
+	// store), else the page's own title (`#tag`, "Report", or a page the
+	// section list does not know). Both are scoped to the route they were set
+	// for, and a title that only repeats the section is not shown twice.
+	let current = $derived.by(() => {
+		if (titleStore.item) return titleStore.item;
+		const title = titleStore.section;
+		return title && title !== section?.label ? title : null;
+	});
+
+	// The section links back up from anywhere below it.
+	let sectionIsLink = $derived(!!section && (!!current || page.url.pathname !== section.href));
 
 	let newTarget = $derived(
 		activeColl && !isAgentCollection(activeColl) && workspaceStore.canEditCollection(activeColl.id)
@@ -80,17 +94,17 @@
 				{#if section}
 					<Breadcrumb.Separator class="text-muted-foreground" />
 					<Breadcrumb.Item class="min-w-0">
-						{#if itemRef}
+						{#if sectionIsLink}
 							<Breadcrumb.Link href={section.href} class="crumb truncate text-foreground hover:text-foreground">{section.label}</Breadcrumb.Link>
 						{:else}
 							<Breadcrumb.Page class="truncate font-medium">{section.label}</Breadcrumb.Page>
 						{/if}
 					</Breadcrumb.Item>
 				{/if}
-				{#if itemRef}
+				{#if current}
 					<Breadcrumb.Separator class="text-muted-foreground" />
-					<Breadcrumb.Item>
-						<Breadcrumb.Page class="font-medium whitespace-nowrap">{itemRef}</Breadcrumb.Page>
+					<Breadcrumb.Item class="min-w-0">
+						<Breadcrumb.Page class="truncate font-medium">{current}</Breadcrumb.Page>
 					</Breadcrumb.Item>
 				{/if}
 			</Breadcrumb.List>

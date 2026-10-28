@@ -35,7 +35,7 @@
 
 @source "./lib/components/ui/**/*.{svelte,ts}";
 @source "./routes/_ui-preview/**/*.svelte";
-@source "./lib/components/ui-adapters/**/*.{svelte,ts}";
+@source "./lib/components/ui-adapters/*.svelte";
 /* The desktop app frame (TASK-27). File by file, not the whole layout/
    folder: the mobile chrome there is still legacy markup, and TopBar.svelte
    is restyled with its own scoped CSS. */

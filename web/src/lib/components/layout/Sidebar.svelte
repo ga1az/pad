@@ -42,6 +42,12 @@
 	} from '@hugeicons/core-free-icons';
 
 	let notificationPanelOpen = $state(false);
+	// The panel opened from the drawer's bell closes when the window crosses
+	// to desktop, where that bell is gone: left open, it would hold
+	// coveredPage with no trigger to return to (TASK-27).
+	$effect(() => {
+		if (!uiStore.isMobile) notificationPanelOpen = false;
+	});
 	let showCreateCollection = $state(false);
 	let quickAddCollection = $state<Collection | null>(null);
 	let quickAddTitle = $state('');
@@ -995,7 +1001,11 @@
 	{/if}
 </AppDialog>
 
-<NotificationPanel visible={notificationPanelOpen} onclose={() => { notificationPanelOpen = false; }} />
+<!-- The mobile drawer's bell only: on desktop the bell and its panel are
+     PanelHeader's (TASK-27). -->
+{#if uiStore.isMobile}
+	<NotificationPanel visible={notificationPanelOpen} onclose={() => { notificationPanelOpen = false; }} />
+{/if}
 
 <style>
 	.sidebar {

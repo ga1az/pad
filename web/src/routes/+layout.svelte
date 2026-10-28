@@ -605,6 +605,9 @@
 			--bg-primary: #1f2023;
 			--bg-secondary: #1f2023;
 			--bg-tertiary: #28292c;
+			/* Raised surfaces (menus, popovers drawn in place) one step above
+			   the card, as --ui-popover; the legacy #1c1c25 sat below the panel. */
+			--bg-raised: #2e2f33;
 			--bg-hover: #27282b;
 			--bg-active: #2c2d30;
 			--card-bg: #28292c;
@@ -618,6 +621,9 @@
 			--bg-primary: #1f2023;
 			--bg-secondary: #1f2023;
 			--bg-tertiary: #28292c;
+			/* Raised surfaces (menus, popovers drawn in place) one step above
+			   the card, as --ui-popover; the legacy #1c1c25 sat below the panel. */
+			--bg-raised: #2e2f33;
 			--bg-hover: #27282b;
 			--bg-active: #2c2d30;
 			--card-bg: #28292c;

@@ -17,8 +17,12 @@
 	let cancelEl = $state<HTMLElement | null>(null);
 </script>
 
-<!-- Mounted only while a question is open: see the same gate in AppDialog. -->
+<!-- Mounted only while a question is open: see the same gate in AppDialog.
+     Keyed by the question, so a queued one that follows an answered one is a
+     fresh dialog: Cancel takes the focus again instead of it staying on the
+     confirm button the last answer pressed. -->
 {#if active}
+{#key active}
 <AlertDialog.Root
 	bind:open={
 		() => !!active,
@@ -49,4 +53,5 @@
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
 </AlertDialog.Root>
+{/key}
 {/if}
