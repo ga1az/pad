@@ -70,6 +70,53 @@ describe('card priority picker (TASK-2214)', () => {
 		expect(write).not.toHaveBeenCalled();
 	});
 
+	it('an UNSET priority is a picker too on a writable card, and a choice writes it (TASK-28)', async () => {
+		// The desktop card draws Linear's "no priority" box for an item with
+		// none. On a writable card that box must open the picker, not the item.
+		for (const unset of [undefined, '']) {
+			const write = vi.fn();
+			const fields: Record<string, unknown> = { status: 'open' };
+			if (unset !== undefined) fields.priority = unset;
+			const screen = render(ItemCard, {
+				props: { item: item(fields), collection: collection(SELECT) } as never,
+				context: new Map([[CARD_PRIORITY_KEY, write]])
+			});
+			const chip = screen.container.querySelector(PRIORITY_CHIP) as HTMLElement;
+			expect(chip, `priority ${JSON.stringify(unset)}: the box is a picker`).not.toBeNull();
+			expect(chip.textContent?.trim()).toBe('No priority');
+			await fireEvent.click(chip);
+			await tick();
+			const rows = Array.from(document.body.querySelectorAll<HTMLElement>('[role="menuitemradio"]'));
+			expect(rows.map(rowLabel)).toEqual(['Low', 'Medium', 'High']);
+			// Nothing is checked: the item has no priority yet.
+			expect(rows.filter((r) => r.getAttribute('aria-checked') === 'true')).toHaveLength(0);
+			await fireEvent.click(rows.find((r) => rowLabel(r) === 'Low')!);
+			expect(write).toHaveBeenCalledTimes(1);
+			expect(write.mock.calls[0][1]).toBe('low');
+			cleanup();
+		}
+	});
+
+	it('an unset priority stays a static box for a reader, and a non-string value gets no box (BUG-3041)', () => {
+		perm.canEdit = false;
+		let screen = render(ItemCard, {
+			props: { item: item({ status: 'open' }), collection: collection(SELECT) } as never,
+			context: new Map([[CARD_PRIORITY_KEY, vi.fn()]])
+		});
+		expect(screen.container.querySelector(PRIORITY_CHIP)).toBeNull();
+		expect(screen.container.querySelector('.card-priority')?.textContent).toContain('No priority');
+		cleanup();
+		perm.canEdit = true;
+		screen = render(ItemCard, {
+			props: { item: item({ status: 'open', priority: ['high'] }), collection: collection(SELECT) } as never,
+			context: new Map([[CARD_PRIORITY_KEY, vi.fn()]])
+		});
+		// PRECONDITION: the card rendered.
+		expect(screen.container.querySelector('.card-title')?.textContent).toBe('Task One');
+		expect(screen.container.querySelector(PRIORITY_CHIP)).toBeNull();
+		expect(screen.container.querySelector('.card-priority')).toBeNull();
+	});
+
 	it('is a static chip with no provider, for a reader, or for a non-select priority', () => {
 		const cases: Array<{ name: string; priority: unknown; context?: Map<unknown, unknown>; canEdit?: boolean }> = [
 			{ name: 'no provider', priority: SELECT },

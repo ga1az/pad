@@ -24,7 +24,6 @@
 	} from '$lib/collections/relationGroups';
 	import { localIndex } from '$lib/stores/localIndex.svelte';
 	import { collectionStore } from '$lib/stores/collections.svelte';
-	import { columnAccentClassFor } from '$lib/utils/fieldColors';
 	import { TRIGGERS, SHADOW_ITEM_MARKER_PROPERTY_NAME } from 'svelte-dnd-action';
 	import { workspaceStore } from '$lib/stores/workspace.svelte';
 	import { lockableDndzone } from '$lib/collections/lockableDndzone';
@@ -876,14 +875,6 @@
 		return disabled;
 	}
 
-	// Delegates to the shared accent mapper (shareView.ts) so the in-app
-	// board and the public-share fork can never drift again — this was the
-	// FIFTH parallel status-color-ish implementation (PR #1023 Codex catch).
-	// Bonus: terminal_options-aware, so custom "Shipped"-style lanes read
-	// as done here too, matching public boards.
-	function columnCssClass(value: string): string {
-		return columnAccentClassFor(field, value);
-	}
 </script>
 
 
@@ -972,7 +963,7 @@
 		>
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<div
-				class="column-header {columnCssClass(colValue)}"
+				class="column-header"
 				draggable={colDraggable}
 				role="toolbar"
 				tabindex="0"
@@ -1376,6 +1367,12 @@
 	.lane-btn:hover {
 		color: var(--ui-foreground);
 		background: color-mix(in oklch, var(--ui-foreground) 6%, transparent);
+	}
+	/* app.css strips button outlines; put a ring back for the keyboard. */
+	.lane-btn:focus-visible,
+	.lane-add-bottom:focus-visible {
+		outline: 2px solid var(--ui-ring);
+		outline-offset: 1px;
 	}
 
 	.lane-menu-wrap {

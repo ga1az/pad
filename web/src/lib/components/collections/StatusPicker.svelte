@@ -88,7 +88,7 @@
 		{:else}
 			<StatusIcon category={statusCategory(value, field)} />
 		{/if}
-		<span class="picker-icon-name">{noun}: {formatLabel(value)}</span>
+		<span class="picker-icon-name">{value ? `${noun}: ${formatLabel(value)}` : `No ${noun.toLowerCase()}`}</span>
 	</button>
 {:else}
 	<Badge
@@ -139,6 +139,11 @@
 		border: none;
 		color: inherit;
 		cursor: pointer;
+	}
+	/* app.css strips button outlines; put a ring back for the keyboard. */
+	.picker-icon:focus-visible {
+		outline: 2px solid var(--ui-ring);
+		outline-offset: 1px;
 	}
 	/* The value's name, for assistive tech (and any reader of the text). */
 	.picker-icon-name {
