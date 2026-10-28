@@ -1408,6 +1408,8 @@
 		z-index: 50;
 		display: flex;
 		justify-content: center;
+		/* The palette is as tall as its content, not the overlay's row. */
+		align-items: flex-start;
 		padding-top: 14vh;
 	}
 	.palette:focus {
@@ -1422,6 +1424,8 @@
 		   row highlight; --ui-muted-foreground, measured from Linear, is 4.4:1
 		   on the popover surface, so the palette mixes its own from the text. */
 		--cp-muted: color-mix(in srgb, var(--ui-foreground) 66%, var(--ui-popover));
+		/* --ui-border is nearly the popover's own gray; the dividers need to show. */
+		--cp-line: color-mix(in srgb, var(--ui-foreground) 10%, transparent);
 		border: 1px solid var(--ui-border);
 		border-radius: 12px;
 		box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
@@ -1440,7 +1444,7 @@
 		gap: 12px;
 		height: 52px;
 		padding: 0 16px;
-		border-bottom: 1px solid var(--ui-border);
+		border-bottom: 1px solid var(--cp-line);
 		flex-shrink: 0;
 	}
 	.search-icon {
@@ -1465,9 +1469,11 @@
 	.search-input::placeholder {
 		color: var(--cp-muted);
 	}
-	.search-input:focus {
+	.search-input:focus,
+	.search-input:focus-visible {
 		border: none;
 		box-shadow: none;
+		outline: none;
 	}
 	.search-spinner {
 		width: 16px;
@@ -1489,7 +1495,7 @@
 		align-items: center;
 		gap: 4px;
 		padding: 6px 12px;
-		border-bottom: 1px solid var(--ui-border);
+		border-bottom: 1px solid var(--cp-line);
 		flex-shrink: 0;
 	}
 	.scope-toggle {
@@ -1531,7 +1537,7 @@
 		align-items: center;
 		gap: var(--space-2);
 		padding: 6px 12px;
-		border-bottom: 1px solid var(--ui-border);
+		border-bottom: 1px solid var(--cp-line);
 		flex-shrink: 0;
 		flex-wrap: wrap;
 	}
@@ -1599,7 +1605,7 @@
 		padding: 4px 16px;
 		font-size: 12px;
 		color: var(--cp-muted);
-		border-bottom: 1px solid var(--ui-border);
+		border-bottom: 1px solid var(--cp-line);
 		flex-shrink: 0;
 	}
 
@@ -1634,7 +1640,7 @@
 		the supplementary server-FTS hits apart from the local results above.
 	*/
 	.content-group {
-		border-top: 1px solid var(--ui-border);
+		border-top: 1px solid var(--cp-line);
 		margin-top: 4px;
 		padding-top: 4px;
 	}
@@ -2002,7 +2008,7 @@
 		gap: 16px;
 		height: 36px;
 		padding: 0 16px;
-		border-top: 1px solid var(--ui-border);
+		border-top: 1px solid var(--cp-line);
 		font-size: 12px;
 		color: var(--cp-muted);
 		flex-shrink: 0;
