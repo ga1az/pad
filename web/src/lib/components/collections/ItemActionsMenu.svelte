@@ -32,8 +32,8 @@
 <script lang="ts">
 	import type { Item } from '$lib/types';
 	import type { ReorderDirection } from '$lib/collections/reorder';
-	import Menu from '$lib/components/common/Menu.svelte';
-	import MenuItem from '$lib/components/common/MenuItem.svelte';
+	import ResponsiveMenu from '$lib/components/ui-adapters/ResponsiveMenu.svelte';
+	import ResponsiveMenuItem from '$lib/components/ui-adapters/ResponsiveMenuItem.svelte';
 
 	// Horizontal (adjacent-column) moves ride a SEPARATE optional callback so
 	// the shared vertical `onReorder` type stays 'top'|'bottom'|'up'|'down'
@@ -152,7 +152,7 @@
 			{card ? '⋯' : '⋮'}
 		</button>
 
-		<Menu
+		<ResponsiveMenu
 			{open}
 			onclose={() => (open = false)}
 			trigger={triggerEl}
@@ -161,21 +161,21 @@
 			ariaLabel={menuLabel}
 		>
 			{#if card}
-				<MenuItem icon={card.starred ? '★' : '☆'} onclick={() => cardPick(card.onToggleStar)}>
+				<ResponsiveMenuItem icon={card.starred ? '★' : '☆'} onclick={() => cardPick(card.onToggleStar)}>
 					{card.starred ? 'Unstar' : 'Star'}
-				</MenuItem>
+				</ResponsiveMenuItem>
 				{#if card.onCopyRef}
 					{@const copy = card.onCopyRef}
-					<MenuItem icon="⧉" onclick={() => cardPick(copy)}>Copy item ID</MenuItem>
+					<ResponsiveMenuItem icon="⧉" onclick={() => cardPick(copy)}>Copy item ID</ResponsiveMenuItem>
 				{/if}
 				{#if actions.length > 0}
 					<div class="menu-divider" role="separator"></div>
 				{/if}
 			{/if}
 			{#each actions as a (a.dir)}
-				<MenuItem icon={a.icon} onclick={() => pick(a.dir)}>{a.text}</MenuItem>
+				<ResponsiveMenuItem icon={a.icon} onclick={() => pick(a.dir)}>{a.text}</ResponsiveMenuItem>
 			{/each}
-		</Menu>
+		</ResponsiveMenu>
 	</span>
 {/if}
 

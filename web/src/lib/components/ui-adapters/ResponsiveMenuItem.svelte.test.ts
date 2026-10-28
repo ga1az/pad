@@ -1,4 +1,7 @@
 // Runs in the jsdom vitest project (filename ends `.svelte.test.ts`).
+// Migrated from common/MenuItem (TASK-26): ResponsiveMenuItem outside a menu
+// (and in the mobile sheet) is the same plain row; its dropdown branch is
+// covered by ResponsiveMenu.svelte.test.ts.
 //
 // MenuItem grew two capabilities for the attachment options panel
 // (PLAN-2392 DR-5 / DR-3b, TASK-2422): an icon SNIPPET alongside the existing
@@ -8,7 +11,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup } from '@testing-library/svelte';
 import { createRawSnippet, tick } from 'svelte';
-import MenuItem from './MenuItem.svelte';
+import MenuItem from './ResponsiveMenuItem.svelte';
 
 const label = createRawSnippet(() => ({ render: () => `<span>Download</span>` }));
 const svgIcon = createRawSnippet(() => ({

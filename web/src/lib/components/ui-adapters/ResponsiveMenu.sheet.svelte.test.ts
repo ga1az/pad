@@ -1,4 +1,6 @@
 /**
+ * Migrated from common/Menu.sheet (TASK-26): ResponsiveMenu keeps the sheet.
+ *
  * BUG-3157 codex round 3: at the mobile breakpoint Menu renders a BottomSheet,
  * and only a consumer whose content IS a menu (sheetMenu) gets a role="menu"
  * wrapper. Several sheetOnMobile consumers put other content there (a delete
@@ -7,7 +9,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, cleanup } from '@testing-library/svelte';
 import { createRawSnippet } from 'svelte';
-import Menu from './Menu.svelte';
+import Menu from './ResponsiveMenu.svelte';
 
 vi.mock('$lib/stores/breakpoint.svelte', () => ({
 	viewport: {

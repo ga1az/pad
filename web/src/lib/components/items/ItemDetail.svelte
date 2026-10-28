@@ -103,8 +103,8 @@
 	import ItemPicker from './ItemPicker.svelte';
 	import QuickActionsMenu from '$lib/components/common/QuickActionsMenu.svelte';
 	import BottomSheet from '$lib/components/common/BottomSheet.svelte';
-	import Menu from '$lib/components/common/Menu.svelte';
-	import MenuItem from '$lib/components/common/MenuItem.svelte';
+	import ResponsiveMenu from '$lib/components/ui-adapters/ResponsiveMenu.svelte';
+	import ResponsiveMenuItem from '$lib/components/ui-adapters/ResponsiveMenuItem.svelte';
 	import { viewport } from '$lib/stores/breakpoint.svelte';
 	import ContentSkeleton from '$lib/components/common/ContentSkeleton.svelte';
 	import ContentError from '$lib/components/common/ContentError.svelte';
@@ -7101,7 +7101,7 @@
 				<!-- mode=portal (BUG-2610): anchored panels clip against the
 				     pane's overflow-y:auto scroll container in split view —
 				     see QuickActionsMenu's matching note. -->
-				<Menu
+				<ResponsiveMenu
 					open={paneMenuOpen}
 					onclose={() => { paneMenuOpen = false; paneMenuView = 'root'; }}
 					trigger={paneMenuTrigger}
@@ -7114,19 +7114,19 @@
 				>
 					{#if paneMenuView === 'root'}
 						{#if graphFocusRef}
-							<MenuItem icon={HierarchySquare01Icon} onclick={() => { paneMenuOpen = false; openGraph(); }}>
+							<ResponsiveMenuItem icon={HierarchySquare01Icon} onclick={() => { paneMenuOpen = false; openGraph(); }}>
 								Dependency graph
-							</MenuItem>
+							</ResponsiveMenuItem>
 						{/if}
 						{#if canEdit}
-							<MenuItem icon="⇄" hint="›" onclick={() => (paneMenuView = 'move')} disabled={moving}>
+							<ResponsiveMenuItem icon="⇄" hint="›" onclick={() => (paneMenuView = 'move')} disabled={moving}>
 								{moving ? 'Moving…' : 'Move to collection…'}
-							</MenuItem>
+							</ResponsiveMenuItem>
 							<!-- Launcher only — the review step itself is a Modal (PLAN-2373).
 							     Stays `canEdit`-gated like the move row: that correctly admits
 							     an item-edit-grant guest, which the server also admits. The
 							     DESTINATION side is gated separately, inside the dialog. -->
-							<MenuItem
+							<ResponsiveMenuItem
 								icon="⧉"
 								onclick={() => {
 									paneMenuOpen = false;
@@ -7137,14 +7137,14 @@
 								disabled={moving}
 							>
 								Copy or move to workspace…
-							</MenuItem>
+							</ResponsiveMenuItem>
 						{/if}
 						{#if canPush}
 							<!-- Launcher only; the composer is a Modal. Gated on a
 							     resolved user rather than `canEdit` — the push is
 							     addressed to the caller's OWN sessions, so a viewer
 							     qualifies (see `canPush`). -->
-							<MenuItem
+							<ResponsiveMenuItem
 								icon="➤"
 								onclick={() => {
 									paneMenuOpen = false;
@@ -7153,12 +7153,12 @@
 								}}
 							>
 								Push to agent…
-							</MenuItem>
+							</ResponsiveMenuItem>
 						{/if}
 						{#if isOwner}
-							<MenuItem icon="⇗" onclick={() => { paneMenuOpen = false; shareDialogOpen = true; }}>
+							<ResponsiveMenuItem icon="⇗" onclick={() => { paneMenuOpen = false; shareDialogOpen = true; }}>
 								Share…
-							</MenuItem>
+							</ResponsiveMenuItem>
 						{/if}
 						{#if canEdit}
 							<div class="menu-divider" role="separator"></div>
@@ -7166,21 +7166,21 @@
 							     'delete' sub-view of THIS panel (PLAN-2326 DR-6), so
 							     the menu stays open and Menu's focusKey hands focus
 							     to the sub-view's first row. -->
-							<MenuItem icon={Delete02Icon} danger hint="›" onclick={() => (paneMenuView = 'delete')}>
+							<ResponsiveMenuItem icon={Delete02Icon} danger hint="›" onclick={() => (paneMenuView = 'delete')}>
 								Delete…
-							</MenuItem>
+							</ResponsiveMenuItem>
 						{/if}
 					{:else if paneMenuView === 'move'}
-						<MenuItem icon="‹" onclick={() => (paneMenuView = 'root')}>Back</MenuItem>
+						<ResponsiveMenuItem icon="‹" onclick={() => (paneMenuView = 'root')}>Back</ResponsiveMenuItem>
 						<div class="menu-divider" role="separator"></div>
 						{#each moveTargets as target (target.slug)}
-							<MenuItem
+							<ResponsiveMenuItem
 								icon={target.icon || '📁'}
 								disabled={moving}
 								onclick={() => handleMove(target.slug)}
 							>
 								{target.name}
-							</MenuItem>
+							</ResponsiveMenuItem>
 						{/each}
 					{:else if paneMenuView === 'delete'}
 						<!--
@@ -7209,9 +7209,9 @@
 						<div class="menu-confirm-note" role="presentation" id="delete-confirm-note-{uid}">
 							Delete this item?
 						</div>
-						<MenuItem icon="‹" onclick={() => (paneMenuView = 'root')}>Cancel</MenuItem>
+						<ResponsiveMenuItem icon="‹" onclick={() => (paneMenuView = 'root')}>Cancel</ResponsiveMenuItem>
 						<div class="menu-divider" role="separator"></div>
-						<MenuItem
+						<ResponsiveMenuItem
 							icon={Delete02Icon}
 							danger
 							describedBy="delete-confirm-note-{uid}"
@@ -7219,9 +7219,9 @@
 							onclick={handleDelete}
 						>
 							{deleting ? 'Deleting…' : 'Delete item'}
-						</MenuItem>
+						</ResponsiveMenuItem>
 					{/if}
-				</Menu>
+				</ResponsiveMenu>
 			</div>
 		</div>
 

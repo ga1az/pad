@@ -22,8 +22,8 @@
 		type DispatchOutcome,
 		type PushPresence
 	} from '$lib/push/dispatch';
-	import Menu from '$lib/components/common/Menu.svelte';
-	import MenuItem from '$lib/components/common/MenuItem.svelte';
+	import ResponsiveMenu from '$lib/components/ui-adapters/ResponsiveMenu.svelte';
+	import ResponsiveMenuItem from '$lib/components/ui-adapters/ResponsiveMenuItem.svelte';
 	import EmojiPickerButton from '$lib/components/common/EmojiPickerButton.svelte';
 
 	interface Props {
@@ -665,9 +665,9 @@
 		{@render createForm()}
 	{:else}
 		{#each filtered as action, i (`${action.label}:${i}`)}
-			<MenuItem icon={action.icon} onclick={() => handleAction(action)}>
+			<ResponsiveMenuItem icon={action.icon} onclick={() => handleAction(action)}>
 				{action.label}
-			</MenuItem>
+			</ResponsiveMenuItem>
 		{/each}
 		<!-- Plain div, deliberately not role="status": the panel is role="menu",
 		     whose children must be menuitem/group/separator, and a live region
@@ -677,8 +677,8 @@
 		<div class="dropdown-tagline">{tagline}</div>
 		{#if canEdit}
 			<div class="footer-divider"></div>
-			<MenuItem icon="+" onclick={() => (showCreateForm = true)}>New quick action</MenuItem>
-			<MenuItem icon={Settings01Icon} onclick={handleManage}>Manage actions</MenuItem>
+			<ResponsiveMenuItem icon="+" onclick={() => (showCreateForm = true)}>New quick action</ResponsiveMenuItem>
+			<ResponsiveMenuItem icon={Settings01Icon} onclick={handleManage}>Manage actions</ResponsiveMenuItem>
 		{/if}
 	{/if}
 {/snippet}
@@ -703,7 +703,7 @@
 		     and was CLIPPED mid-text. Portal escapes overflow containment
 		     and viewport-clamps/flips when cramped. width covers the
 		     .qa-body min-width (230) plus panel chrome. -->
-		<Menu
+		<ResponsiveMenu
 			{open}
 			onclose={closeMenu}
 			trigger={triggerEl}
@@ -718,7 +718,7 @@
 			<div class="qa-body">
 				{@render actionList()}
 			</div>
-		</Menu>
+		</ResponsiveMenu>
 	</div>
 {/if}
 

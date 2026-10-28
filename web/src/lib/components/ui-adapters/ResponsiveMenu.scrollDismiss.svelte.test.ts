@@ -1,4 +1,7 @@
 /**
+ * Migrated from common/Menu.scrollDismiss (TASK-26): ResponsiveMenu's
+ * desktop dropdown keeps the portal-mode scroll dismissal.
+ *
  * BUG-3278: a portal Menu closed on a scroll event that did not move its
  * anchor. A click that first scrolls its card into view (Playwright does;
  * so does a momentum scroll ending under a tap) gets that scroll's event
@@ -10,7 +13,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, cleanup } from '@testing-library/svelte';
 import { createRawSnippet, flushSync } from 'svelte';
-import Menu from './Menu.svelte';
+import Menu from './ResponsiveMenu.svelte';
 
 vi.mock('$lib/stores/breakpoint.svelte', () => ({
 	viewport: {

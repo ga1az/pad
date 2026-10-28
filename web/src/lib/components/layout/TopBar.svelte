@@ -16,8 +16,8 @@
 	import UserMenuResources from '$lib/components/layout/UserMenuResources.svelte';
 	import ConnectWorkspaceModal from '$lib/components/ConnectWorkspaceModal.svelte';
 	import WorkspaceDiscovery from '$lib/components/layout/WorkspaceDiscovery.svelte';
-	import Menu from '$lib/components/common/Menu.svelte';
-	import MenuItem from '$lib/components/common/MenuItem.svelte';
+	import ResponsiveMenu from '$lib/components/ui-adapters/ResponsiveMenu.svelte';
+	import ResponsiveMenuItem from '$lib/components/ui-adapters/ResponsiveMenuItem.svelte';
 	import { workspaceRestoreTarget } from '$lib/utils/workspace-route';
 	import { tabLanding } from '$lib/utils/tabLanding';
 	import ChatLink from '$lib/components/chat/ChatLink.svelte';
@@ -509,7 +509,7 @@
 				</span>
 			</button>
 
-			<Menu
+			<ResponsiveMenu
 				open={userMenuOpen}
 				onclose={closeUserMenu}
 				trigger={userTriggerEl}
@@ -567,19 +567,19 @@
 						the pre-migration behavior (the label flips in place so the
 						user can toggle back without reopening).
 					-->
-					<MenuItem onclick={toggleTheme}>
+					<ResponsiveMenuItem onclick={toggleTheme}>
 						{currentTheme === 'dark' ? 'Light mode' : 'Dark mode'}
-					</MenuItem>
+					</ResponsiveMenuItem>
 					<!-- The sheet's one entry point used to be the undocumented `?`
 					     key (TASK-2261, audit C102). -->
-					<MenuItem
+					<ResponsiveMenuItem
 						onclick={() => {
 							closeUserMenu();
 							uiStore.openShortcuts();
 						}}
 					>
 						Keyboard shortcuts
-					</MenuItem>
+					</ResponsiveMenuItem>
 
 					<!--
 						Resources block (TASK-905). Replaces the prior inline Cloud
@@ -598,20 +598,20 @@
 						it reads as a discrete action rather than another link.
 					-->
 					{#if workspaceStore.current?.slug}
-						<MenuItem
+						<ResponsiveMenuItem
 							onclick={() => {
 								closeUserMenu();
 								connectOpen = true;
 							}}
 						>
 							Connect a project…
-						</MenuItem>
+						</ResponsiveMenuItem>
 					{/if}
 					</div>
 					<div class="dropdown-divider"></div>
-					<MenuItem danger onclick={handleLogout}>Sign out</MenuItem>
+					<ResponsiveMenuItem danger onclick={handleLogout}>Sign out</ResponsiveMenuItem>
 				</div>
-			</Menu>
+			</ResponsiveMenu>
 		</div>
 	{/if}
 {/snippet}

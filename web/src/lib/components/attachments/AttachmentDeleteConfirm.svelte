@@ -79,7 +79,7 @@
 
 <script lang="ts">
 	import { Delete02Icon } from '@hugeicons/core-free-icons';
-	import MenuItem from '$lib/components/common/MenuItem.svelte';
+	import ResponsiveMenuItem from '$lib/components/ui-adapters/ResponsiveMenuItem.svelte';
 
 	interface Props {
 		/** The warning line — build it with `attachmentDeletePrompt`. */
@@ -98,9 +98,9 @@
 </script>
 
 <div class="attachment-delete-prompt" role="presentation" id={promptId}>{prompt}</div>
-<MenuItem icon="‹" onclick={oncancel}>Cancel</MenuItem>
+<ResponsiveMenuItem icon="‹" onclick={oncancel}>Cancel</ResponsiveMenuItem>
 <div class="attachment-delete-divider" role="separator"></div>
-<MenuItem icon={Delete02Icon} danger describedBy={promptId} onclick={onconfirm}>Delete file</MenuItem>
+<ResponsiveMenuItem icon={Delete02Icon} danger describedBy={promptId} onclick={onconfirm}>Delete file</ResponsiveMenuItem>
 
 <style>
 	/* Logical properties throughout: the prompt carries a filename, which may

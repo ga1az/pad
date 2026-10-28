@@ -52,7 +52,7 @@
 		displayFilename,
 	} from '$lib/attachments/display';
 	import AttachmentIcon from '$lib/attachments/icons/AttachmentIcon.svelte';
-	import Menu from '$lib/components/common/Menu.svelte';
+	import ResponsiveMenu from '$lib/components/ui-adapters/ResponsiveMenu.svelte';
 	import AttachmentDeleteConfirm, {
 		attachmentDeletePrompt,
 	} from '$lib/components/attachments/AttachmentDeleteConfirm.svelte';
@@ -206,7 +206,7 @@
 	/**
 	 * The delete confirmation currently on screen, if any (PLAN-2392 DR-18 /
 	 * TASK-2425). One at a time: opening a second supersedes the first, which
-	 * is what a `<Menu>` anchored to a single trigger can represent anyway.
+	 * is what a `<ResponsiveMenu>` anchored to a single trigger can represent anyway.
 	 *
 	 * `anchor` is the tile's own `×` — the menu positions against it and
 	 * returns focus to it on Cancel / Escape, which is what keeps the control
@@ -1389,7 +1389,7 @@
 		`pendingDelete.anchor` there throws an unhandled rejection — real, and
 		observed in the suite.
 	-->
-	<Menu
+	<ResponsiveMenu
 		open
 		onclose={dismissDelete}
 		trigger={pendingDelete?.anchor ?? undefined}
@@ -1406,7 +1406,7 @@
 			oncancel={cancelDelete}
 			onconfirm={confirmDelete}
 		/>
-	</Menu>
+	</ResponsiveMenu>
 {/if}
 
 <!--

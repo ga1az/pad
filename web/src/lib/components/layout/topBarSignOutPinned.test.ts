@@ -24,11 +24,16 @@ const code = raw
 	.replace(/\/\*[\s\S]*?\*\//g, '')
 	.replace(/(^|\s)\/\/[^\n]*/g, '$1');
 
-const menuSrc = readFileSync(
-	fileURLToPath(new URL('../common/Menu.svelte', import.meta.url)),
-	'utf8',
-).replace(/<!--[\s\S]*?-->/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
-
+// The menu primitive is ResponsiveMenu (TASK-26), whose panel is shadcn's
+// Dropdown Menu content: the adapter adds the cap and the bodyScroll classes,
+// and the content brings the default scroll.
+const stripComments = (s: string) => s.replace(/<!--[\s\S]*?-->/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+const menuSrc = stripComments(
+	readFileSync(fileURLToPath(new URL('../ui-adapters/ResponsiveMenu.svelte', import.meta.url)), 'utf8'),
+);
+const contentSrc = stripComments(
+	readFileSync(fileURLToPath(new URL('../ui/dropdown-menu/dropdown-menu-content.svelte', import.meta.url)), 'utf8'),
+);
 
 /**
  * Index just past the `</div>` that closes the `<div>` containing `from`.
@@ -92,16 +97,17 @@ describe('the Menu primitive', () => {
 	it('stops scrolling, and still CLIPS, under bodyScroll', () => {
 		// `overflow: hidden`, not `visible`: a too-tall menu must still be
 		// clipped to the panel, or it paints over the page with no way to reach
-		// the rest.
-		expect(menuSrc).toMatch(/\.menu-panel\.body-scroll\s*\{[^}]*overflow:\s*hidden/);
-		expect(menuSrc).toMatch(/\.menu-panel\.body-scroll\s*\{[^}]*display:\s*flex/);
+		// the rest. (cn's tailwind-merge drops the content's overflow-y-auto
+		// when overflow-hidden follows it.)
+		expect(menuSrc).toMatch(/bodyScroll && '[^']*\boverflow-hidden\b/);
+		expect(menuSrc).toMatch(/bodyScroll && '[^']*\bflex\b[^']*\bflex-col\b/);
 	});
 
 	it('leaves every other menu scrolling the panel', () => {
 		// The opt-in is the compatibility story: this primitive backs many menus
 		// and none of them was asked to change.
-		expect(menuSrc).toMatch(/\.menu-panel\s*\{[^}]*max-height:\s*340px/);
-		expect(menuSrc).toMatch(/\.menu-panel\s*\{[^}]*overflow-y:\s*auto/);
+		expect(menuSrc).toMatch(/max-h-\[min\(340px,/);
+		expect(contentSrc).toMatch(/\boverflow-y-auto\b/);
 		expect(menuSrc).toContain('bodyScroll = false');
 	});
 });

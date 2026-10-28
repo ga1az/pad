@@ -25,7 +25,7 @@
 		type StorageFilterSelections
 	} from '$lib/attachments/storageFilters';
 	import AttachmentIcon from '$lib/attachments/icons/AttachmentIcon.svelte';
-	import Menu from '$lib/components/common/Menu.svelte';
+	import ResponsiveMenu from '$lib/components/ui-adapters/ResponsiveMenu.svelte';
 	import AttachmentDeleteConfirm, {
 		workspaceAttachmentDeletePrompt,
 	} from '$lib/components/attachments/AttachmentDeleteConfirm.svelte';
@@ -870,7 +870,7 @@
 	in a `tick().then()` that can run after this block is torn down.
 -->
 {#if pendingDelete}
-	<Menu
+	<ResponsiveMenu
 		open
 		onclose={dismissDelete}
 		trigger={pendingDelete?.anchor ?? undefined}
@@ -887,7 +887,7 @@
 			oncancel={cancelDelete}
 			onconfirm={confirmDelete}
 		/>
-	</Menu>
+	</ResponsiveMenu>
 {/if}
 
 <style>

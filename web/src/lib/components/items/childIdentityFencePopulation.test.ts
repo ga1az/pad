@@ -188,8 +188,8 @@ const POPULATION: string[] = [
 	'lib/components/items/ItemAppActions.svelte',
 	'lib/components/attachments/AttachmentSurfaceHost.svelte',
 	'lib/components/common/QuickActionsMenu.svelte',
-	'lib/components/common/Menu.svelte',
-	'lib/components/common/MenuItem.svelte',
+	'lib/components/ui-adapters/ResponsiveMenu.svelte',
+	'lib/components/ui-adapters/ResponsiveMenuItem.svelte',
 	'lib/components/common/ContentSkeleton.svelte',
 	'lib/components/common/ContentError.svelte',
 	// BUG-3050 U3: static notice text, no script beyond an import; no await, no send.
@@ -306,7 +306,7 @@ const KNOWN_CONTINUATIONS: Record<string, string> = {
 	'lib/components/fields/FieldEditor.svelte::sendTyped::settled.then':
 		'release: clears the typed display for a settled write; must run under any identity',
 	'lib/components/timeline/ItemTimeline.svelte::<callback of $effect>::tick.then': 'ui: DOM role pass, cancelled on re-run',
-	'lib/components/common/Menu.svelte::<callback of $effect>::tick.then': 'ui: placement and focus',
+	'lib/components/ui-adapters/ResponsiveMenu.svelte::<callback of $effect>::tick.then': 'ui: focus',
 	'lib/components/common/QuickActionsMenu.svelte::<callback of $effect>::tick.then': 'ui: focus',
 	'lib/components/items/CopyItemDialog.svelte::<callback of $effect>::tick.then': 'ui: focus',
 	'lib/components/items/CopyItemDialog.svelte::resetForOpen::loadDestCollections.then':

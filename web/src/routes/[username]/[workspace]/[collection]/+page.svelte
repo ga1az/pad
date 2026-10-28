@@ -26,8 +26,8 @@
 	import FilterBar from '$lib/components/collections/FilterBar.svelte';
 	import QuickActionsMenu from '$lib/components/common/QuickActionsMenu.svelte';
 	import BottomSheet from '$lib/components/common/BottomSheet.svelte';
-	import Menu from '$lib/components/common/Menu.svelte';
-	import MenuItem from '$lib/components/common/MenuItem.svelte';
+	import ResponsiveMenu from '$lib/components/ui-adapters/ResponsiveMenu.svelte';
+	import ResponsiveMenuItem from '$lib/components/ui-adapters/ResponsiveMenuItem.svelte';
 	import { viewport } from '$lib/stores/breakpoint.svelte';
 	import SSEStatusIndicator from '$lib/components/SSEStatusIndicator.svelte';
 	import { onDestroy, onMount, untrack } from 'svelte';
@@ -4315,7 +4315,7 @@
 								<span class="view-dd-label">{viewTriggerLabel}</span>
 								<span class="view-dd-caret" aria-hidden="true">▾</span>
 							</button>
-							<Menu
+							<ResponsiveMenu
 								open={viewMenuOpen}
 								onclose={() => (viewMenuOpen = false)}
 								trigger={viewMenuTrigger}
@@ -4324,7 +4324,7 @@
 								ariaLabel="View"
 							>
 								{#each VIEW_CHOICES as choice (choice.mode)}
-									<MenuItem
+									<ResponsiveMenuItem
 										icon={choice.icon}
 										checked={viewMode === choice.mode}
 										onclick={() => {
@@ -4334,17 +4334,17 @@
 										}}
 									>
 										{choice.label}
-									</MenuItem>
+									</ResponsiveMenuItem>
 								{/each}
 								{#if savedViews.length > 0}
 									<div class="menu-divider" role="separator"></div>
 									<div class="menu-label">Saved views</div>
-									<MenuItem
+									<ResponsiveMenuItem
 										checked={activeViewId === null}
 										onclick={() => { clearActiveView(); viewMenuOpen = false; }}
 									>
 										All
-									</MenuItem>
+									</ResponsiveMenuItem>
 									{#each savedViews as view (view.id)}
 										<div class="saved-view-row">
 											<button
@@ -4369,21 +4369,21 @@
 										</div>
 									{/each}
 									{#if activeViewId !== null}
-										<MenuItem
+										<ResponsiveMenuItem
 											icon={PinIcon}
 											onclick={() => { toggleMakeDefault(); viewMenuOpen = false; }}
 										>
 											{isCurrentDefault ? 'Remove as default' : 'Make default'}
-										</MenuItem>
+										</ResponsiveMenuItem>
 									{/if}
 								{/if}
 								{#if canSaveView}
 									<div class="menu-divider" role="separator"></div>
-									<MenuItem icon={StarIcon} onclick={() => { openSaveView(); viewMenuOpen = false; }}>
+									<ResponsiveMenuItem icon={StarIcon} onclick={() => { openSaveView(); viewMenuOpen = false; }}>
 										Save current view…
-									</MenuItem>
+									</ResponsiveMenuItem>
 								{/if}
-							</Menu>
+							</ResponsiveMenu>
 						</div>
 					{/if}
 
@@ -4400,7 +4400,7 @@
 							>
 								<svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M4 2v10M4 12l-2.2-2.4M4 12l2.2-2.4M11 13V3M11 3 8.8 5.4M11 3l2.2 2.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
 							</button>
-							<Menu
+							<ResponsiveMenu
 								open={sortMenuOpen}
 								onclose={() => (sortMenuOpen = false)}
 								trigger={sortMenuTrigger}
@@ -4411,14 +4411,14 @@
 							>
 								<div class="menu-label">Sort within groups</div>
 								{#each sortOptions as opt (opt.value)}
-									<MenuItem
+									<ResponsiveMenuItem
 										checked={sortMode === opt.value}
 										onclick={() => { saveSortMode(opt.value as SortMode); sortMenuOpen = false; }}
 									>
 										{opt.label}
-									</MenuItem>
+									</ResponsiveMenuItem>
 								{/each}
-							</Menu>
+							</ResponsiveMenu>
 						</div>
 					{/if}
 
@@ -4481,7 +4481,7 @@
 								<SSEStatusIndicator compact />
 							</span>
 						{/if}
-						<Menu
+						<ResponsiveMenu
 							open={collMenuOpen}
 							onclose={() => (collMenuOpen = false)}
 							trigger={collMenuTrigger}
@@ -4490,23 +4490,23 @@
 							sheetTitle="Collection"
 							ariaLabel="Collection menu"
 						>
-							<MenuItem
+							<ResponsiveMenuItem
 								icon="🗃"
 								checked={showArchived}
 								onclick={() => { showArchived = !showArchived; collMenuOpen = false; }}
 							>
 								Show archived
-							</MenuItem>
+							</ResponsiveMenuItem>
 							{#if isOwner}
 								<div class="menu-divider" role="separator"></div>
-								<MenuItem icon="✎" onclick={() => { editCollectionOpen = true; collMenuOpen = false; }}>
+								<ResponsiveMenuItem icon="✎" onclick={() => { editCollectionOpen = true; collMenuOpen = false; }}>
 									Edit collection…
-								</MenuItem>
-								<MenuItem icon="⇗" onclick={() => { shareDialogOpen = true; collMenuOpen = false; }}>
+								</ResponsiveMenuItem>
+								<ResponsiveMenuItem icon="⇗" onclick={() => { shareDialogOpen = true; collMenuOpen = false; }}>
 									Share collection…
-								</MenuItem>
+								</ResponsiveMenuItem>
 							{/if}
-						</Menu>
+						</ResponsiveMenu>
 					</div>
 
 					{#if canEditThisCollection}

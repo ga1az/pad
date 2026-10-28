@@ -22,8 +22,8 @@
 -->
 <script lang="ts">
 	import { Badge } from '$lib/components/ui/badge';
-	import Menu from '$lib/components/common/Menu.svelte';
-	import MenuItem from '$lib/components/common/MenuItem.svelte';
+	import ResponsiveMenu from '$lib/components/ui-adapters/ResponsiveMenu.svelte';
+	import ResponsiveMenuItem from '$lib/components/ui-adapters/ResponsiveMenuItem.svelte';
 	import { portal } from '$lib/utils/portalAction';
 	import { statusColor, priorityColor, formatFieldLabel as formatLabel } from '$lib/utils/fieldColors';
 	import { viewport } from '$lib/stores/breakpoint.svelte';
@@ -74,7 +74,7 @@
 
 {#if open}
 	<div class="status-picker-host" use:portal>
-		<Menu
+		<ResponsiveMenu
 			{open}
 			onclose={() => (open = false)}
 			trigger={triggerEl ?? undefined}
@@ -87,10 +87,10 @@
 			ariaLabel={noun}
 		>
 			{#each optionList as option (option)}
-				<MenuItem checked={option === value} onclick={() => choose(option)}>
+				<ResponsiveMenuItem checked={option === value} onclick={() => choose(option)}>
 					{formatLabel(option)}
-				</MenuItem>
+				</ResponsiveMenuItem>
 			{/each}
-		</Menu>
+		</ResponsiveMenu>
 	</div>
 {/if}
