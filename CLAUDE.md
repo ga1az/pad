@@ -2,14 +2,14 @@
 
 ## What This Is
 
-Pad is a project management tool for developers and AI agents. Single Go binary with embedded SvelteKit web UI, SQLite storage, and multi-agent skill support (Claude Code, Cursor, Windsurf, Codex, OpenCode, Copilot, Amazon Q, Junie).
+Pad is a project management tool for developers and AI agents. This personal fork of PerpetualSoftware/pad develops on `custom`; `main` remains an upstream reference. The single Go binary embeds the SvelteKit web UI and supports SQLite or PostgreSQL storage and multi-agent skills.
 
 **Related repo:** The marketing website (getpad.dev) lives at `../pad-web` — a separate SvelteKit site deployed to Vercel.
 
 ## Architecture
 
-- **Backend:** Go (cmd/pad/main.go) → REST API (internal/server/) → SQLite (internal/store/)
-- **Frontend:** SvelteKit 2 + Svelte 5 (web/src/) → static build embedded in Go binary
+- **Backend:** Go (cmd/pad/main.go) → REST API (internal/server/) → SQLite or PostgreSQL (internal/store/)
+- **Frontend:** SvelteKit 3 + Svelte 5 (web/src/) → static build embedded in Go binary
 - **Data model:** Workspaces → Collections (typed with JSON schemas) → Items (structured fields + rich content)
 - **CLI:** Cobra commands in cmd/pad/main.go, HTTP client in internal/cli/
 - **Agent skill:** Single natural-language `/pad` skill in skills/pad/SKILL.md
@@ -18,20 +18,20 @@ Pad is a project management tool for developers and AI agents. Single Go binary 
 
 ```bash
 make build      # Build web UI + Go binary (./pad)
-make install    # Build, kill server, install to ~/.local/bin/pad, restart
-make build-go   # Build Go only (skip web — faster when only backend changes)
+make install    # Full build, replace installed binary, restart local server
+make build-go   # Build Go without rebuilding web; embedded assets must exist
 make test       # Run Go tests
 make web        # Build web UI only
 make dev-web    # Run SvelteKit dev server (hot reload on :5173)
 ```
 
-**After making changes, always run `make install`** to rebuild the binary, install it, and restart the server. The web UI at http://localhost:7777 will reflect the changes.
+Verify each change with a focused build or test. Deploy locally with `make install` only when explicitly intended: it depends on `build`, runs `npm ci`, replaces the installed binary and restarts the server. The CLI's default local address is `127.0.0.1:7777`; an instance reached through Tailscale on port `10000` uses a local override.
 
 ### Quick iteration loop
 
-- **Backend only:** `make install` (skips web rebuild if no frontend changes — edit Makefile to use `build-go` instead of `build` in the install target)
-- **Frontend only:** `make web && make install` or use `make dev-web` for hot reload during development
-- **Full rebuild:** `make install`
+- **Backend only:** run focused Go tests and `make build-go` after generating `web/build` and `web/build-materializer/materializer.js`.
+- **Frontend only:** use `make dev-web` for local iteration, then run the relevant web checks.
+- **Full build:** `make build`; use `make install` separately when a local deployment is needed.
 
 ### Working in a git worktree
 
@@ -43,7 +43,9 @@ Agent sessions take a `git worktree` per task rather than sharing the main check
 
 - **If you find a worktree whose `web/node_modules` is still a symlink (an older one), do not run `npm ci` in it, including via make.** `npm ci` would delete through the symlink into the main checkout's tree and break every session that shares it, with a confusing `vitest: not found`. `npm ci` lives in the `web` target, so every target whose dependency chain reaches it is affected too: currently `web`, `build`, `install`, `serve`, `web-check`, and `check` (via `web-check`). Replace the symlink first: `rm web/node_modules` removes the link only, then run `npm ci`. In a worktree with its own `node_modules`, those targets are safe.
 
-- **`make test-pg` is safe to run from several worktrees at once, but NOT against itself in one worktree** (TASK-2708; the second half measured on BUG-3000). `TEST_PG_PROJECT` is derived from the worktree's basename and a checksum of its absolute path, so two overlapping runs in the SAME worktree resolve to the SAME compose project: the second `up -d --wait` attaches to the first run's container instead of creating its own, and the first run to finish executes the target's unconditional `down -v` and tears the database out from under the other. The survivor fails with `dial tcp 127.0.0.1:<port>: connect: connection refused` while cloning the test database — which the `THE DATABASE DIED DURING THE RUN` banner reports correctly, but reads as evidence about the code to anyone who does not know a sibling run was up. Run it alone per worktree, and do not diagnose such a failure from surrounding connection-refused noise (a passing run carries ~41 redis connection-refused lines of its own); the failure TEXT is the evidence. It used to bind the Postgres test container to a fixed host port, so a second worktree failed with `port is already allocated` and a stack orphaned by a removed worktree blocked the port for everyone. Docker now assigns the port and the Makefile reads it back, so each worktree gets its own container on its own port under its own compose project. If you have been starting a private container by hand to avoid the collision, you no longer need to. Two other things that target now does: it REFUSES to run, with a `NO TESTS EXECUTED` banner, when the database is unreachable — `go test` exiting 2 with zero FAIL lines had already been mistaken for a pass once — and it says so explicitly when the database dies mid-run, so the failures read as infrastructure rather than as evidence about the code. To reap a stack whose worktree was deleted before teardown: `docker ps --filter name=padtest-` lists them and the container name carries the compose project, so `docker compose -p <that-project> down -v` reaps it from anywhere. From inside the worktree, `make test-pg-project` prints the name and `make test-pg-down` does it for you. (The project is `padtest-<basename>-<checksum-of-the-absolute-path>` — NOT the bare directory name, which would collide between two checkouts sharing a basename.)
+- **Heavy checks on this machine:** Run one heavy job at a time under the shared `~/.cache/pad-spec35-heavy.lock`, with `GOMAXPROCS=2` and `GOFLAGS=-p=1`. The cgroup has 2 CPU and 4 GiB; include any temporary PostgreSQL process in that budget. SQLite tests use temporary data. PostgreSQL tests use `PAD_TEST_POSTGRES_URL` pointing to a temporary instance. `make test-pg` exists but does not apply these CPU and memory limits, so do not use it as this machine's default test profile. Go checks need no GPU; use a browser or headless runner when UI verification requires one. Never point tests at production.
+
+- **`make test-pg` uses a compose project per worktree**, but overlapping runs inside the same worktree share it; one run can tear down the other's database. Run it alone per worktree when resources permit. Its failure banners distinguish an unreachable or interrupted database from a test failure.
 
 - **Go build caches never go under `/tmp`.** `/tmp` is a 7.3G tmpfs, so every byte written there is RAM. Two ad-hoc `/tmp/docapp*-go-cache` directories created by agent sessions held 3.6G between them and were what the harness's memory reaper was reacting to when it started killing background test runs. Use the default (`~/.cache/go-build`), or `~/.cache/go-build-<worktree>` on disk if you want a per-worktree cache to avoid lock contention on the shared one. `GOTMPDIR` already points at `~/.cache/go-tmp` and stays there.
 
@@ -55,7 +57,7 @@ Agent sessions take a `git worktree` per task rather than sharing the main check
 cmd/pad/main.go          — CLI entry point, all Cobra commands
 internal/
   server/                — HTTP API handlers, SSE, middleware
-  store/                 — SQLite CRUD, migrations, FTS
+  store/                 — SQLite/PostgreSQL storage and migrations
   models/                — Go types (Collection, Item, View, etc.)
   items/                 — Field validation against schemas
   collections/           — Default definitions, workspace templates
@@ -408,9 +410,8 @@ Server handlers existed pre-PLAN-1496; these tasks just wired CLI subcommands an
 ## Testing
 
 ```bash
-go test ./...              # All Go tests
-go test ./internal/store/  # Store tests only
-cd web && npm run build    # Verify frontend compiles
+go test ./internal/store/  # Example focused Go tests (requires embedded web assets)
+cd web && npm run check    # Frontend type check
 cd web && npm run test     # Web unit tests (vitest, run once)
 ```
 
@@ -423,18 +424,18 @@ cd web && npm run test     # Web unit tests (vitest, run once)
 4. Add CLI client method in `internal/cli/client.go`
 5. Add TypeScript type in `web/src/lib/types/index.ts`
 6. Add API method in `web/src/lib/api/client.ts`
-7. `make install`
+7. Run focused Go/web checks; deploy locally only if requested.
 
 ### Add a new CLI command
 1. Add the command constructor to the matching resource file under `cmd/pad/` — `cmd_item.go`, `cmd_collection.go`, `cmd_workspace.go`, `cmd_auth.go`, `cmd_project.go`, `cmd_playbook.go`, `cmd_role.go`, `cmd_tag.go`, `cmd_github.go`, `cmd_webhook.go`, `cmd_agent.go`, `cmd_server.go`, `cmd_attachment.go`, `cmd_db.go`, `cmd_library.go`, `cmd_bootstrap.go` (all `package main`, so helpers are shared across files). Create a new `cmd_<resource>.go` if none fits. Keep `main.go` for `main()`, `newRootCmd()`, and top-level wiring only — don't grow it back into a god file.
 2. Wire it into the resource group in `cmd/pad/groups.go` (or `rootCmd.AddCommand()` in `main.go` for a new top-level group)
-3. `make install`
+3. Run focused Go checks; deploy locally only if requested.
 
 ### Modify the database schema
-1. Add migration file in `internal/store/migrations/`
+1. Add the SQLite migration in `internal/store/migrations/` and the corresponding PostgreSQL migration in `internal/store/pgmigrations/` when the schema change applies to both.
 2. Update models in `internal/models/`
 3. Update store methods in `internal/store/`
-4. `make install` (migrations run automatically on server start)
+4. Verify each migration against temporary SQLite and PostgreSQL databases. Migrations run on server start; deploy locally only if requested.
 
 ## Real-time collaboration (Yjs / Tiptap)
 
