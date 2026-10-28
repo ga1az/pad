@@ -7427,7 +7427,14 @@
 						<div class="field-value">
 							{#if canEdit}
 								<PropertyPicker
-									options={agentRoles.map((r) => ({ value: r.id, label: r.name }))}
+									options={[
+										...agentRoles.map((r) => ({ value: r.id, label: r.name })),
+										// A role that is gone (deleted, or not visible to you) is named, not
+										// shown as its id.
+										...(item.agent_role_id && !agentRoles.some((r) => r.id === item!.agent_role_id)
+											? [{ value: item.agent_role_id, label: 'Unknown role' }]
+											: [])
+									]}
 									value={item.agent_role_id ?? ''}
 									placeholder="Set role"
 									noneLabel="No role"
@@ -7440,7 +7447,7 @@
 								<span class="assignment-readonly">
 									{#if item?.agent_role_id}
 										{@const r = agentRoles.find(r => r.id === item!.agent_role_id)}
-										{r ? `${r.icon ? r.icon + ' ' : ''}${r.name}` : '—'}
+										{r ? `${r.icon ? r.icon + ' ' : ''}${r.name}` : 'Unknown role'}
 									{:else}
 										No role
 									{/if}

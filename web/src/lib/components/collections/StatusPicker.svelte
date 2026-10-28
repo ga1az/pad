@@ -53,12 +53,15 @@
 	import StatusIcon from '$lib/components/status/StatusIcon.svelte';
 	import PriorityIcon from '$lib/components/status/PriorityIcon.svelte';
 	import { priorityLevel, statusCategory } from '$lib/components/status/statusCategory';
+	import { sentChoice } from '$lib/components/fields/sentChoice.svelte';
 
 	interface Props {
 		/** The stored status; '' when the item has none. */
 		value: string;
 		options: string[];
-		onselect: (status: string) => void;
+		/** May return the write's promise: a choice is not compared with `value`
+		 *  while that is pending (fields/sentChoice). */
+		onselect: (status: string) => unknown;
 		/** Which field the chip is: the priority chip is the same picker (TASK-2214). */
 		kind?: 'status' | 'priority';
 		/** A text chip (the default), the value's icon (TASK-28), or a property
@@ -94,9 +97,11 @@
 		if (!open) triggerEl?.focus();
 	}
 
+	const sent = sentChoice(() => value);
+
 	function choose(status: string) {
 		open = false;
-		if (status !== value) onselect(status);
+		sent.choose(status, onselect);
 	}
 
 	// The desktop popover's search. Our own filter, so the digit shortcuts and

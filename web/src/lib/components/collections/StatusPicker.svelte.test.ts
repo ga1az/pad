@@ -44,6 +44,14 @@ describe('StatusPicker', () => {
 		expect(onselect).not.toHaveBeenCalled();
 	});
 
+	it('A to B (still in flight) and back to A writes both; `value` is stale until B lands', async () => {
+		const onselect = vi.fn(() => new Promise<void>(() => {}));
+		const screen = render(StatusPicker, { props: { value: 'open', options: OPTIONS, onselect } });
+		await chooseStatus(screen.container, 'done');
+		await chooseStatus(screen.container, 'open');
+		expect(onselect.mock.calls).toEqual([['done'], ['open']]);
+	});
+
 	it('checks the current status and only that', async () => {
 		const { screen } = renderPicker('in_progress');
 		const rows = await openStatusPicker(screen.container);

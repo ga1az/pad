@@ -34,6 +34,7 @@
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import { Tick02Icon } from '@hugeicons/core-free-icons';
 	import { viewport } from '$lib/stores/breakpoint.svelte';
+	import { sentChoice } from './sentChoice.svelte';
 
 	interface Props {
 		options: PickerOption[];
@@ -49,7 +50,9 @@
 		/** First row, writing '' ("Unassigned"). Single only. */
 		noneLabel?: string;
 		searchPlaceholder?: string;
-		onselect?: (value: string) => void;
+		/** May return the write's promise: a choice is not compared with `value`
+		 *  while that is pending (see sentChoice). */
+		onselect?: (value: string) => unknown;
 		ontoggle?: (value: string) => void;
 		/** A leading visual for a value ('' is none): a color dot, an avatar. */
 		lead?: Snippet<[string]>;
@@ -86,20 +89,33 @@
 	const labelOf = (v: string) => options.find((o) => o.value === v)?.label ?? v;
 	const chosen = $derived(multi ? values : value ? [value] : []);
 	const shown = $derived(chosen.map(labelOf).join(', '));
-	const NONE = '\u0000none';
-	/** The rows by group, in order. An option without a group is not headed. */
+	// A printable sentinel: it is a Command item's value and shows in the DOM.
+	const NONE = '__none__';
+	// Our own filter, by the LABEL only. The rows' values are opaque ids (a user_id,
+	// a role id), and bits-ui's fuzzy filter scores the value too, so typing part of
+	// an id would match a person who is nowhere near the name.
+	let query = $state('');
+	const matches = (text: string) => {
+		const q = query.trim().toLowerCase();
+		return !q || text.toLowerCase().includes(q);
+	};
+	const visible = $derived(options.filter((o) => matches(o.label)));
 	const grouped = $derived.by(() => {
 		const out: { heading: string | undefined; rows: PickerOption[] }[] = [];
-		for (const o of options) {
+		for (const o of visible) {
 			const last = out[out.length - 1];
 			if (last && last.heading === o.group) last.rows.push(o);
 			else out.push({ heading: o.group, rows: [o] });
 		}
 		return out;
 	});
+	const sent = sentChoice(() => value);
 
 	function toggle() {
-		if (!open) highlighted = (multi ? values[0] : value) || options[0]?.value || '';
+		if (!open) {
+			query = '';
+			highlighted = (multi ? values[0] : value) || options[0]?.value || '';
+		}
 		open = !open;
 	}
 
@@ -109,7 +125,7 @@
 			return;
 		}
 		close ? close(true) : (open = false);
-		if (v !== value) onselect?.(v);
+		sent.choose(v, (x) => onselect?.(x));
 	}
 </script>
 
@@ -162,14 +178,13 @@
 		{:else}
 			<AnchoredPopover {open} onclose={() => (open = false)} trigger={triggerEl} width={240} ariaLabel={label}>
 				{#snippet children({ close })}
-					<Command.Root loop label={label} bind:value={highlighted}>
-						<Command.Input placeholder={searchPlaceholder ?? `${label}…`} aria-label={label} />
+					<Command.Root shouldFilter={false} loop label={label} bind:value={highlighted}>
+						<Command.Input bind:value={query} placeholder={searchPlaceholder ?? `${label}…`} aria-label={label} />
 						<Command.List class="max-h-64">
 							<Command.Empty>No results</Command.Empty>
-							{#if noneLabel && !multi}
+							{#if noneLabel && !multi && matches(noneLabel)}
 								<Command.Item
 									value={NONE}
-									keywords={[noneLabel]}
 									aria-checked={!value}
 									onSelect={() => choose('', close)}
 								>
@@ -183,7 +198,6 @@
 									{#each g.rows as option (option.value)}
 										<Command.Item
 											value={option.value}
-											keywords={[option.label]}
 											aria-checked={chosen.includes(option.value)}
 											onSelect={() => choose(option.value, close)}
 										>

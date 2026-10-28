@@ -61,6 +61,95 @@ describe('PropertyPicker (single)', () => {
 		expect(onselect).not.toHaveBeenCalled();
 	});
 
+	it('A to B (still in flight) and back to A writes both: `value` is stale while a write is pending', async () => {
+		// The page's writes are not optimistic: `value` holds A until B lands. Comparing
+		// the second choice with that A wrote nothing, and the item ended as B.
+		const onselect = vi.fn(() => new Promise<void>(() => {}));
+		const r = render(PropertyPicker, { props: { options: OPTIONS, value: 'web', placeholder: 'Set area', label: 'Area', onselect } });
+		await open(r.container);
+		await fireEvent.click(rows()[1]);
+		await tick();
+		expect(onselect).toHaveBeenLastCalledWith('api');
+		await open(r.container);
+		await fireEvent.click(rows()[0]);
+		await tick();
+		expect(onselect).toHaveBeenCalledTimes(2);
+		expect(onselect).toHaveBeenLastCalledWith('web');
+		// B twice in a row is still one write: the second is the value in flight.
+		await open(r.container);
+		await fireEvent.click(rows()[0]);
+		await tick();
+		expect(onselect).toHaveBeenCalledTimes(2);
+	});
+
+	it('once a write settles without the value moving (it failed), choosing that value again writes it again', async () => {
+		const onselect = vi.fn(async () => {});
+		const r = render(PropertyPicker, { props: { options: OPTIONS, value: 'web', placeholder: 'Set area', label: 'Area', onselect } });
+		await open(r.container);
+		await fireEvent.click(rows()[1]);
+		await tick();
+		await new Promise((res) => setTimeout(res, 0));
+		await open(r.container);
+		await fireEvent.click(rows()[1]);
+		await tick();
+		expect(onselect).toHaveBeenCalledTimes(2);
+	});
+
+	it('the shown value catching up clears what was sent: B lands, then choosing A again writes', async () => {
+		const onselect = vi.fn(() => new Promise<void>(() => {}));
+		const r = render(PropertyPicker, { props: { options: OPTIONS, value: 'web', placeholder: 'Set area', label: 'Area', onselect } });
+		await open(r.container);
+		await fireEvent.click(rows()[1]);
+		await tick();
+		await r.rerender({ options: OPTIONS, value: 'api', placeholder: 'Set area', label: 'Area', onselect });
+		await tick();
+		await open(r.container);
+		await fireEvent.click(rows()[0]);
+		await tick();
+		expect(onselect).toHaveBeenCalledTimes(2);
+		expect(onselect).toHaveBeenLastCalledWith('web');
+	});
+
+	it('the search matches the NAME only, never the opaque id behind a row', async () => {
+		const people = [
+			{ value: 'u-7f3a9c', label: 'Dave' },
+			{ value: 'u-1b2c3d', label: 'Maria' }
+		];
+		const r = render(PropertyPicker, { props: { options: people, value: '', placeholder: 'Assign', noneLabel: 'Unassigned', label: 'Assigned to', onselect: vi.fn() } });
+		await open(r.container);
+		const input = document.body.querySelector<HTMLInputElement>('[data-slot="popover-content"] input')!;
+		await fireEvent.input(input, { target: { value: '7f3' } });
+		await tick();
+		expect(rows()).toHaveLength(0);
+		expect(document.body.querySelector('[data-slot="popover-content"]')!.textContent).toContain('No results');
+		await fireEvent.input(input, { target: { value: 'u-1b' } });
+		await tick();
+		expect(rows()).toHaveLength(0);
+		await fireEvent.input(input, { target: { value: 'MAR' } });
+		await tick();
+		expect(rows().map(label)).toEqual(['Maria']);
+		// The none row is searched by its own label.
+		await fireEvent.input(input, { target: { value: 'unas' } });
+		await tick();
+		expect(rows().map(label)).toEqual(['Unassigned']);
+		await fireEvent.input(input, { target: { value: '' } });
+		await tick();
+		expect(rows().map(label)).toEqual(['Unassigned', 'Dave', 'Maria']);
+	});
+
+	it('a fresh search each time it opens', async () => {
+		const r = render(PropertyPicker, { props: { options: OPTIONS, value: 'web', placeholder: 'Set area', label: 'Area', onselect: vi.fn() } });
+		await open(r.container);
+		const input = document.body.querySelector<HTMLInputElement>('[data-slot="popover-content"] input')!;
+		await fireEvent.input(input, { target: { value: 'ap' } });
+		await tick();
+		expect(rows().map(label)).toEqual(['Api']);
+		await fireEvent.click(r.container.querySelector('button.prop-trigger')!);
+		await tick();
+		await open(r.container);
+		expect(rows().map(label)).toEqual(['Web', 'Api', 'Cli']);
+	});
+
 	it('the none row leads the list and writes the empty value', async () => {
 		const onselect = vi.fn();
 		const r = render(PropertyPicker, { props: { options: OPTIONS, value: 'web', placeholder: 'Assign', noneLabel: 'Unassigned', label: 'Assigned to', onselect } });
