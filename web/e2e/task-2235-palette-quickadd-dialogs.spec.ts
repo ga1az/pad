@@ -125,14 +125,15 @@ test.describe('TASK-2235 U2: palette and quick-add are dialogs (desktop)', () =>
 		await expect(trigger).toBeFocused();
 	});
 
-	test('quick-add is a native modal: Tab stays inside, the picker takes its own Escape', async ({ page, fixture }) => {
+	test('quick-add is a modal dialog: Tab stays inside, the picker takes its own Escape', async ({ page, fixture }) => {
 		await page.goto(`/${fixture.adminUsername}/${fixture.workspaceSlug}/tasks`);
-		const dialog = page.locator('dialog.quick-add-dialog');
+		// shadcn-svelte's Dialog since TASK-26 (role="dialog", aria-modal).
+		const dialog = page.locator('[data-slot="dialog-content"].quick-add-dialog');
 		await expect(async () => {
 			if (!(await dialog.isVisible())) await page.keyboard.press('c');
 			await expect(dialog).toBeVisible({ timeout: 1_000 });
 		}).toPass({ timeout: 20_000 });
-		expect(await dialog.evaluate((d) => d.matches(':modal'))).toBe(true);
+		await expect(dialog).toHaveAttribute('aria-modal', 'true');
 		await expect(page.getByRole('textbox', { name: 'New item title' })).toBeFocused();
 
 		// A native modal dialog lets Tab step out of the DOCUMENT to the browser
@@ -172,7 +173,7 @@ test.describe('TASK-2235 U2: palette and quick-add are dialogs (desktop)', () =>
 		// focused picker in view, so the picker no longer reaches past it
 		// (measured: 33px past, then -0.2px).
 		const edge = await picker.evaluate((p) => {
-			const d = (p.closest('dialog') as HTMLElement).getBoundingClientRect();
+			const d = (p.closest('[data-slot="dialog-content"]') as HTMLElement).getBoundingClientRect();
 			const r = p.getBoundingClientRect();
 			const hit = document.elementFromPoint(r.left + 4, r.bottom - 4);
 			return { pastDialog: r.bottom - d.bottom, hit: !!hit && p.contains(hit) };

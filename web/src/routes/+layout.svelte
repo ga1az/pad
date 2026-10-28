@@ -26,7 +26,7 @@
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
 	import TopBar from '$lib/components/layout/TopBar.svelte';
 	import CommandPalette from '$lib/components/search/CommandPalette.svelte';
-	import ToastContainer from '$lib/components/common/ToastContainer.svelte';
+	import AppToaster from '$lib/components/ui-adapters/AppToaster.svelte';
 	import PlanLimitPrompt from '$lib/components/billing/PlanLimitPrompt.svelte';
 	import CreateWorkspaceModal from '$lib/components/layout/CreateWorkspaceModal.svelte';
 	import OpenChildrenDialog from '$lib/components/OpenChildrenDialog.svelte';
@@ -412,7 +412,7 @@
 	<CreateWorkspaceModal
 		onWorkspaceCreated={(ws) => uiStore.requestConnectAfterNavigate(ws.slug)}
 	/>
-	<ToastContainer />
+	<AppToaster />
 	<PlanLimitPrompt />
 	<OpenChildrenDialog />
 	<PendingEditsDialog />
@@ -500,7 +500,7 @@
 	<CreateWorkspaceModal
 		onWorkspaceCreated={(ws) => uiStore.requestConnectAfterNavigate(ws.slug)}
 	/>
-	<ToastContainer />
+	<AppToaster />
 	<PlanLimitPrompt />
 	<OpenChildrenDialog />
 	<PendingEditsDialog />

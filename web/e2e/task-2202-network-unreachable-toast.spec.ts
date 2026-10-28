@@ -23,9 +23,11 @@ test.describe('network unreachable toast (TASK-2202)', () => {
 		try {
 			await browserLogin(page);
 			await page.goto(`/${fixture.adminUsername}/${ws}`);
-			const announcer = page.locator('[data-toast-region="assertive"]');
-			await expect(announcer, 'the assertive region exists before any toast').toHaveCount(1);
-			await expect(announcer).toHaveAttribute('aria-live', 'assertive');
+			// Sonner (TASK-26): one live region, mounted before any toast; an
+			// error's own list item is announced assertively.
+			const announcer = page.locator('[data-toast-region="polite"]');
+			await expect(announcer, 'the live region exists before any toast').toHaveCount(1);
+			await expect(announcer).toHaveAttribute('aria-live', 'polite');
 			await expect(announcer.locator('.toast')).toHaveCount(0);
 
 			await page.route('**/api/v1/**', (route) => route.abort('internetdisconnected'));
@@ -35,6 +37,7 @@ test.describe('network unreachable toast (TASK-2202)', () => {
 			const toast = page.locator('.toast-error', { hasText: "Can't reach the server" });
 			await expect(toast).toBeVisible();
 			await expect(announcer).toContainText("Can't reach the server");
+			await expect(page.locator('[data-sonner-toast]', { has: toast })).toHaveAttribute('aria-live', 'assertive');
 
 			// Errors linger: still up well past the old 3s default.
 			await page.waitForTimeout(4000);

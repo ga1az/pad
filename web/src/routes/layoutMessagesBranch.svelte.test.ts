@@ -133,7 +133,8 @@ describe('TASK-4044: the root layout gives /messages no workspace shell', () => 
 
 	it('/messages keeps the toast surface', async () => {
 		await mountAt('/messages');
-		expect(document.querySelector('.toast-container [data-toast-region="polite"]')).not.toBeNull();
+		// Sonner's always-mounted toast region (TASK-26).
+		expect(document.querySelector('[data-toast-region="polite"]')).not.toBeNull();
 	});
 
 	it('has-mobile-topbar is on for a mobile shell page and off on /messages', async () => {
