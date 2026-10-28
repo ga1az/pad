@@ -110,7 +110,7 @@ describe('TASK-2190: member changes that can lock an owner out', () => {
 	it('asks before you demote yourself, and a No changes nothing', async () => {
 		await openMembers();
 		ask.request.mockReset().mockResolvedValue(false);
-		const select = row('Me').querySelector<HTMLSelectElement>('.role-select')!;
+		const select = row('Me').querySelector<HTMLSelectElement>('select[aria-label^="Role for"]')!;
 		choose(select, 'editor');
 		await waitFor(() => expect(select.value).toBe('owner'));
 		expect(ask.request).toHaveBeenCalledTimes(1);
@@ -120,7 +120,7 @@ describe('TASK-2190: member changes that can lock an owner out', () => {
 	it("demoting someone else is not asked about", async () => {
 		await openMembers();
 		ask.request.mockReset().mockResolvedValue(false);
-		choose(row('Other').querySelector<HTMLSelectElement>('.role-select')!, 'editor');
+		choose(row('Other').querySelector<HTMLSelectElement>('select[aria-label^="Role for"]')!, 'editor');
 		await waitFor(() => expect(calls.updateRole).toEqual([['u-other', 'editor']]));
 		expect(ask.request).not.toHaveBeenCalled();
 	});
@@ -128,7 +128,7 @@ describe('TASK-2190: member changes that can lock an owner out', () => {
 	it("a refusal says the server's reason and puts the stored role back", async () => {
 		await openMembers();
 		calls.refuseWith = 'A workspace must keep at least one owner; make another member an owner first';
-		const select = row('Other').querySelector<HTMLSelectElement>('.role-select')!;
+		const select = row('Other').querySelector<HTMLSelectElement>('select[aria-label^="Role for"]')!;
 		choose(select, 'viewer');
 		await waitFor(() => expect(toasts).toContain(calls.refuseWith));
 		expect(select.value).toBe('owner');
@@ -179,13 +179,13 @@ describe('TASK-3543: a removal asked through the shared dialog', () => {
 		calls.updateRole.length = 0;
 		await openMembers();
 		const answer = holdTheQuestion();
-		const select = row('Me').querySelector<HTMLSelectElement>('.role-select')!;
+		const select = row('Me').querySelector<HTMLSelectElement>('select[aria-label^="Role for"]')!;
 		choose(select, 'editor');
 		await waitFor(() => expect(ask.request).toHaveBeenCalledTimes(1));
 		page.params = { username: 'dave', workspace: 'other-ws' };
 		await waitFor(() => expect(select.isConnected).toBe(false));
 		answer(true);
-		await waitFor(() => expect(row('Me').querySelector<HTMLSelectElement>('.role-select')!.value).toBe('owner'));
+		await waitFor(() => expect(row('Me').querySelector<HTMLSelectElement>('select[aria-label^="Role for"]')!.value).toBe('owner'));
 		await new Promise((r) => setTimeout(r, 20));
 		expect(calls.updateRole).toEqual([]);
 	});

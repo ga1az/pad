@@ -1228,7 +1228,7 @@
 	.status-fill {
 		display: block;
 		height: 100%;
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		border-radius: 4px;
 	}
 	.status-count {

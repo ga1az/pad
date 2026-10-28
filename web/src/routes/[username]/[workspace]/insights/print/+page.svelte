@@ -445,7 +445,7 @@
 		color: var(--text-primary);
 	}
 	.print-btn {
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		color: #fff;
 		border: none;
 		border-radius: var(--radius);

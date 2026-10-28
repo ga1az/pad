@@ -1,10 +1,11 @@
 <script lang="ts">
+	import { Input } from '$lib/components/ui/input';
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api/client';
 	import { authStore } from '$lib/stores/auth.svelte';
 	import AuthHeader from '$lib/components/auth/AuthHeader.svelte';
 	import AuthFooter from '$lib/components/auth/AuthFooter.svelte';
-	import { autofocus } from '$lib/a11y/autofocus';
+	import { autofocusOn } from '$lib/a11y/autofocus';
 
 	let email = $state('');
 	let error = $state('');
@@ -89,16 +90,7 @@
 
 			<form class="form" method="post" novalidate onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
 				<label class="field-label" for="forgot-email">Email</label>
-				<input
-					id="forgot-email"
-					name="email"
-					use:autofocus
-					type="email"
-					placeholder="you@example.com"
-					bind:value={email}
-					disabled={loading}
-					autocomplete="email"
-				/>
+				<Input id="forgot-email" name="email" {@attach autofocusOn()} type="email" placeholder="you@example.com" bind:value={email} disabled={loading} autocomplete="email" />
 
 				{#if error}
 					<p class="error" role="alert">{error}</p>
@@ -174,22 +166,7 @@
 		gap: var(--space-4);
 	}
 
-	input {
-		width: 100%;
-		padding: var(--space-3) var(--space-4);
-		background: var(--bg-tertiary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		color: var(--text-primary);
-		font-size: 0.95rem;
-		font-family: var(--font-ui);
-		outline: none;
-		transition: border-color 0.15s;
-	}
 
-	input::placeholder { color: var(--text-muted); }
-	input:focus { border-color: var(--accent-blue); }
-	input:disabled { opacity: 0.6; }
 
 	.error {
 		color: var(--accent-red);

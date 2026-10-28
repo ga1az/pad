@@ -1,27 +1,34 @@
+/* DARK is the default theme: Linear's palette (DOC-33, SPEC-24 / TASK-31),
+   measured from Linear screenshots. Steps run frame (#19191c, --ui-sidebar)
+   < panel (#1f2023) <= column < card (#28292c) < raised (#2e2f33). Hex, not
+   var(--ui-*): computed colours stay rgb(), which the e2e contrast
+   measurements parse. ui.css owns the same palette as oklch for the shadcn
+   components; the two stay in step by hand (uiTokens.test.ts checks it). */
 :root {
-	/* PLAN-2290 violet refresh — dark is the primary theme. Neutrals are
-	   violet-biased; muted text meets WCAG AA on all bg tokens (TASK-2262 C9). */
-	--bg-primary: #0b0b10;
-	--bg-secondary: #14141b;
-	--bg-tertiary: #1c1c25;
-	/* Elevated overlay surfaces (menus, popovers). Same as tertiary in
+	--bg-primary: #1f2023;
+	--bg-secondary: #1f2023;
+	--bg-tertiary: #28292c;
+	/* Elevated overlay surfaces (menus, popovers). One step above the card in
 	   dark; pure white in light where tertiary is a gray input tone. */
-	--bg-raised: #1c1c25;
-	--bg-hover: #22222d;
-	--bg-active: #2a2a36;
+	--bg-raised: #2e2f33;
+	--bg-hover: #27282b;
+	--bg-active: #2c2d30;
 
-	--text-primary: #f0f0f4;
-	--text-secondary: #a9a9b8;
-	--text-muted: #8b8b9c;
+	/* Linear's text steps are #e6e6e7 / #939498 / #5d5e62. The last is 2.5:1
+	   on the panel, so it only fits icons and disabled text. These two carry
+	   body text and keep 4.5:1 on every surface above, the raised one too. */
+	--text-primary: #e6e6e7;
+	--text-secondary: #a0a1a6;
+	--text-muted: #96979c;
 
-	--border: #262633;
-	--border-subtle: #1d1d27;
-	--border-strong: #4a4a5e;
+	--border: #2d2d2f;
+	--border-subtle: #262729;
+	--border-strong: #494b4e;
 
 	/* Card surface family (consumed app-wide from Phase 3 on). */
-	--card-bg: #16161f;
-	--card-border: #363648;
-	--shadow-card: 0 2px 6px rgba(0, 0, 0, 0.35);
+	--card-bg: #28292c;
+	--card-border: #2d2d2f;
+	--shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3);
 
 	/* Tint strength for Chip/badge fills (color-mix percentage). */
 	--chip-alpha: 16%;
@@ -32,16 +39,16 @@
 	/* Brand accent. --accent-blue is aliased to it because ~95% of its 462
 	   call sites mean "brand accent", not "blue" (see PLAN-2290); the
 	   literally-blue categorical sites use --status-blue instead.
-	   #9268f8 (not the mock's #8b5cf6): the one violet that passes AA as
-	   link text on --bg-secondary (4.85:1) while beating the old blue for
-	   white button text (3.78:1 vs 2.75:1). True text-on-fill AA lands
-	   with the Phase 2 Button primitive via --text-on-accent. */
-	--accent-primary: #9268f8;
-	--accent-primary-soft: #a78bfa;
-	/* Filled-control variant: the violet band where white text passes AA
-	   (4.96:1) while the fill stays ≥3:1 against --bg-secondary. Used by
-	   Button primary fills; links/text keep --accent-primary. */
-	--accent-primary-strong: #7c4ff0;
+	   Dark (SPEC-24 / TASK-31): Linear indigo. The brand #5e6ad2 is 3.5:1
+	   on the panel, so it only carries FILLS (white text on it 4.7:1) as
+	   --accent-primary-strong; text, links and tints use a lighter step of
+	   the same hue (5.2:1 on a card). --accent-purple stays violet: it marks
+	   agents and scopes, nothing reads it as the brand. */
+	--accent-primary: #8a93f0;
+	--accent-primary-soft: #9aa2f5;
+	/* Filled-control variant: where white text passes AA. Used by Button
+	   primary fills; links/text keep --accent-primary. */
+	--accent-primary-strong: #5e6ad2;
 	--accent-blue: var(--accent-primary);
 	--accent-green: #4ade80;
 	--accent-purple: #a78bfa;
@@ -125,6 +132,13 @@ body:has(.auth-header) :is(.login-page, .register-page, .setup-page, .join-page,
 	padding-top: 6rem;
 	justify-content: flex-start;
 }
+/* The auth forms' fields are the roomy size (Linear's sign-in is 40px, not the
+   32px of an in-app field). Keyed on the same shell, above a utility's
+   specificity. */
+body:has(.auth-header) input[data-slot="input"] {
+	height: 40px;
+	font-size: 14px;
+}
 body:has(.auth-header) h1.logo {
 	display: none;
 }
@@ -206,7 +220,10 @@ input, textarea, select {
 	padding: var(--space-2) var(--space-3);
 	outline: none;
 }
-input:focus, textarea:focus, select:focus {
+/* `:where(:not([data-slot]))` keeps the shadcn fields (ui/input, textarea,
+   native-select, which all set data-slot) out of the two focus rules below
+   without adding specificity: they draw their own ring from --ui-ring. */
+:is(input, textarea, select):where(:not([data-slot])):focus {
 	border-color: var(--accent-blue);
 }
 /* TASK-2262 (audit C10): a keyboard user must SEE where focus is. The rule
@@ -219,7 +236,7 @@ input:focus, textarea:focus, select:focus {
    rule's and wins by loading later. Doubling it gives (0,2,1), which beats a
    plain reset while a component's own deliberate `.x:focus` styling (0,3,0
    with Svelte's hash) still wins. */
-:is(input, textarea, select):focus-visible:focus-visible {
+:is(input, textarea, select):where(:not([data-slot])):focus-visible:focus-visible {
 	outline: 2px solid var(--accent-blue);
 	outline-offset: 1px;
 }
@@ -848,8 +865,13 @@ dialog.attachment-crop-modal::backdrop {
 		   dark theme puts the bright dark-mode accent on white (PR #1018
 		   Codex finding). */
 		--accent-primary: #7c3aed;
+		--accent-primary-strong: #7c3aed;
 		--accent-blue: var(--accent-primary);
 		--accent-red: #dc2626;
+		/* Dark's raised and card surfaces are not pinned above. */
+		--bg-raised: #ffffff;
+		--card-bg: #ffffff;
+		--card-border: #cccccc;
 	}
 
 	html, body {

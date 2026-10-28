@@ -789,7 +789,7 @@
 		color: var(--text-primary);
 	}
 	.view-segment.selected {
-		background: var(--accent-primary);
+		background: var(--accent-primary-strong);
 		color: white;
 	}
 	.since-chip {

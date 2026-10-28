@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { NativeSelect } from '$lib/components/ui/native-select';
 	import { onDestroy, untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { api, PadApiError } from '$lib/api/client';
@@ -650,11 +651,7 @@
 		<div class="filter-row">
 			<label>
 				Category
-				<select
-					class="role-select"
-					bind:value={filterCategory}
-					onchange={onFiltersChanged}
-				>
+				<NativeSelect bind:value={filterCategory} onchange={onFiltersChanged}>
 					<option value="">All</option>
 					<option value="image">Images</option>
 					<option value="video">Videos</option>
@@ -663,63 +660,45 @@
 					<option value="text">Text</option>
 					<option value="archive">Archive</option>
 					<option value="other">Other</option>
-				</select>
+				</NativeSelect>
 			</label>
 			<label>
 				Item
-				<select
-					class="role-select"
-					bind:value={filterItem}
-					onchange={onFiltersChanged}
-					disabled={!!filterItemId}
-					title={filterItemId
+				<NativeSelect bind:value={filterItem} onchange={onFiltersChanged} disabled={!!filterItemId} title={filterItemId
 						? 'Scoped to one item — clear the scope to filter by attached/unattached'
-						: undefined}
-				>
+						: undefined}>
 					<option value="">All</option>
 					<option value="attached">Attached</option>
 					<option value="unattached">Unattached</option>
-				</select>
+				</NativeSelect>
 			</label>
 			<label>
 				Collection
-				<select
-					class="role-select"
-					bind:value={filterCollection}
-					onchange={onFiltersChanged}
-				>
+				<NativeSelect bind:value={filterCollection} onchange={onFiltersChanged}>
 					<option value="">All</option>
 					{#each collections as coll (coll.id)}
 						<option value={coll.id}>{coll.name}</option>
 					{/each}
-				</select>
+				</NativeSelect>
 			</label>
 			<label>
 				Sort
-				<select
-					class="role-select"
-					bind:value={sortValue}
-					onchange={onFiltersChanged}
-				>
+				<NativeSelect bind:value={sortValue} onchange={onFiltersChanged}>
 					<option value="created_at_desc">Newest first</option>
 					<option value="created_at">Oldest first</option>
 					<option value="size_desc">Largest first</option>
 					<option value="size">Smallest first</option>
 					<option value="filename">Filename A→Z</option>
 					<option value="filename_desc">Filename Z→A</option>
-				</select>
+				</NativeSelect>
 			</label>
 			<label>
 				Per page
-				<select
-					class="role-select"
-					bind:value={limit}
-					onchange={onFiltersChanged}
-				>
+				<NativeSelect bind:value={limit} onchange={onFiltersChanged}>
 					<option value={25}>25</option>
 					<option value={50}>50</option>
 					<option value={100}>100</option>
-				</select>
+				</NativeSelect>
 			</label>
 		</div>
 
@@ -937,15 +916,6 @@
 		background: color-mix(in srgb, var(--accent-red) 15%, transparent);
 	}
 
-	.role-select {
-		background: var(--bg-tertiary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-sm);
-		padding: var(--space-1) var(--space-2);
-		font-size: 0.8em;
-		color: var(--text-primary);
-	}
-
 	.empty-text {
 		color: var(--text-muted);
 		font-size: 0.9em;
@@ -1005,7 +975,7 @@
 
 	.usage-fill {
 		height: 100%;
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		transition: width 0.3s ease;
 	}
 

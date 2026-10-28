@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Input } from '$lib/components/ui/input';
 	import PasswordRuleHint from '$lib/components/auth/PasswordRuleHint.svelte';
 	import { isPasswordRuleError, localPasswordProblem, passwordDescribedBy } from '$lib/auth/passwordRule';
 	import { untrack } from 'svelte';
@@ -15,7 +16,7 @@
 	import { recordAuthMethod, getLastAuthMethod, type AuthMethod } from '$lib/auth/lastMethod';
 	import { validateRedirect } from '$lib/auth/redirect';
 	import { captureInvitationProof, clearInvitationProof } from '$lib/invitations/proof';
-	import { autofocus } from '$lib/a11y/autofocus';
+	import { autofocus, autofocusOn } from '$lib/a11y/autofocus';
 
 	let code = $derived(page.params.code ?? '');
 	// TASK-3352: the mailbox-only proof from the invitation EMAIL's link
@@ -540,18 +541,7 @@
 				<p class="hint" id="join-totp-hint">Enter the 6-digit code from your authenticator app, or a recovery code.</p>
 
 				<label class="field-label" for="join-totp">Authentication code</label>
-				<input
-					id="join-totp"
-					name="totp"
-					aria-describedby="join-totp-hint"
-					use:autofocus
-					type="text"
-					placeholder="123456"
-					bind:value={totpCode}
-					disabled={submitting}
-					autocomplete="one-time-code"
-					inputmode="numeric"
-				/>
+				<Input id="join-totp" name="totp" aria-describedby="join-totp-hint" {@attach autofocusOn()} type="text" placeholder="123456" bind:value={totpCode} disabled={submitting} autocomplete="one-time-code" inputmode="numeric" />
 
 				{#if formError}
 					<p class="error" role="alert">{formError}</p>
@@ -579,31 +569,11 @@
 			<form class="form" method="post" novalidate onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
 				{#if mode === 'register'}
 					<label class="field-label" for="join-name">Name</label>
-					<input
-						id="join-name"
-						name="name"
-						use:autofocus
-						type="text"
-						placeholder="Ada Lovelace"
-						bind:value={name}
-						oninput={handleNameInput}
-						disabled={submitting}
-						autocomplete="name"
-					/>
+					<Input id="join-name" name="name" {@attach autofocusOn()} type="text" placeholder="Ada Lovelace" bind:value={name} oninput={handleNameInput} disabled={submitting} autocomplete="name" />
 
 					<div class="username-field">
 						<label class="field-label" for="join-username">Username</label>
-						<input
-							id="join-username"
-							name="username"
-							aria-describedby="join-username-status"
-							type="text"
-							placeholder="ada"
-							bind:value={username}
-							oninput={handleUsernameInput}
-							disabled={submitting}
-							autocomplete="username"
-						/>
+						<Input id="join-username" name="username" aria-describedby="join-username-status" type="text" placeholder="ada" bind:value={username} oninput={handleUsernameInput} disabled={submitting} autocomplete="username" />
 						<span id="join-username-status" aria-live="polite">
 							{#if usernameChecking}
 								<span class="username-status checking">checking...</span>
@@ -616,14 +586,14 @@
 					</div>
 				{/if}
 				<label class="field-label" for="join-email">Email</label>
-				<input
+				<Input
 					id="join-email"
 					name="email"
 					aria-describedby={invitedEmail !== null ? 'join-email-hint' : undefined}
-					use:autofocus={mode === 'login' && invitedEmail === null}
+					{@attach autofocusOn(mode === 'login' && invitedEmail === null)}
 					type="email"
 					placeholder="you@example.com"
-					class:locked={invitedEmail !== null}
+					class={invitedEmail !== null ? 'locked' : ''}
 					bind:value={email}
 					disabled={submitting}
 					readonly={invitedEmail !== null}
@@ -633,28 +603,11 @@
 					<p class="field-hint" id="join-email-hint">This invitation was sent to this address.</p>
 				{/if}
 				<label class="field-label" for="join-password">Password</label>
-				<input
-					id="join-password"
-					name="password"
-					use:autofocus={mode === 'login' && invitedEmail !== null}
-					type="password"
-					bind:value={password}
-					disabled={submitting}
-					autocomplete={mode === 'register' ? 'new-password' : 'current-password'}
-					aria-describedby={mode === 'register' ? passwordDescribedBy('join-password', passwordError) : undefined}
-					aria-invalid={mode === 'register' && passwordError ? 'true' : undefined}
-				/>
+				<Input id="join-password" name="password" {@attach autofocusOn(mode === 'login' && invitedEmail !== null)} type="password" bind:value={password} disabled={submitting} autocomplete={mode === 'register' ? 'new-password' : 'current-password'} aria-describedby={mode === 'register' ? passwordDescribedBy('join-password', passwordError) : undefined} aria-invalid={mode === 'register' && passwordError ? 'true' : undefined} />
 				{#if mode === 'register'}
 					<PasswordRuleHint id="join-password" error={passwordError} />
 					<label class="field-label" for="join-confirm-password">Confirm password</label>
-					<input
-						id="join-confirm-password"
-						name="confirm-password"
-						type="password"
-						bind:value={confirmPassword}
-						disabled={submitting}
-						autocomplete="new-password"
-					/>
+					<Input id="join-confirm-password" name="confirm-password" type="password" bind:value={confirmPassword} disabled={submitting} autocomplete="new-password" />
 				{/if}
 
 				{#if formError}
@@ -747,26 +700,14 @@
 		text-align: left;
 	}
 
-	input {
-		width: 100%;
-		padding: var(--space-3) var(--space-4);
-		background: var(--bg-tertiary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		color: var(--text-primary);
-		font-size: 0.95rem;
-		font-family: var(--font-ui);
-		outline: none;
-		transition: border-color 0.15s;
-	}
-	input::placeholder { color: var(--text-muted); }
-	input:focus { border-color: var(--accent-blue); }
-	input:disabled { opacity: 0.6; }
-	input.locked {
+	form :global(input.locked) {
 		color: var(--text-secondary);
 		cursor: not-allowed;
 	}
-	input.locked:focus { border-color: var(--border); }
+	form :global(input.locked:focus-visible) {
+		border-color: var(--border);
+		outline: none;
+	}
 
 	.field-hint {
 		color: var(--text-muted);

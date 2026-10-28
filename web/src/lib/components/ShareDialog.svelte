@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { Input } from '$lib/components/ui/input';
+	import { NativeSelect } from '$lib/components/ui/native-select';
 	import { api } from '$lib/api/client';
 	import { authStore } from '$lib/stores/auth.svelte';
 	import { toastStore } from '$lib/stores/toast.svelte';
@@ -271,18 +273,11 @@
 						Shares only this {type}: they can open it without joining the workspace. To give someone the whole workspace, invite them from Workspace settings.
 					</p>
 					<div class="add-row">
-						<input aria-label="Email address"
-							class="email-input"
-							type="email"
-							placeholder="Email address"
-							bind:value={email}
-							onkeydown={handleShareKeydown}
-							disabled={sharing}
-						/>
-						<select aria-label="Permission" class="permission-select" bind:value={permission} disabled={sharing}>
+						<Input aria-label="Email address" class="email-input" type="email" placeholder="Email address" bind:value={email} onkeydown={handleShareKeydown} disabled={sharing} style="flex: 1; min-width: 0" />
+						<NativeSelect aria-label="Permission" bind:value={permission} disabled={sharing} wrapperStyle="flex-shrink: 0">
 							<option value="view">Can view</option>
 							<option value="edit">Can edit</option>
-						</select>
+						</NativeSelect>
 						<button
 							class="share-btn"
 							type="button"
@@ -380,13 +375,7 @@
 										<div class="new-link-highlight">
 											<span class="new-link-label">Link created -- copy it now, the token is only shown once:</span>
 											<div class="new-link-url-row">
-												<input
-													class="new-link-url"
-													type="text"
-													readonly
-													value={linkUrl}
-													onclick={(e) => (e.target as HTMLInputElement).select()}
-												/>
+												<Input class="new-link-url" type="text" readonly value={linkUrl} onclick={(e) => (e.target as HTMLInputElement).select()} style="flex: 1; font-family: var(--font-mono); min-width: 0" />
 												<button
 													class="copy-btn"
 													type="button"
@@ -528,51 +517,9 @@
 		align-items: center;
 	}
 
-	.email-input {
-		flex: 1;
-		padding: var(--space-2) var(--space-3);
-		background: var(--bg-tertiary);
-		border: 1px solid transparent;
-		border-radius: var(--radius);
-		font-size: 0.9em;
-		color: var(--text-primary);
-		min-width: 0;
-	}
-
-	.email-input:hover {
-		border-color: var(--border);
-	}
-
-	.email-input:focus {
-		border-color: var(--accent-blue);
-	}
-
-	.email-input::placeholder {
-		color: var(--text-muted);
-	}
-
-	.permission-select {
-		padding: var(--space-2) var(--space-3);
-		background: var(--bg-tertiary);
-		border: 1px solid transparent;
-		border-radius: var(--radius);
-		font-size: 0.85em;
-		color: var(--text-primary);
-		cursor: pointer;
-		flex-shrink: 0;
-	}
-
-	.permission-select:hover {
-		border-color: var(--border);
-	}
-
-	.permission-select:focus {
-		border-color: var(--accent-blue);
-	}
-
 	.share-btn {
 		padding: var(--space-2) var(--space-4);
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		border: none;
 		border-radius: var(--radius);
 		color: #fff;
@@ -801,25 +748,9 @@
 		align-items: center;
 	}
 
-	.new-link-url {
-		flex: 1;
-		padding: var(--space-2) var(--space-3);
-		background: var(--bg-primary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		font-size: 0.82em;
-		font-family: var(--font-mono);
-		color: var(--text-primary);
-		min-width: 0;
-	}
-
-	.new-link-url:focus {
-		border-color: var(--accent-blue);
-	}
-
 	.copy-btn {
 		padding: var(--space-2) var(--space-3);
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		border: none;
 		border-radius: var(--radius);
 		color: #fff;
@@ -905,7 +836,7 @@
 			flex-wrap: wrap;
 		}
 
-		.email-input {
+		.add-row :global(.email-input) {
 			flex: 1 1 100%;
 		}
 
@@ -913,7 +844,7 @@
 			flex-wrap: wrap;
 		}
 
-		.new-link-url {
+		.new-link-url-row :global(.new-link-url) {
 			flex: 1 1 100%;
 		}
 	}

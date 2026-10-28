@@ -1,12 +1,15 @@
 <script lang="ts">
 	import { Alert02Icon, ClipboardIcon, SparklesIcon, StarIcon } from '@hugeicons/core-free-icons';
 	import Icon from '$lib/icons/Icon.svelte';
-	import { categoricalValueFor } from '$lib/collections/categoricalFieldValue';
+	import { categoricalValueFor, fieldDefFor } from '$lib/collections/categoricalFieldValue';
+	import StatusIcon from '$lib/components/status/StatusIcon.svelte';
+	import PriorityIcon from '$lib/components/status/PriorityIcon.svelte';
+	import { priorityLevel, statusCategory } from '$lib/components/status/statusCategory';
 	import { ATTENTION_CAP, PLANS_CAP, orderAttention, visibleRows, loadExpanded, saveExpanded } from '$lib/dashboard/caps';
 	import { page } from '$app/state';
 	import { onMount, onDestroy, untrack } from 'svelte';
 	import { browser } from '$app/env';
-	import { statusColor, priorityColor } from '$lib/utils/fieldColors';
+	import { statusColor } from '$lib/utils/fieldColors';
 	import { api, PadApiError } from '$lib/api/client';
 	import { workspaceStore } from '$lib/stores/workspace.svelte';
 	import { authStore } from '$lib/stores/auth.svelte';
@@ -546,8 +549,6 @@
 
 	// statusColor imported from $lib/utils/fieldColors (canonical palette).
 
-	// priorityColor imported from $lib/utils/fieldColors (canonical palette).
-
 	// A collection card's item count and completion bar. The count is every
 	// item (the summary's totals). The bar judges each status by the
 	// collection's own done rule (childProgress.statusState; it used a
@@ -808,12 +809,15 @@
 							<div class="active-title">{item.title}</div>
 							<div class="active-card-bottom">
 								{#if cardStatus}
-									<span class="status-pill" style="background: color-mix(in srgb, {statusColor(cardStatus)} 15%, transparent); color: {statusColor(cardStatus)};">
+									<span class="status-chip">
+										<StatusIcon category={statusCategory(cardStatus, fieldDefFor(collections, item.collection_slug, 'status'))} />
 										{cardStatus.replace(/-/g, ' ')}
 									</span>
 								{/if}
 								{#if cardPriority}
-									<span class="active-priority" style="--chip-c: {priorityColor(cardPriority)};">{cardPriority}</span>
+									<span class="active-priority" title="Priority: {cardPriority}">
+										<PriorityIcon level={priorityLevel(cardPriority)} label="Priority: {cardPriority}" />
+									</span>
 								{/if}
 								<span class="active-time" title={new Date(item.updated_at).toLocaleString()}>{relativeTime(item.updated_at)}</span>
 							</div>
@@ -851,12 +855,15 @@
 							<div class="active-title">{item.title}</div>
 							<div class="active-card-bottom">
 								{#if cardStatus}
-									<span class="status-pill" style="background: color-mix(in srgb, {statusColor(cardStatus)} 15%, transparent); color: {statusColor(cardStatus)};">
+									<span class="status-chip">
+										<StatusIcon category={statusCategory(cardStatus, fieldDefFor(collections, item.collection_slug, 'status'))} />
 										{cardStatus.replace(/-/g, ' ')}
 									</span>
 								{/if}
 								{#if cardPriority}
-									<span class="active-priority" style="--chip-c: {priorityColor(cardPriority)};">{cardPriority}</span>
+									<span class="active-priority" title="Priority: {cardPriority}">
+										<PriorityIcon level={priorityLevel(cardPriority)} label="Priority: {cardPriority}" />
+									</span>
 								{/if}
 							</div>
 						</a>
@@ -1096,13 +1103,13 @@
 	.loading {
 		text-align: center;
 		padding-top: 20vh;
-		color: var(--text-muted);
+		color: var(--ui-muted-foreground);
 	}
 	/* Transient dashboard load failure state (BUG-2025). */
 	.dash-error {
 		text-align: center;
 		padding-top: 15vh;
-		color: var(--text-secondary);
+		color: var(--ui-muted-foreground);
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -1114,10 +1121,10 @@
 	.dash-error h2 {
 		font-size: 1.2em;
 		font-weight: 700;
-		color: var(--text-primary);
+		color: var(--ui-foreground);
 	}
 	.dash-error p {
-		color: var(--text-muted);
+		color: var(--ui-muted-foreground);
 		max-width: 32em;
 	}
 
@@ -1136,14 +1143,15 @@
 		gap: var(--space-3);
 	}
 	.dash-header h1 {
-		font-size: 1.6em;
-		font-weight: 700;
+		font-size: 20px;
+		font-weight: 600;
+		letter-spacing: -0.01em;
 	}
 	.item-count {
-		font-size: 0.55em;
-		font-weight: 600;
-		color: var(--text-muted);
-		background: var(--bg-tertiary);
+		font-size: 12px;
+		font-weight: 500;
+		color: var(--ui-muted-foreground);
+		background: var(--ui-secondary);
 		border-radius: 99px;
 		padding: 2px 9px;
 		font-variant-numeric: tabular-nums;
@@ -1159,17 +1167,17 @@
 	}
 	.reshow-btn {
 		background: none;
-		border: 1px dashed var(--border);
-		color: var(--text-muted);
+		border: 1px dashed var(--ui-border);
+		color: var(--ui-muted-foreground);
 		font-size: 0.85em;
 		cursor: pointer;
 		padding: var(--space-2) var(--space-4);
-		border-radius: var(--radius);
+		border-radius: var(--ui-radius);
 		transition: color 0.15s, border-color 0.15s;
 	}
 	.reshow-btn:hover {
-		color: var(--text-primary);
-		border-color: var(--text-muted);
+		color: var(--ui-foreground);
+		border-color: var(--ui-muted-foreground);
 	}
 
 	/* Web-only escape hatch (TASK-1856) — manual start for users who skip the
@@ -1180,9 +1188,9 @@
 		gap: var(--space-3);
 		margin-bottom: var(--space-4);
 		padding: var(--space-4);
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
+		background: var(--ui-card);
+		border: 1px solid var(--ui-border);
+		border-radius: var(--ui-radius);
 	}
 	.empty-escape-icon {
 		font-size: 1.4em;
@@ -1200,13 +1208,13 @@
 		margin: 0;
 		font-size: 0.95em;
 		font-weight: 600;
-		color: var(--text-primary);
+		color: var(--ui-foreground);
 	}
 	.empty-escape-text {
 		margin: 0;
 		font-size: 0.85em;
 		line-height: 1.45;
-		color: var(--text-secondary);
+		color: var(--ui-muted-foreground);
 	}
 	.empty-escape-actions {
 		display: flex;
@@ -1226,9 +1234,9 @@
 		padding: var(--space-3) var(--space-4);
 		margin-bottom: var(--space-4);
 		border: 1px solid var(--accent-amber);
-		border-radius: var(--radius);
+		border-radius: var(--ui-radius);
 		background: color-mix(in srgb, var(--accent-amber) 12%, transparent);
-		color: var(--text-secondary);
+		color: var(--ui-muted-foreground);
 		font-size: 0.85em;
 		line-height: 1.4;
 	}
@@ -1237,7 +1245,7 @@
 		flex-shrink: 0;
 	}
 	.degraded-sections {
-		color: var(--text-muted);
+		color: var(--ui-muted-foreground);
 	}
 	.section-header {
 		display: flex;
@@ -1245,22 +1253,26 @@
 		gap: var(--space-2);
 		margin-bottom: var(--space-4);
 	}
+	/* Section headings: 13px semibold gray, uppercase, on every section. */
 	.section-label {
-		font-size: 0.8em;
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
+		font-size: 13px;
 		font-weight: 600;
 		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		color: var(--text-muted);
+		letter-spacing: 0.04em;
+		color: var(--ui-muted-foreground);
 	}
 	.section-badge {
-		font-size: 0.7em;
-		background: var(--bg-tertiary);
+		font-size: 12px;
+		background: var(--ui-secondary);
 		padding: 2px 8px;
 		border-radius: 10px;
-		color: var(--text-secondary);
+		color: var(--ui-muted-foreground);
 	}
 	.section-link {
-		font-size: 0.8em;
+		font-size: 12px;
 		color: var(--accent-blue);
 		text-decoration: none;
 		margin-left: auto;
@@ -1278,26 +1290,23 @@
 	.active-card {
 		display: block;
 		padding: var(--space-3) var(--space-4);
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-left: 3px solid var(--accent-amber);
-		border-radius: var(--radius);
+		background: var(--ui-card);
+		border: 1px solid var(--ui-border);
+		border-radius: var(--ui-radius);
 		text-decoration: none;
 		color: inherit;
 		transition: border-color 0.15s, background 0.15s;
 	}
 	.active-card:hover {
-		border-left-color: var(--accent-blue);
-		border-color: var(--accent-blue);
-		background: var(--bg-hover);
+		border-color: color-mix(in oklab, var(--ui-border), var(--ui-foreground) 14%);
+		background: color-mix(in oklab, var(--ui-card), var(--ui-foreground) 5%);
 		text-decoration: none;
 	}
 	/* Sprint-to-aha highlight (TASK-1853): the first agent-created item(s)
 	   surfaced live as the launchpad handed off to the board. */
 	.active-card.just-created {
-		border-left-color: var(--accent-blue);
-		border-color: color-mix(in srgb, var(--accent-blue) 45%, var(--border));
-		background: color-mix(in srgb, var(--accent-blue) 6%, var(--bg-secondary));
+		border-color: color-mix(in srgb, var(--accent-blue) 45%, var(--ui-border));
+		background: color-mix(in srgb, var(--accent-blue) 6%, var(--ui-card));
 	}
 	.just-created-badge {
 		display: inline-block;
@@ -1314,16 +1323,16 @@
 	}
 	.active-ref {
 		font-family: var(--font-mono);
-		font-size: 0.75em;
-		color: var(--text-muted);
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
 	}
 	.active-icon {
 		font-size: 1em;
 	}
 	.active-title {
-		font-weight: 600;
-		font-size: 0.95em;
-		color: var(--text-primary);
+		font-weight: 500;
+		font-size: 13px;
+		color: var(--ui-foreground);
 		margin-bottom: var(--space-2);
 		line-height: 1.3;
 	}
@@ -1333,27 +1342,24 @@
 		gap: var(--space-2);
 		flex-wrap: wrap;
 	}
-	.status-pill {
+	/* Linear's status cell: the workflow icon, then the name in gray. */
+	.status-chip {
 		display: inline-flex;
-		font-size: 0.75em;
-		padding: 2px 10px;
-		border-radius: 10px;
+		align-items: center;
+		gap: 6px;
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
 		white-space: nowrap;
 		text-transform: capitalize;
 	}
-	/* Chip treatment (PLAN-2290): tinted pill, not bare colored text. */
 	.active-priority {
-		font-size: 0.72em;
-		font-weight: 500;
-		text-transform: capitalize;
-		padding: 1px 6px;
-		border-radius: 6px;
-		background: color-mix(in srgb, var(--chip-c, var(--accent-gray)) var(--chip-alpha, 16%), transparent);
-		color: color-mix(in srgb, var(--chip-c, var(--accent-gray)) var(--chip-text-mix, 100%), #000);
+		display: inline-flex;
+		align-items: center;
+		color: var(--ui-muted-foreground);
 	}
 	.active-time {
-		font-size: 0.75em;
-		color: var(--text-muted);
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
 		margin-left: auto;
 	}
 
@@ -1368,21 +1374,21 @@
 		align-items: center;
 		gap: var(--space-3);
 		padding: var(--space-3) var(--space-4);
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
+		background: var(--ui-card);
+		border: 1px solid var(--ui-border);
+		border-radius: var(--ui-radius);
 		text-decoration: none;
 		color: inherit;
 		transition: border-color 0.15s, background 0.15s;
 	}
 	.plan-row:hover {
-		border-color: var(--accent-blue);
+		border-color: color-mix(in oklab, var(--ui-border), var(--ui-foreground) 14%);
 		text-decoration: none;
 	}
 	.plan-title {
 		font-weight: 600;
 		font-size: 0.9em;
-		color: var(--text-primary);
+		color: var(--ui-foreground);
 		/* BUG-3440: a long title shrinks and clips with an ellipsis instead of
 		   pushing the row (and the page) wider; the full text is in its title
 		   attribute for hover. min-width: 0 is what lets a flex item shrink
@@ -1397,7 +1403,7 @@
 		flex: 1;
 		min-width: 48px;
 		height: 6px;
-		background: var(--bg-tertiary);
+		background: var(--ui-secondary);
 		border-radius: 3px;
 		overflow: hidden;
 	}
@@ -1409,7 +1415,7 @@
 	}
 	.plan-meta {
 		font-size: 0.8em;
-		color: var(--text-secondary);
+		color: var(--ui-muted-foreground);
 		white-space: nowrap;
 		min-width: 80px;
 		text-align: right;
@@ -1437,15 +1443,15 @@
 		flex-direction: column;
 		gap: var(--space-2);
 		padding: 14px;
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
+		background: var(--ui-card);
+		border: 1px solid var(--ui-border);
+		border-radius: var(--ui-radius);
 		text-decoration: none;
 		color: inherit;
 		transition: border-color 0.15s, background 0.15s;
 	}
 	.coll-card:hover {
-		border-color: var(--accent-blue);
+		border-color: color-mix(in oklab, var(--ui-border), var(--ui-foreground) 14%);
 		text-decoration: none;
 	}
 	.coll-card-header {
@@ -1460,7 +1466,7 @@
 		gap: var(--space-2);
 		font-weight: 600;
 		font-size: 0.92em;
-		color: var(--text-primary);
+		color: var(--ui-foreground);
 	}
 	.coll-icon {
 		font-size: 1.05em;
@@ -1468,7 +1474,7 @@
 	.coll-card-count {
 		font-size: 1.3em;
 		font-weight: 700;
-		color: var(--text-muted);
+		color: var(--ui-muted-foreground);
 		line-height: 1;
 	}
 	.coll-statuses {
@@ -1481,7 +1487,7 @@
 		align-items: center;
 		gap: 4px;
 		font-size: 0.75em;
-		color: var(--text-muted);
+		color: var(--ui-muted-foreground);
 	}
 	.coll-status-dot {
 		display: inline-block;
@@ -1492,19 +1498,19 @@
 	}
 	.coll-status-count {
 		font-weight: 600;
-		color: var(--text-secondary);
+		color: var(--ui-muted-foreground);
 	}
 	.coll-status-name {
 		text-transform: capitalize;
 	}
 	.coll-status-empty {
 		font-size: 0.78em;
-		color: var(--text-muted);
+		color: var(--ui-muted-foreground);
 		font-style: italic;
 	}
 	.coll-progress-bar {
 		height: 4px;
-		background: var(--bg-tertiary);
+		background: var(--ui-secondary);
 		border-radius: 2px;
 		overflow: hidden;
 		margin-top: auto;
@@ -1517,7 +1523,7 @@
 	}
 	.coll-card-new {
 		border-style: dashed;
-		opacity: 0.6;
+		opacity: 0.7;
 		transition: opacity 0.15s, border-color 0.15s;
 		justify-content: center;
 	}
@@ -1548,7 +1554,7 @@
 		background: none;
 		border: none;
 		padding: 4px 0;
-		color: var(--accent, var(--text-secondary));
+		color: var(--accent, var(--ui-muted-foreground));
 		font-size: 0.85em;
 		cursor: pointer;
 	}
@@ -1565,10 +1571,10 @@
 		align-items: flex-start;
 		gap: var(--space-3);
 		padding: var(--space-3) var(--space-4);
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-left: 3px solid var(--accent-amber);
-		border-radius: var(--radius);
+		background: var(--ui-card);
+		border: 1px solid var(--ui-border);
+		border-left: 2px solid var(--accent-amber);
+		border-radius: var(--ui-radius);
 	}
 	.attention-icon {
 		flex-shrink: 0;
@@ -1583,7 +1589,7 @@
 	.attention-title {
 		font-weight: 600;
 		font-size: 0.9em;
-		color: var(--text-primary);
+		color: var(--ui-foreground);
 		text-decoration: none;
 	}
 	.attention-title:hover {
@@ -1592,7 +1598,7 @@
 	}
 	.attention-reason {
 		font-size: 0.78em;
-		color: var(--text-muted);
+		color: var(--ui-muted-foreground);
 	}
 
 	/* ── Suggested / Up Next ────────────────────────────────────────────── */
@@ -1606,9 +1612,9 @@
 		align-items: flex-start;
 		gap: var(--space-3);
 		padding: var(--space-3) var(--space-4);
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
+		background: var(--ui-card);
+		border: 1px solid var(--ui-border);
+		border-radius: var(--ui-radius);
 	}
 	.sug-num {
 		width: 22px;
@@ -1618,8 +1624,8 @@
 		justify-content: center;
 		font-size: 0.75em;
 		font-weight: 700;
-		background: var(--bg-tertiary);
-		color: var(--text-muted);
+		background: var(--ui-secondary);
+		color: var(--ui-muted-foreground);
 		border-radius: 50%;
 		flex-shrink: 0;
 	}
@@ -1632,7 +1638,7 @@
 	.sug-title {
 		font-weight: 600;
 		font-size: 0.9em;
-		color: var(--text-primary);
+		color: var(--ui-foreground);
 		text-decoration: none;
 	}
 	.sug-title:hover {
@@ -1641,7 +1647,7 @@
 	}
 	.sug-reason {
 		font-size: 0.78em;
-		color: var(--text-muted);
+		color: var(--ui-muted-foreground);
 	}
 
 	/* ── Recent Activity ────────────────────────────────────────────────── */
@@ -1655,11 +1661,11 @@
 		gap: var(--space-2);
 		padding: var(--space-2) var(--space-3);
 		font-size: 0.85em;
-		border-radius: var(--radius-sm);
+		border-radius: 6px;
 		transition: background 0.15s;
 	}
 	.activity-row:hover {
-		background: var(--bg-secondary);
+		background: var(--ui-card);
 	}
 	.activity-dot {
 		font-size: 0.9em;
@@ -1670,17 +1676,17 @@
 	}
 	.activity-verb {
 		white-space: nowrap;
-		color: var(--text-secondary);
+		color: var(--ui-muted-foreground);
 	}
 	.activity-ref {
 		font-family: var(--font-mono);
 		font-size: 0.8em;
-		color: var(--text-muted);
+		color: var(--ui-muted-foreground);
 		white-space: nowrap;
 	}
 	.activity-item {
 		font-weight: 600;
-		color: var(--text-primary);
+		color: var(--ui-foreground);
 		text-decoration: none;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -1691,7 +1697,7 @@
 		text-decoration: underline;
 	}
 	.activity-time {
-		color: var(--text-muted);
+		color: var(--ui-muted-foreground);
 		font-size: 0.9em;
 		margin-left: auto;
 		white-space: nowrap;
@@ -1730,13 +1736,13 @@
 	.actor-name {
 		font-size: 0.8em;
 		font-weight: 600;
-		color: var(--text-secondary);
+		color: var(--ui-muted-foreground);
 		white-space: nowrap;
 		flex-shrink: 0;
 	}
 	.activity-changes {
 		font-size: 0.75em;
-		color: var(--text-muted);
+		color: var(--ui-muted-foreground);
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -1765,13 +1771,13 @@
 		flex-direction: column;
 		gap: var(--space-3);
 		padding: 14px;
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
+		background: var(--ui-card);
+		border: 1px solid var(--ui-border);
+		border-radius: var(--ui-radius);
 	}
 	.skeleton-line {
-		border-radius: var(--radius-sm);
-		background: var(--bg-tertiary);
+		border-radius: 6px;
+		background: var(--ui-secondary);
 		animation: skeleton-pulse 1.5s ease-in-out infinite;
 	}
 	@keyframes skeleton-pulse {

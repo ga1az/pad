@@ -8,6 +8,9 @@
 </script>
 
 <script lang="ts">
+	import { Checkbox } from '$lib/components/ui/checkbox';
+	import { Input } from '$lib/components/ui/input';
+	import { NativeSelect } from '$lib/components/ui/native-select';
 	import { isRelationType } from '$lib/items/relationFieldTypes';
 	import {
 		FIELD_TYPES,
@@ -254,8 +257,8 @@
 		const v = (e.currentTarget as HTMLInputElement).value;
 		field.default = v === '' ? undefined : v;
 	}
-	function onDefaultCheckboxInput(e: Event) {
-		field.default = (e.currentTarget as HTMLInputElement).checked;
+	function onDefaultCheckboxChange(checked: boolean) {
+		field.default = checked;
 	}
 	function onDefaultSelectInput(e: Event) {
 		const v = (e.currentTarget as HTMLSelectElement).value;
@@ -269,10 +272,10 @@
 		const v = (e.currentTarget as HTMLSelectElement).value;
 		field.collection = v === '' ? undefined : v;
 	}
-	function onRequiredInput(e: Event) {
+	function onRequiredChange(checked: boolean) {
 		// Keep undefined rather than `false` so save payloads stay compact and
 		// round-trip-compatible with existing schemas.
-		field.required = (e.currentTarget as HTMLInputElement).checked || undefined;
+		field.required = checked || undefined;
 	}
 
 	// Coerce `field.default` to a string for text/number/date/select inputs.
@@ -317,23 +320,17 @@
 				>&#9660;</button>
 			</div>
 		{/if}
-		<input aria-label={isNew ? 'Field name' : 'Field label'}
-			class="field-label-input"
-			type="text"
-			bind:value={field.label}
-			oninput={onLabelInput}
-			placeholder={isNew ? 'Field name' : 'Field label'}
-		/>
+		<Input aria-label={isNew ? 'Field name' : 'Field label'} class="field-label-input" type="text" bind:value={field.label} oninput={onLabelInput} placeholder={isNew ? 'Field name' : 'Field label'} style="flex: 1; min-width: 0" />
 		{#if isJsonType}
-			<select aria-label="Field type" class="field-type-select" value="json" disabled title="A json field keeps its type: its values are structured, and another type would refuse them">
+			<NativeSelect aria-label="Field type" value="json" disabled title="A json field keeps its type: its values are structured, and another type would refuse them" wrapperStyle="flex-shrink: 0">
 				<option value="json">json</option>
-			</select>
+			</NativeSelect>
 		{:else}
-			<select aria-label="Field type" class="field-type-select" bind:value={field.type} title="Field type">
+			<NativeSelect aria-label="Field type" bind:value={field.type} title="Field type" wrapperStyle="flex-shrink: 0">
 				{#each FIELD_TYPES as ft (ft)}
 					<option value={ft}>{ft.replace('_', ' ')}</option>
 				{/each}
-			</select>
+			</NativeSelect>
 		{/if}
 		<button
 			class="field-remove-btn"
@@ -352,9 +349,7 @@
 		-->
 		<div class="field-key-block">
 			<span class="field-key-prefix" aria-hidden="true">key</span>
-			<input
-				class="field-key-input"
-				class:has-error={!!keyError}
+			<Input
 				type="text"
 				bind:value={field.key}
 				oninput={onKeyInput}
@@ -363,6 +358,7 @@
 				autocomplete="off"
 				aria-label="Field key"
 				aria-invalid={!!keyError}
+				style="flex: 1; min-width: 0; height: 28px; font-family: var(--font-mono); font-size: 12px"
 			/>
 		</div>
 		{#if keyError}
@@ -428,13 +424,7 @@
 						class="option-row"
 						class:option-terminal={isTerminal(field.options[oi])}
 					>
-						<input aria-label="Option name"
-							class="option-name-input"
-							type="text"
-							value={field.options[oi]}
-							oninput={(e) => renameOption(oi, e.currentTarget.value)}
-							placeholder="option name"
-						/>
+						<Input aria-label="Option name" type="text" value={field.options[oi]} oninput={(e) => renameOption(oi, e.currentTarget.value)} placeholder="option name" class="option-name-input" style="flex: 1; min-width: 0" />
 						<button
 							class="option-done-toggle"
 							class:active={isTerminal(field.options[oi])}
@@ -538,10 +528,9 @@
 			<div class="advanced-content">
 				<!-- Required -->
 				<label class="advanced-row advanced-row--inline">
-					<input
-						type="checkbox"
+					<Checkbox
 						checked={!!field.required}
-						onchange={onRequiredInput}
+						onCheckedChange={onRequiredChange}
 						disabled={isComputed}
 					/>
 					<span class="advanced-label">Required</span>
@@ -554,10 +543,9 @@
 						<span class="advanced-label" id="default-label-{field.key || index}">Default value</span>
 						{#if isCheckboxType}
 							<label class="advanced-inline-check">
-								<input
-									type="checkbox"
+								<Checkbox
 									checked={defaultAsBool}
-									onchange={onDefaultCheckboxInput}
+									onCheckedChange={onDefaultCheckboxChange}
 									disabled={isComputed}
 								/>
 								<span>Checked by default</span>
@@ -579,46 +567,25 @@
 								>Clear</button>
 							{/if}
 						{:else if isSelectSingle}
-							<select
-								class="advanced-input"
-								value={defaultAsString}
-								onchange={onDefaultSelectInput}
-								disabled={isComputed}
-								aria-labelledby="default-label-{field.key || index}"
-							>
+							<NativeSelect value={defaultAsString} onchange={onDefaultSelectInput} disabled={isComputed} aria-labelledby="default-label-{field.key || index}" wrapperStyle="flex: 1; min-width: 140px">
 								<option value="">— none —</option>
 								{#each field.options.filter(Boolean) as opt, oi (oi)}
 									<option value={opt}>{opt}</option>
 								{/each}
-							</select>
+							</NativeSelect>
 						{:else if isNumber}
-							<input
-								class="advanced-input"
-								type="number"
-								value={defaultAsString}
-								oninput={onDefaultNumberInput}
-								disabled={isComputed}
-								placeholder="e.g. 0"
-								aria-labelledby="default-label-{field.key || index}"
-							/>
+							<Input type="number" value={defaultAsString} oninput={onDefaultNumberInput} disabled={isComputed} placeholder="e.g. 0" aria-labelledby="default-label-{field.key || index}" style="flex: 1; min-width: 140px" />
 						{:else if field.type === 'date'}
-							<input
-								class="advanced-input"
-								type="date"
-								value={dateDefaultDisplay}
-								oninput={onDefaultDateInput}
-								disabled={isComputed}
-								aria-labelledby="default-label-{field.key || index}"
-							/>
+							<Input type="date" value={dateDefaultDisplay} oninput={onDefaultDateInput} disabled={isComputed} aria-labelledby="default-label-{field.key || index}" style="flex: 1; min-width: 140px" />
 						{:else}
-							<input
-								class="advanced-input"
+							<Input
 								type={field.type === 'url' ? 'url' : 'text'}
 								value={defaultAsString}
 								oninput={onDefaultTextInput}
 								disabled={isComputed}
 								placeholder={field.type === 'url' ? 'https://...' : 'Empty = no default'}
 								aria-labelledby="default-label-{field.key || index}"
+								style="flex: 1; min-width: 140px"
 							/>
 						{/if}
 					</div>
@@ -628,16 +595,7 @@
 				{#if isNumber}
 					<div class="advanced-row">
 						<span class="advanced-label" id="suffix-label-{field.key || index}">Suffix</span>
-						<input
-							class="advanced-input advanced-input--short"
-							type="text"
-							value={field.suffix ?? ''}
-							oninput={onSuffixInput}
-							disabled={isComputed}
-							placeholder="hrs, %, kg…"
-							maxlength="8"
-							aria-labelledby="suffix-label-{field.key || index}"
-						/>
+						<Input type="text" value={field.suffix ?? ''} oninput={onSuffixInput} disabled={isComputed} placeholder="hrs, %, kg…" maxlength={8} aria-labelledby="suffix-label-{field.key || index}" style="flex: 0 0 auto; width: 90px; min-width: 90px" />
 						<span class="advanced-hint">Shown next to the number when rendered.</span>
 					</div>
 				{/if}
@@ -651,20 +609,14 @@
 								No collections available to link. Create another collection first.
 							</span>
 						{:else}
-							<select
-								class="advanced-input"
-								value={field.collection ?? ''}
-								onchange={onCollectionInput}
-								disabled={isComputed}
-								aria-labelledby="relation-label-{field.key || index}"
-							>
+							<NativeSelect value={field.collection ?? ''} onchange={onCollectionInput} disabled={isComputed} aria-labelledby="relation-label-{field.key || index}" wrapperStyle="flex: 1; min-width: 140px">
 								<option value="">— pick a collection —</option>
 								{#each collections as c (c.slug)}
 									<option value={c.slug}>
 										{c.name}
 									</option>
 								{/each}
-							</select>
+							</NativeSelect>
 						{/if}
 					</div>
 				{/if}
@@ -716,26 +668,6 @@
 		cursor: default;
 	}
 
-	.field-label-input {
-		flex: 1;
-		min-width: 0;
-		padding: var(--space-1) var(--space-2);
-		background: var(--bg-secondary);
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm);
-		font-size: 0.9em;
-		font-weight: 500;
-		color: var(--text-primary);
-	}
-
-	.field-label-input:hover {
-		border-color: var(--border);
-	}
-
-	.field-label-input:focus {
-		border-color: var(--accent-blue);
-	}
-
 	/* ── Key block (new fields only) ───────────────────────────────────────── */
 
 	/*
@@ -763,34 +695,6 @@
 		flex-shrink: 0;
 	}
 
-	.field-key-input {
-		flex: 1;
-		min-width: 0;
-		padding: 2px var(--space-2);
-		background: transparent;
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm);
-		font-size: 0.78em;
-		font-family: var(--font-mono);
-		color: var(--text-muted);
-	}
-
-	.field-key-input:hover {
-		border-color: var(--border);
-		background: var(--bg-secondary);
-	}
-
-	.field-key-input:focus {
-		border-color: var(--accent-blue);
-		background: var(--bg-secondary);
-		color: var(--text-primary);
-	}
-
-	.field-key-input.has-error {
-		border-color: var(--accent-red);
-		background: color-mix(in srgb, var(--accent-red) 4%, transparent);
-	}
-
 	.field-key-error,
 	.field-key-hint {
 		padding: 0 var(--space-3) var(--space-2);
@@ -805,29 +709,6 @@
 	.field-key-hint {
 		color: var(--text-muted);
 		font-style: italic;
-	}
-
-	.field-type-select {
-		padding: var(--space-1) var(--space-2);
-		background: var(--bg-secondary);
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm);
-		font-size: 0.82em;
-		color: var(--text-primary);
-		cursor: pointer;
-		flex-shrink: 0;
-	}
-
-	.field-type-select:disabled {
-		opacity: 0.75;
-		cursor: not-allowed;
-	}
-	.field-type-select:hover {
-		border-color: var(--border);
-	}
-
-	.field-type-select:focus {
-		border-color: var(--accent-blue);
 	}
 
 	.field-remove-btn {
@@ -944,28 +825,9 @@
 		gap: var(--space-2);
 	}
 
-	.option-row.option-terminal .option-name-input {
+	.option-row.option-terminal :global(.option-name-input) {
 		border-color: color-mix(in srgb, var(--accent-green, #22c55e) 30%, var(--border));
 		background: color-mix(in srgb, var(--accent-green, #22c55e) 4%, var(--bg-secondary));
-	}
-
-	.option-name-input {
-		flex: 1;
-		min-width: 0;
-		padding: var(--space-1) var(--space-2);
-		background: var(--bg-secondary);
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm);
-		font-size: 0.85em;
-		color: var(--text-primary);
-	}
-
-	.option-name-input:hover {
-		border-color: var(--border);
-	}
-
-	.option-name-input:focus {
-		border-color: var(--accent-blue);
 	}
 
 	.option-done-toggle {
@@ -1174,36 +1036,6 @@
 		font-style: italic;
 	}
 
-	.advanced-input {
-		flex: 1;
-		min-width: 140px;
-		padding: var(--space-1) var(--space-2);
-		background: var(--bg-secondary);
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm);
-		font-size: 0.85em;
-		color: var(--text-primary);
-	}
-
-	.advanced-input--short {
-		flex: 0 0 auto;
-		width: 90px;
-		min-width: 90px;
-	}
-
-	.advanced-input:hover:not(:disabled) {
-		border-color: var(--border);
-	}
-
-	.advanced-input:focus {
-		border-color: var(--accent-blue);
-	}
-
-	.advanced-input:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
 	.advanced-inline-check {
 		display: inline-flex;
 		align-items: center;
@@ -1213,7 +1045,7 @@
 		cursor: pointer;
 	}
 
-	.advanced-inline-check input[type='checkbox']:disabled + span {
+	.advanced-inline-check :global([data-slot='checkbox'][data-disabled] + span) {
 		opacity: 0.5;
 	}
 

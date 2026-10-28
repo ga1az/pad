@@ -16,6 +16,10 @@ function svelteFiles(dir: string): string[] {
 	return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
 		const p = path.join(dir, e.name);
 		if (e.isDirectory()) return svelteFiles(p);
+		// ui/ holds the shadcn wrappers: their inner <input>/<select> spreads
+		// the caller's attributes, so the callers' <Input>/<NativeSelect> tags
+		// are what carry (and are checked for) a name.
+		if (p.includes(`${path.sep}components${path.sep}ui${path.sep}`)) return [];
 		return p.endsWith('.svelte') ? [p] : [];
 	});
 }
@@ -71,11 +75,13 @@ function unnamed(file: string, open: RegExp, needsName: (attrs: string) => boole
 	return out;
 }
 
-const unnamedSelects = (file: string) => unnamed(file, /<select\b/g, () => true);
+// SPEC-24: the shadcn wrappers (NativeSelect, Input, Textarea) stand for the
+// elements they render, so the floor covers them too.
+const unnamedSelects = (file: string) => unnamed(file, /<(select|NativeSelect)\b/g, () => true);
 const unnamedPlaceholderFields = (file: string) =>
 	unnamed(
 		file,
-		/<(input|textarea)\b/g,
+		/<(input|textarea|Input|Textarea)\b/g,
 		(a) => /\splaceholder=/.test(a) && !/\stype="(hidden|checkbox|radio|file)"/.test(a)
 	);
 // A file input still in the accessibility tree (visually hidden, not
@@ -103,11 +109,13 @@ describe('TASK-2236: every <select> has an accessible name', () => {
 				'<select bind:value={a}></select>',
 				'<select aria-label="Named"></select>',
 				'<label for="x">X</label><select id="x"></select>',
-				'<label>Wrapped <select></select></label>'
+				'<label>Wrapped <select></select></label>',
+				'<NativeSelect bind:value={b}></NativeSelect>',
+				'<NativeSelect aria-label="Named"></NativeSelect>'
 			].join('\n')
 		);
 		try {
-			expect(unnamedSelects(tmp).map((o) => o.split(':').pop())).toEqual(['2']);
+			expect(unnamedSelects(tmp).map((o) => o.split(':').pop())).toEqual(['2', '6']);
 		} finally {
 			fs.unlinkSync(tmp);
 		}
@@ -155,11 +163,13 @@ describe('TASK-3515: every text field with a placeholder has an accessible name'
 				'<label for="y">Y</label><input id="y" placeholder="p" />',
 				'<label>Wrapped <input placeholder="p" /></label>',
 				'<input type="checkbox" placeholder="not a text field" />',
-				'<input value="no placeholder" />'
+				'<input value="no placeholder" />',
+				'<Input placeholder="Unnamed component" />',
+				'<Textarea aria-label="Named" placeholder="p" />'
 			].join('\n')
 		);
 		try {
-			expect(unnamedPlaceholderFields(tmp).map((o) => o.split(':').pop())).toEqual(['2', '3']);
+			expect(unnamedPlaceholderFields(tmp).map((o) => o.split(':').pop())).toEqual(['2', '3', '9']);
 		} finally {
 			fs.unlinkSync(tmp);
 		}

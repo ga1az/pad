@@ -83,7 +83,7 @@
 	}
 
 	.offline-recovery-copy {
-		background: var(--accent-primary);
+		background: var(--accent-primary-strong);
 		border-color: var(--accent-primary);
 		color: #fff;
 	}

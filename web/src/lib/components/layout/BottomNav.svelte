@@ -242,7 +242,7 @@
 		width: 44px;
 		height: 44px;
 		border-radius: 50%;
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		color: #fff;
 		font-size: 1.4em;
 		line-height: 1;

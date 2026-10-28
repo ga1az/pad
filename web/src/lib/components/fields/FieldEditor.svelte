@@ -2458,7 +2458,7 @@ handlers — onchange is never called.
 	}
 
 	.toggle.on {
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 	}
 
 	.toggle-knob {

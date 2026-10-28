@@ -66,7 +66,7 @@
 	}
 
 	.retry-btn {
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		color: #fff;
 		border: none;
 		padding: var(--space-2) var(--space-5);

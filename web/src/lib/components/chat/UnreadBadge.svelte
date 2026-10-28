@@ -12,7 +12,7 @@
 		min-width: 1.25rem;
 		padding: 0 var(--space-1);
 		border-radius: 999px;
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		color: #fff;
 		font-size: 0.7rem;
 		font-weight: 600;

@@ -724,7 +724,7 @@
 
 	.activate-btn {
 		padding: var(--space-1) var(--space-4);
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		color: #fff;
 		border-radius: var(--radius);
 		font-size: 0.8em;

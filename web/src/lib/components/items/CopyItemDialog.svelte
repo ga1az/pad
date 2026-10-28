@@ -44,6 +44,7 @@ their own recovery paths; swallowing those into outcome-unknown would send the
 user hunting for an item that provably does not exist.
 -->
 <script lang="ts">
+	import { NativeSelect } from '$lib/components/ui/native-select';
 	import { COPY_PREFLIGHT_DEBOUNCE_MS } from '$lib/items/copyPreflightTiming';
 	import { tick, untrack } from 'svelte';
 	import AppDialog from '$lib/components/ui-adapters/AppDialog.svelte';
@@ -1119,19 +1120,12 @@ user hunting for an item that provably does not exist.
 				<p class="notice notice-error" role="alert">{workspacesError}</p>
 			{:else}
 				<label class="field-label" for="copy-dest-ws-{uid}">Workspace</label>
-				<select
-					id="copy-dest-ws-{uid}"
-					class="select"
-					bind:this={wsSelectEl}
-					value={destWs}
-					disabled={submitting}
-					onchange={(e) => handleWorkspaceChange(e.currentTarget.value)}
-				>
+				<NativeSelect id="copy-dest-ws-{uid}" bind:ref={wsSelectEl} value={destWs} disabled={submitting} onchange={(e) => handleWorkspaceChange(e.currentTarget.value)} wrapperStyle="width: 100%">
 					{#each workspaces as ws (ws.slug)}
 						<option value={ws.slug}>{ws.name}{ws.slug === sourceWsSlug ? ' (current)' : ''}</option
 						>
 					{/each}
-				</select>
+				</NativeSelect>
 			{/if}
 
 			{#if destinationLost}
@@ -1146,18 +1140,12 @@ user hunting for an item that provably does not exist.
 			{:else if destCollections.length === 0}
 				<p class="muted">No editable collections in this workspace.</p>
 			{:else}
-				<select
-					id="copy-dest-coll-{uid}"
-					class="select"
-					value={destColl}
-					disabled={submitting}
-					onchange={(e) => handleCollectionChange(e.currentTarget.value)}
-				>
+				<NativeSelect id="copy-dest-coll-{uid}" value={destColl} disabled={submitting} onchange={(e) => handleCollectionChange(e.currentTarget.value)} wrapperStyle="width: 100%">
 					<option value="">Choose a collection…</option>
 					{#each destCollections as c (c.slug)}
 						<option value={c.slug}>{c.name}</option>
 					{/each}
-				</select>
+				</NativeSelect>
 			{/if}
 		</section>
 
@@ -1506,15 +1494,6 @@ user hunting for an item that provably does not exist.
 	.field-label {
 		font-size: 0.8rem;
 		color: var(--text-secondary);
-	}
-	.select {
-		width: 100%;
-		padding: var(--space-2);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		background: var(--bg-primary);
-		color: var(--text-primary);
-		font-size: 0.9rem;
 	}
 
 	.mode-toggle {

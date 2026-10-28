@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { NativeSelect } from '$lib/components/ui/native-select';
 	import { uniqueBy } from '$lib/utils/unique';
 	/**
 	 * Display settings block shared by CreateCollectionModal (inside its
@@ -45,30 +46,30 @@
 <div class="settings-grid">
 	<div class="setting-item">
 		<label class="setting-label" for="ds-default-view">Default view</label>
-		<select id="ds-default-view" class="setting-select" bind:value={defaultView}>
+		<NativeSelect id="ds-default-view" bind:value={defaultView}>
 			<option value="list">List</option>
 			<option value="board">Board</option>
 			<option value="table">Table</option>
-		</select>
+		</NativeSelect>
 	</div>
 
 	<div class="setting-item">
 		<label class="setting-label" for="ds-layout">Item layout</label>
-		<select id="ds-layout" class="setting-select" bind:value={layout}>
+		<NativeSelect id="ds-layout" bind:value={layout}>
 			<option value="balanced">Balanced</option>
 			<option value="fields-primary">Fields primary</option>
 			<option value="content-primary">Content primary</option>
-		</select>
+		</NativeSelect>
 	</div>
 
 	{#if selectFieldKeys.length > 0}
 		<div class="setting-item">
 			<label class="setting-label" for="ds-board-group">Board group by</label>
-			<select id="ds-board-group" class="setting-select" bind:value={boardGroupBy}>
+			<NativeSelect id="ds-board-group" bind:value={boardGroupBy}>
 				{#each uniqueBy(selectFieldKeys, (x) => x.key) as f (f.key)}
 					<option value={f.key}>{f.label}</option>
 				{/each}
-			</select>
+			</NativeSelect>
 			<p class="setting-hint">
 				Also determines which field's terminal options drive "done" in
 				dashboards, progress bars, and changelog.
@@ -77,23 +78,23 @@
 
 		<div class="setting-item">
 			<label class="setting-label" for="ds-list-group">List group by</label>
-			<select id="ds-list-group" class="setting-select" bind:value={listGroupBy}>
+			<NativeSelect id="ds-list-group" bind:value={listGroupBy}>
 				<option value="">None</option>
 				{#each uniqueBy(selectFieldKeys, (x) => x.key) as f (f.key)}
 					<option value={f.key}>{f.label}</option>
 				{/each}
-			</select>
+			</NativeSelect>
 		</div>
 	{/if}
 
 	<div class="setting-item">
 		<label class="setting-label" for="ds-list-sort">List sort by</label>
-		<select id="ds-list-sort" class="setting-select" bind:value={listSortBy}>
+		<NativeSelect id="ds-list-sort" bind:value={listSortBy}>
 			<option value="">Default</option>
 			{#each uniqueBy(sortableFieldKeys, (x) => x.key) as f (f.key)}
 				<option value={f.key}>{f.label}</option>
 			{/each}
-		</select>
+		</NativeSelect>
 	</div>
 </div>
 
@@ -123,25 +124,6 @@
 		font-size: 0.72em;
 		line-height: 1.4;
 		color: var(--text-muted);
-	}
-
-	.setting-select {
-		width: 100%;
-		padding: var(--space-2) var(--space-3);
-		background: var(--bg-tertiary);
-		border: 1px solid transparent;
-		border-radius: var(--radius);
-		font-size: 0.88em;
-		color: var(--text-primary);
-		cursor: pointer;
-	}
-
-	.setting-select:hover {
-		border-color: var(--border);
-	}
-
-	.setting-select:focus {
-		border-color: var(--accent-blue);
 	}
 
 	@media (max-width: 640px) {

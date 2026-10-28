@@ -1366,7 +1366,7 @@
 	}
 	.quick-add-btn {
 		padding: var(--space-2) var(--space-4);
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		/* Transparent, so Add is as tall as the bordered buttons beside it,
 		   even alone on its own row when the footer wraps. */
 		border: 1px solid transparent;

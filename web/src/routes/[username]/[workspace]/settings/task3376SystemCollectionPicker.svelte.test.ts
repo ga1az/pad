@@ -76,10 +76,14 @@ vi.mock('$lib/stores/auth.svelte', () => ({
 
 const OWNER = { role: 'owner', collection_grants: [], item_grants: [] };
 
-function checkbox(name: string): HTMLInputElement {
+// The shadcn Checkbox is a role=checkbox button: its state is aria-checked and
+// its disabled state the disabled attribute.
+type Box = HTMLButtonElement & { checked: boolean };
+function checkbox(name: string): Box {
 	const label = screen.getByText(name, { selector: '.access-coll-name' }).closest('label');
 	expect(label, `no access row for ${name}`).not.toBeNull();
-	return label!.querySelector('input[type="checkbox"]') as HTMLInputElement;
+	const el = label!.querySelector('[role="checkbox"]') as HTMLButtonElement;
+	return Object.defineProperty(el, 'checked', { get: () => el.getAttribute('aria-checked') === 'true', configurable: true }) as Box;
 }
 
 function setAccessMode(next: 'all' | 'specific') {

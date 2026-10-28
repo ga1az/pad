@@ -197,11 +197,11 @@ describe('a status field holding a LIST', () => {
 			} as never,
 		});
 
-		expect(chips(screen.container)).toContain('In Progress');
-		const clickable = [...screen.container.querySelectorAll('[data-slot="badge"]')].filter(
-			(c) => c.matches(STATUS_CHIP),
-		);
-		expect(clickable).toHaveLength(1);
+		// The status cell is the picker's icon trigger with the name beside it
+		// (SPEC-24 / TASK-31), no longer a text chip: the value is shown, and
+		// exactly one trigger is clickable.
+		expect(screen.container.textContent).toContain('In Progress');
+		expect(screen.container.querySelectorAll(STATUS_CHIP)).toHaveLength(1);
 	});
 
 	it('a STRING value in a non-status column still reaches the shared resolver', () => {

@@ -13,6 +13,7 @@
 </script>
 
 <script lang="ts">
+	import { Input } from '$lib/components/ui/input';
 	import EmojiPickerButton from '$lib/components/common/EmojiPickerButton.svelte';
 	import {
 		parsePrompt,
@@ -92,12 +93,7 @@
 			<div class="qa-card">
 				<div class="qa-card-top">
 					<EmojiPickerButton bind:value={actions[index].icon} placeholder="⚡" />
-					<input aria-label="Action label"
-						class="qa-label-input"
-						type="text"
-						placeholder="Action label"
-						bind:value={actions[index].label}
-					/>
+					<Input aria-label="Action label" class="qa-label-input" type="text" placeholder="Action label" bind:value={actions[index].label} style="flex: 1" />
 					<div class="qa-card-btns">
 						<button
 							type="button"
@@ -124,12 +120,7 @@
 						>&#10005;</button>
 					</div>
 				</div>
-				<input aria-label="Action prompt"
-					class="qa-prompt-input"
-					type="text"
-					placeholder={'/pad implement {ref} "{title}"'}
-					bind:value={actions[index].prompt}
-				/>
+				<Input aria-label="Action prompt" class="qa-prompt-input" type="text" placeholder={'/pad implement {ref} "{title}"'} bind:value={actions[index].prompt} style="font-family: var(--font-mono)" />
 				{#if action.prompt.trim()}
 					{@const segments = parsePrompt(action.prompt, itemScopeContext)}
 					{@const hasUnknown = segments.some((s) => s.type === 'unknown')}
@@ -182,12 +173,7 @@
 			<div class="qa-card">
 				<div class="qa-card-top">
 					<EmojiPickerButton bind:value={actions[index].icon} placeholder="⚡" />
-					<input aria-label="Action label"
-						class="qa-label-input"
-						type="text"
-						placeholder="Action label"
-						bind:value={actions[index].label}
-					/>
+					<Input aria-label="Action label" class="qa-label-input" type="text" placeholder="Action label" bind:value={actions[index].label} style="flex: 1" />
 					<div class="qa-card-btns">
 						<button
 							type="button"
@@ -214,12 +200,7 @@
 						>&#10005;</button>
 					</div>
 				</div>
-				<input aria-label="Action prompt"
-					class="qa-prompt-input"
-					type="text"
-					placeholder="/pad triage all new items"
-					bind:value={actions[index].prompt}
-				/>
+				<Input aria-label="Action prompt" class="qa-prompt-input" type="text" placeholder="/pad triage all new items" bind:value={actions[index].prompt} style="font-family: var(--font-mono)" />
 				{#if action.prompt.trim()}
 					{@const segments = parsePrompt(action.prompt, collectionScopeContext)}
 					{@const hasUnknown = segments.some((s) => s.type === 'unknown')}
@@ -333,20 +314,6 @@
 		gap: var(--space-2);
 	}
 
-	.qa-label-input {
-		flex: 1;
-		padding: var(--space-1) var(--space-2);
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-sm);
-		font-size: 0.85em;
-		color: var(--text-primary);
-	}
-
-	.qa-label-input:focus {
-		border-color: var(--accent-blue);
-	}
-
 	.qa-card-btns {
 		display: flex;
 		gap: 2px;
@@ -385,21 +352,6 @@
 	.qa-reorder-btn:disabled {
 		opacity: 0.25;
 		cursor: default;
-	}
-
-	.qa-prompt-input {
-		width: 100%;
-		padding: var(--space-1) var(--space-2);
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-sm);
-		font-size: 0.82em;
-		font-family: var(--font-mono);
-		color: var(--text-primary);
-	}
-
-	.qa-prompt-input:focus {
-		border-color: var(--accent-blue);
 	}
 
 	/* ── Live preview ─────────────────────────────────────────────────────── */

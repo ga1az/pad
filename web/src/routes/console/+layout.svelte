@@ -357,7 +357,7 @@
 		width: 28px;
 		height: 28px;
 		border-radius: 50%;
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		color: #fff;
 		display: flex;
 		align-items: center;

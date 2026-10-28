@@ -450,6 +450,6 @@
 
 	.lane-menu-tag-input .lmc-yes {
 		flex: 0 0 auto;
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 	}
 </style>

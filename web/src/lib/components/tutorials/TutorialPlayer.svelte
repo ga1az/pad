@@ -113,7 +113,7 @@
 		width: 4rem;
 		height: 4rem;
 		border-radius: 999px;
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		color: #fff;
 	}
 	.play-disc svg {

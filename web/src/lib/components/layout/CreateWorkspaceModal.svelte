@@ -21,6 +21,8 @@
 </script>
 
 <script lang="ts">
+	import { Input } from '$lib/components/ui/input';
+	import { Textarea } from '$lib/components/ui/textarea';
 	import { MultiplicationSignIcon, SparklesIcon } from '@hugeicons/core-free-icons';
 	import Icon from '$lib/icons/Icon.svelte';
 	import { onMount, untrack } from 'svelte';
@@ -530,23 +532,11 @@
 
 		<div class="modal-body">
 			<label class="field-label" for="ws-create-name">Name</label>
-			<input
-				id="ws-create-name"
-				bind:this={nameInputEl}
-				bind:value={newName}
-				placeholder="Workspace name"
-				onkeydown={(e) => e.key === 'Enter' && (mode === 'create' ? createWorkspace() : importWorkspace())}
-			/>
+			<Input id="ws-create-name" bind:ref={nameInputEl} bind:value={newName} placeholder="Workspace name" onkeydown={(e) => e.key === 'Enter' && (mode === 'create' ? createWorkspace() : importWorkspace())} />
 
 			{#if mode === 'create'}
 				<label class="field-label" for="ws-create-desc">What are you tracking? <span class="field-optional">(optional)</span></label>
-				<textarea
-					id="ws-create-desc"
-					class="desc-input"
-					bind:value={newDescription}
-					rows="2"
-					placeholder="e.g. a SvelteKit SaaS app, my job search, a research project on…"
-				></textarea>
+				<Textarea id="ws-create-desc" bind:value={newDescription} rows={2} placeholder="e.g. a SvelteKit SaaS app, my job search, a research project on…" style="font-family: inherit" />
 				<p class="field-hint">Your agent uses this to set the workspace up for you.</p>
 
 				<!--
@@ -805,19 +795,7 @@
 		letter-spacing: 0;
 		color: var(--text-muted);
 	}
-	.desc-input {
-		width: 100%;
-		box-sizing: border-box;
-		padding: var(--space-2) var(--space-3);
-		background: var(--bg-tertiary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		color: var(--text-primary);
-		font-size: 0.9em;
-		font-family: inherit;
-		resize: vertical;
-	}
-	.desc-input:focus { border-color: var(--accent-blue); }
+
 	.field-hint {
 		margin: calc(-1 * var(--space-1)) 0 0;
 		font-size: 0.78em;

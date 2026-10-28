@@ -952,7 +952,7 @@
 	.pane-divider:hover::after,
 	.pane-divider:focus-visible::after,
 	.pane-divider.resizing::after {
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		width: 2px;
 	}
 

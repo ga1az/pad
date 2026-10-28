@@ -15,6 +15,8 @@
 	stacked on top of an open Search/Workspace/You surface (BUG-1765).
 -->
 <script lang="ts">
+	import { NativeSelect } from '$lib/components/ui/native-select';
+	import { Textarea } from '$lib/components/ui/textarea';
 	import { goto } from '$app/navigation';
 	import { api, isPlanLimitError } from '$lib/api/client';
 	import { showPlanLimitToast } from '$lib/billing/planLimitToast';
@@ -149,21 +151,21 @@
 				<button class="capture-cancel" type="button" onclick={close}>Close</button>
 			</div>
 		{:else}
-		<select class="capture-collection" bind:value={selectedSlug} aria-label="Collection">
+		<NativeSelect bind:value={selectedSlug} aria-label="Collection">
 			{#each collections as c (c.id)}
 				<option value={c.slug}>{c.name}</option>
 			{/each}
-		</select>
-		<textarea aria-label="New item title"
-			class="capture-title"
+		</NativeSelect>
+		<Textarea
+			aria-label="New item title"
 			bind:value={title}
 			oninput={() => inputVersion++}
-			bind:this={titleEl}
-			use:autofocus
+			bind:ref={titleEl}
+			{@attach autofocus}
 			{onkeydown}
 			placeholder="What needs doing?"
-			rows="3"
-		></textarea>
+			rows={3}
+		/>
 		<PlanLimitPrompt scope="new-item-sheet" />
 		<div class="capture-actions">
 			<button class="capture-cancel" type="button" onclick={close}>Cancel</button>
@@ -203,31 +205,7 @@
 		font-weight: 600;
 		color: var(--text-primary);
 	}
-	.capture-collection {
-		appearance: none;
-		background: var(--bg-primary);
-		color: var(--text-primary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-sm);
-		padding: var(--space-2) var(--space-3);
-		font-size: 0.95em;
-		font-family: var(--font-ui);
-	}
-	.capture-title {
-		background: var(--bg-primary);
-		color: var(--text-primary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-sm);
-		padding: var(--space-3);
-		font-size: 1em;
-		font-family: var(--font-ui);
-		resize: none;
-		line-height: 1.4;
-	}
-	.capture-title:focus,
-	.capture-collection:focus {
-		border-color: var(--accent-blue);
-	}
+
 	.capture-actions {
 		display: flex;
 		justify-content: flex-end;
@@ -248,7 +226,7 @@
 		color: var(--text-secondary);
 	}
 	.capture-submit {
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		color: #fff;
 		border-color: var(--accent-blue);
 	}

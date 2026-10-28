@@ -18,6 +18,8 @@
   (T1552) — not here.
 -->
 <script lang="ts">
+	import { Input } from '$lib/components/ui/input';
+	import { NativeSelect } from '$lib/components/ui/native-select';
 	import { untrack } from 'svelte';
 	import { adminFetch, adminPatch, adminPost, type AdminUser } from '$lib/stores/admin.svelte';
 	import { api } from '$lib/api/client';
@@ -333,10 +335,10 @@
 	<div class="field">
 		<label class="field-label" for="settings-role">Role</label>
 		<div class="role-row">
-			<select id="settings-role" bind:value={editRole}>
+			<NativeSelect id="settings-role" bind:value={editRole}>
 				<option value="member">member</option>
 				<option value="admin">admin</option>
-			</select>
+			</NativeSelect>
 			{#if editRole !== (user.role || 'member')}
 				{#if !roleConfirm}
 					<Button
@@ -423,13 +425,7 @@
 						Type <code>{user.email}</code> to confirm. The user will be signed out and
 						unable to log back in until you re-enable.
 					</p>
-					<input
-						type="text"
-						class="confirm-input"
-						placeholder={user.email}
-						bind:value={disableTyped}
-						aria-label="Type the user's email to confirm disable"
-					/>
+					<Input type="text" placeholder={user.email} bind:value={disableTyped} aria-label="Type the user's email to confirm disable" style="max-width: 320px" />
 					<div class="row">
 						<Button
 							variant="destructive"
@@ -476,11 +472,11 @@
 	<!-- Plan + overrides -->
 	<div class="field">
 		<label class="field-label" for="settings-plan">Plan</label>
-		<select id="settings-plan" bind:value={editPlan}>
+		<NativeSelect id="settings-plan" bind:value={editPlan}>
 			<option value="free">free</option>
 			<option value="pro">pro</option>
 			<option value="self-hosted">self-hosted</option>
-		</select>
+		</NativeSelect>
 	</div>
 
 	<div class="field">
@@ -490,12 +486,7 @@
 			{#each overrideFields as f (f.key)}
 				<label class="override-field">
 					<span class="override-label">{f.label}</span>
-					<input
-						type="text"
-						inputmode="numeric"
-						placeholder="default"
-						bind:value={editOverrides[f.key]}
-					/>
+					<Input type="text" inputmode="numeric" placeholder="default" bind:value={editOverrides[f.key]} />
 					<span class="override-hint">{f.hint}</span>
 				</label>
 			{/each}
@@ -503,14 +494,7 @@
 
 		<div class="field">
 			<label class="field-label" for="settings-storage">Storage quota override</label>
-			<input
-				id="settings-storage"
-				type="text"
-				class="storage-input"
-				placeholder="500 MB, 10 GB, or -1 for unlimited"
-				bind:value={editStorageOverride}
-				aria-describedby="storage-preview"
-			/>
+			<Input id="settings-storage" type="text" placeholder="500 MB, 10 GB, or -1 for unlimited" bind:value={editStorageOverride} aria-describedby="storage-preview" style="max-width: 320px" />
 			<div id="storage-preview" class="hint" class:error={storageOverridePreview === 'Invalid input'}>
 				{storageOverridePreview || 'Empty = use plan default'}
 			</div>
@@ -579,20 +563,6 @@
 		font-size: 0.85rem;
 		color: var(--text-muted);
 	}
-	select,
-	input[type='text'] {
-		padding: 6px 10px;
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-sm);
-		color: var(--text-primary);
-		font-size: 0.9rem;
-		outline: none;
-	}
-	select:focus,
-	input[type='text']:focus {
-		border-color: var(--accent-blue);
-	}
 	.override-grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -611,9 +581,7 @@
 		font-size: 0.75rem;
 		color: var(--text-muted);
 	}
-	.storage-input {
-		max-width: 320px;
-	}
+
 	.temp-password {
 		font-family: var(--font-mono, monospace);
 		padding: var(--space-2);
@@ -639,9 +607,7 @@
 		font-size: 0.85rem;
 		color: var(--text-primary);
 	}
-	.confirm-input {
-		max-width: 320px;
-	}
+
 	.save-row {
 		display: flex;
 		gap: var(--space-3);
