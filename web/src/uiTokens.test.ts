@@ -89,7 +89,7 @@ describe('ui.css tokens', () => {
 describe('shadcn components', () => {
 	// ui/ and the app adapters built on it (TASK-26). An adapter's scoped
 	// <style> is left out: ResponsiveMenuItem's plain row (the mobile sheet)
-	// keeps common/MenuItem's app.css look on purpose, and Tailwind never
+	// keeps the legacy MenuItem's app.css look on purpose, and Tailwind never
 	// reads a style block's variables.
 	const adapters = readdirSync(join(SRC, 'lib/components/ui-adapters'))
 		.filter((n) => n.endsWith('.svelte'))

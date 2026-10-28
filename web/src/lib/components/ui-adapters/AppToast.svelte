@@ -2,7 +2,7 @@
   AppToast — one toast of the app's toastStore, rendered inside Sonner's list
   (SPEC-24 / TASK-26; see AppToaster). The store owns its life: timing, the
   hover/focus hold, grouping and dismissal. This is the body and its
-  controls, as common/ToastContainer had them.
+  controls, as the old container had them.
 -->
 <script lang="ts">
 	import {

@@ -2,7 +2,7 @@
 // announced assertively, hover and focus hold a toast, and a link toast
 // answers Space as well as Enter (but not keys pressed on its own buttons).
 //
-// Migrated from common/ToastContainer (TASK-26): the toasts now render in
+// Migrated from the old toast container's test (TASK-26): the toasts now render in
 // shadcn-svelte's Sonner, which has ONE always-mounted live region (polite)
 // and marks each toast item with its own politeness; an error is `important`,
 // so its item is aria-live="assertive". The assertions follow that model.

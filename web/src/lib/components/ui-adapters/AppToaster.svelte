@@ -1,6 +1,6 @@
 <!--
   AppToaster — the app's toasts, rendered by shadcn-svelte's Sonner
-  (svelte-sonner) (SPEC-24 / TASK-26). It replaces common/ToastContainer.
+  (svelte-sonner) (SPEC-24 / TASK-26). It replaces the old container component.
 
   The toastStore stays the single source of truth and keeps everything it
   did: durations (errors and actionable toasts linger), the hover/focus hold,

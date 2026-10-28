@@ -9,7 +9,7 @@ import { createRawSnippet, tick, flushSync } from 'svelte';
 import DockedSheet from './DockedSheet.svelte';
 
 // jsdom has no Web Animations API, which Svelte's fly/fade outros use. A
-// stand-in that finishes at once (the ToastContainer test's): these tests are
+// stand-in that finishes at once (the toaster test's): these tests are
 // about focus, not motion.
 if (!('animate' in Element.prototype)) {
 	(Element.prototype as unknown as { animate: unknown }).animate = function () {

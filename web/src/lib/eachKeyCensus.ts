@@ -117,8 +117,6 @@ export const EACH_KEY_CENSUS: Record<string, { reason: EachKeyReason; note: stri
 	"lib/components/common/KeyboardShortcuts.svelte :: each groups as group (group.title)": { reason: 'static-literal', note: "distinct group titles" },
 	"lib/components/common/Lightbox.svelte :: each toolbarActions as action (action.id)": { reason: 'static-literal', note: "`ATTACHMENT_ACTIONS.filter` (attachments/actions.ts:172) | static literal ids open/download/copy-link/delete." },
 	"lib/components/common/NotificationPanel.svelte :: each toastStore.history as entry (entry.id)": { reason: 'position-or-counter', note: "toast ids carry a counter" },
-	"lib/components/common/ToastContainer.svelte :: each errors as toast (toast.id)": { reason: 'position-or-counter', note: "toast ids carry a counter" },
-	"lib/components/common/ToastContainer.svelte :: each others as toast (toast.id)": { reason: 'position-or-counter', note: "toast ids carry a counter" },
 	"lib/components/editor/Editor.svelte :: each getFilteredLinks() as doc, i (doc.id)": { reason: 'object-or-map-keys', note: "`localIndex.getAll` | SvelteMap keyed by item id; the list is only filtered and sliced." },
 	"lib/components/editor/EditorBubbleMenu.svelte :: each sortedCollections as coll (coll.id)": { reason: 'db-primary-key', note: "collections list" },
 	"lib/components/fields/FieldEditor.svelte :: each multiChoices as option, i (option)": { reason: 'deduped', note: "uniqueStrings" },
