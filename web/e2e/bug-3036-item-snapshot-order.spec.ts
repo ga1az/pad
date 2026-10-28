@@ -71,7 +71,7 @@ function fieldInput(page: Page, label: string) {
 	return page
 		.locator('.item-page-host > .item-page')
 		.locator(`.field-row:has(.field-label:text-is("${label}"))`)
-		.locator('input.field-input');
+		.locator('textarea.field-input');
 }
 
 /** A response held after its request committed on the real server. */

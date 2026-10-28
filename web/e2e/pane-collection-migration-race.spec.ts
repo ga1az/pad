@@ -315,7 +315,7 @@ test('a collection migration completing after a rapid A->B pane switch refreshes
 	// value — the clobber is now impossible by construction, not merely avoided
 	// by the reload above.
 	const categoryRow = pane.locator('.field-row:has(.field-label:text-is("Category"))');
-	const categoryInput = categoryRow.locator('input.field-input');
+	const categoryInput = categoryRow.locator('textarea.field-input');
 	await expect(categoryInput).toHaveValue('pre-migration');
 
 	// waitForResponse (not waitForRequest) — we need the PATCH to actually

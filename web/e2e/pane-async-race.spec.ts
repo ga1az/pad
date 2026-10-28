@@ -200,7 +200,7 @@ async function seedItemIn(
 function noteInput(page: Page) {
 	return page
 		.locator('.item-pane .field-row:has(.field-label:text-is("Note"))')
-		.locator('input.field-input');
+		.locator('textarea.field-input');
 }
 
 /** The pane's live ProseMirror editor surface. */

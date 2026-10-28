@@ -303,7 +303,7 @@ test.describe('full-page pane host CAPSTONE (PLAN-2154 Phase 2 / TASK-2175)', ()
 		await expect(editableTitle).toBeVisible();
 		// Details tab (default): the Note field is an editable input (FieldEditor, not
 		// readonly-display), and the rich editor is the live, synced, EDITABLE collab editor.
-		const noteInput = col.locator('.field-row', { hasText: 'Note' }).locator('input.field-input');
+		const noteInput = col.locator('.field-row', { hasText: 'Note' }).locator('textarea.field-input');
 		await expect(noteInput).toBeVisible();
 		await expect(noteInput).toBeEnabled();
 		await expect(col.locator(SYNCED_BADGE_SELECTOR)).toBeVisible({ timeout: SYNC_TIMEOUT });
