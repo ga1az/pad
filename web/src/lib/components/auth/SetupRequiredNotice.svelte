@@ -31,7 +31,7 @@
 	{:else if setupMethod === 'open'}
 		<p class="body">
 			This Pad instance is configured for open setup
-			(<code class="inline">PAD_BYPASS_SETUP_TOKEN=true</code>). Create the first
+			(<code class="inline-code">PAD_BYPASS_SETUP_TOKEN=true</code>). Create the first
 			admin account directly &mdash; no token required.
 		</p>
 
@@ -144,7 +144,7 @@
 		word-break: break-word;
 	}
 
-	code.inline {
+	code.inline-code {
 		display: inline;
 		padding: 0 var(--space-1);
 		background: var(--bg-tertiary);

@@ -52,7 +52,7 @@
 
 {#if p}
 	{#key p.id}
-		<div class="plan-limit-prompt" class:inline={!!scope} role="alert">
+		<div class="plan-limit-prompt" class:is-inline={!!scope} role="alert">
 			<p class="plan-limit-message">{p.message}</p>
 			{#if p.hint}<p class="plan-limit-hint">{p.hint}</p>{/if}
 			<div class="plan-limit-actions">
@@ -77,7 +77,7 @@
 		padding: var(--space-3) var(--space-4);
 		font-size: 0.9em;
 	}
-	.plan-limit-prompt:not(.inline) {
+	.plan-limit-prompt:not(.is-inline) {
 		position: fixed;
 		left: 50%;
 		bottom: var(--space-6);
@@ -86,7 +86,7 @@
 		z-index: 1000;
 		box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.2));
 	}
-	.plan-limit-prompt.inline {
+	.plan-limit-prompt.is-inline {
 		margin: var(--space-3) 0;
 	}
 	.plan-limit-message {

@@ -2,7 +2,7 @@
 	import { type VariantProps, tv } from "tailwind-variants";
 
 	// The Linear "chip" (DOC-33): 22px high, fully rounded, a 1px border,
-	// 12px icon + 12px text. `sm` is the dense form for card and table rows.
+	// 12px icon + 12px text. `sm` is the dense form for cards and rows of a list.
 	// A `color` (any CSS color, usually one of the legacy accent variables) tints the
 	// text, fill and border through the `[data-slot="badge"][data-color]` rule
 	// in src/ui.css; it replaces the legacy `common/Chip`.

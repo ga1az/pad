@@ -38,7 +38,7 @@
 				<section class="path" aria-labelledby={`path-${path.id}`}>
 					<h2 id={`path-${path.id}`}>{path.title}</h2>
 					<p class="muted">{path.blurb}</p>
-					<ol class="grid">
+					<ol class="tutorial-grid">
 						{#each uniqueBy(tutorials, (x) => x.slug) as t (t.slug)}
 							<li>
 								{#if t.seconds != null}
@@ -94,7 +94,7 @@
 	.path p {
 		margin: var(--space-1) 0 var(--space-3);
 	}
-	.grid {
+	.tutorial-grid {
 		list-style: none;
 		padding: 0;
 		margin: 0;

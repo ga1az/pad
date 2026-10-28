@@ -583,7 +583,7 @@
 			{/if}
 
 			{#if !hiddenCards.has('cycle_time') || !hiddenCards.has('wip')}
-				<div class="grid">
+				<div class="insights-grid">
 					<!-- Cycle time -->
 					{#if !hiddenCards.has('cycle_time')}
 						<section class="card">
@@ -1102,7 +1102,7 @@
 		font-size: 0.9em;
 	}
 
-	.grid {
+	.insights-grid {
 		display: grid;
 		grid-template-columns: repeat(2, 1fr);
 		gap: var(--space-6);
@@ -1304,7 +1304,7 @@
 	}
 
 	@media (max-width: 768px) {
-		.grid {
+		.insights-grid {
 			grid-template-columns: 1fr;
 		}
 		.stat-row {

@@ -15,7 +15,7 @@
   the page's whole life (polite, empty until a toast arrives), every toast is
   its own node (the same text twice is read twice), and an ERROR is marked
   `important`, which Sonner announces assertively. The text lives once, in
-  the toast. `expand` keeps every toast visible, as the old column did.
+  the toast. `expand` keeps every toast on screen, as the old column did.
 -->
 <script lang="ts">
 	import { onDestroy, onMount, untrack } from 'svelte';

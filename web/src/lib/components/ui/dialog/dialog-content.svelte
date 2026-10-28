@@ -31,7 +31,7 @@
 
 <!--
 	Placed with inset-0 + margin:auto (as a native <dialog> is), not with a
-	translate: a transform would make this the containing block of every
+	translate: a transform would make this the containing box of every
 	position:fixed popover portaled inside it (portalAction, EmojiPickerButton).
 	z-[300] sits above the legacy popovers (menus 200) the old top-layer
 	<dialog> covered. Linear surface: one step above the panel, a hairline

@@ -40,7 +40,7 @@
 		onclose: () => void;
 		/** id of the heading inside `children`, for aria-labelledby. */
 		labelledby?: string;
-		/** Accessible name when there is no visible heading. */
+		/** Accessible name when there is no heading on screen. */
 		ariaLabel?: string;
 		/** Dismiss on a backdrop press. Default true. */
 		closeOnBackdrop?: boolean;
