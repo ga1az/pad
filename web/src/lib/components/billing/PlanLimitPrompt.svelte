@@ -123,7 +123,7 @@
 		text-decoration: none;
 	}
 	.plan-limit-actions .plan-limit-primary {
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		border-color: var(--accent-blue);
 		color: #fff;
 	}

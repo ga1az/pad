@@ -241,7 +241,7 @@
 	 * rows collapsed to a single stacked column in Chromium (TASK-2208). */
 	let gridTemplate = $derived(
 		[
-			'70px',
+			'88px',
 			'minmax(200px, 1fr)',
 			...visibleFields.map(() => 'minmax(90px, 0.55fr)'),
 			'90px',
@@ -586,6 +586,7 @@
 	.ref {
 		font-family: var(--font-mono);
 		font-size: 12px;
+		white-space: nowrap;
 		color: var(--ui-muted-foreground);
 	}
 

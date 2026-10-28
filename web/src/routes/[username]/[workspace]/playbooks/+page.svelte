@@ -756,7 +756,7 @@
 	.loading { text-align: center; padding-top: 20vh; color: var(--text-muted); }
 	/* .new-btn retained only for the Browse Library <a> (the shared Button
 	   primitive renders <button> elements only). */
-	.new-btn { background: var(--accent-blue); color: #fff; padding: var(--space-2) var(--space-5); border-radius: var(--radius); font-size: 0.85em; font-weight: 600; white-space: nowrap; flex-shrink: 0; transition: opacity 0.15s; }
+	.new-btn { background: var(--accent-primary-strong); color: #fff; padding: var(--space-2) var(--space-5); border-radius: var(--radius); font-size: 0.85em; font-weight: 600; white-space: nowrap; flex-shrink: 0; transition: opacity 0.15s; }
 	.new-btn:hover { opacity: 0.85; }
 	.visually-hidden-input { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 	.filter-bar { display: flex; gap: var(--space-2); align-items: center; margin-bottom: var(--space-4); flex-wrap: wrap; }

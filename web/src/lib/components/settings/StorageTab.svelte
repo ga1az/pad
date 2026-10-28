@@ -975,7 +975,7 @@
 
 	.usage-fill {
 		height: 100%;
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		transition: width 0.3s ease;
 	}
 

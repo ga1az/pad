@@ -430,7 +430,7 @@
 		padding: var(--space-1) var(--space-3);
 		font-size: 0.82em;
 		font-weight: 600;
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		color: #fff;
 		border-radius: var(--radius-sm);
 		white-space: nowrap;

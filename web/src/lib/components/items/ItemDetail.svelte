@@ -9127,7 +9127,7 @@
 	}
 	.progress-fill {
 		height: 100%;
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		opacity: 0.25;
 		border-radius: var(--radius-sm);
 		transition: width 0.3s ease;
@@ -9629,7 +9629,7 @@
 		color: var(--text-primary);
 	}
 	.action-btn.active {
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		border-color: var(--accent-blue);
 		color: #fff;
 	}

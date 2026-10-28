@@ -226,7 +226,7 @@
 		color: var(--text-secondary);
 	}
 	.capture-submit {
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		color: #fff;
 		border-color: var(--accent-blue);
 	}

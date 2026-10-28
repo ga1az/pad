@@ -1790,7 +1790,7 @@
 		left: 24px;
 		right: 0;
 		height: 3px;
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		border-radius: 2px;
 		z-index: 10;
 		pointer-events: none;

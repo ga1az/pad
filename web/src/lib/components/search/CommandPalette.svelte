@@ -1527,7 +1527,7 @@
 		border: 1px solid var(--border);
 	}
 	.scope-dot.on {
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		border-color: var(--accent-blue);
 	}
 

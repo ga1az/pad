@@ -5025,7 +5025,7 @@
 		color: var(--accent-red);
 	}
 	.leave-save {
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		border-color: var(--accent-blue) !important;
 		color: #fff;
 	}
@@ -5201,7 +5201,7 @@
 	}
 	.empty-cta {
 		display: inline-block;
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		color: #fff;
 		padding: var(--space-2) var(--space-5);
 		border-radius: var(--radius);
@@ -5682,7 +5682,7 @@
 	}
 
 	.new-btn {
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		color: #fff;
 		padding: var(--space-1) var(--space-4);
 		border-radius: var(--radius);

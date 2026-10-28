@@ -257,7 +257,7 @@
 	/* Completed step marker (agent activity detected) — filled accent-blue
 	   check, matching the .lp-progress-item.done accent language. */
 	.lp-step-num.done {
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		color: #fff;
 	}
 	.lp-step-body {
@@ -284,7 +284,7 @@
 		align-self: flex-start;
 		margin-top: var(--space-1);
 		padding: var(--space-2) var(--space-4);
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		color: #fff;
 		border: none;
 		border-radius: var(--radius);

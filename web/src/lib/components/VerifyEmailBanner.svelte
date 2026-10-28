@@ -118,7 +118,7 @@
 	}
 	.verify-resend {
 		padding: var(--space-1) var(--space-3);
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		border: none;
 		border-radius: var(--radius);
 		color: #fff;

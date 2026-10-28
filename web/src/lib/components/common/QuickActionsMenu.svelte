@@ -858,7 +858,7 @@
 	}
 
 	.qa-btn-save {
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		border-color: var(--accent-blue);
 		color: #fff;
 		font-weight: 500;

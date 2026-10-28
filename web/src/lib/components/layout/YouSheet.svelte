@@ -271,7 +271,7 @@
 		transition: background 0.15s ease;
 	}
 	.toggle.on {
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 	}
 	.knob {
 		position: absolute;

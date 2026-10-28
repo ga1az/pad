@@ -1088,7 +1088,7 @@
 	}
 
 	.saved-view-chip.active {
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		border-color: var(--accent-blue);
 		color: #fff;
 		font-weight: 500;

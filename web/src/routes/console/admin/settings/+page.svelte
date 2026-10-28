@@ -754,7 +754,7 @@
 		border-color: var(--text-muted);
 	}
 	.btn.primary {
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		color: #fff;
 		border-color: transparent;
 	}

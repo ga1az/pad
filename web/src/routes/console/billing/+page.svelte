@@ -733,7 +733,7 @@
 	.current-tag {
 		padding: 1px var(--space-2);
 		border-radius: var(--radius-sm);
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		color: #fff;
 		font-size: 0.7rem;
 		font-weight: 600;

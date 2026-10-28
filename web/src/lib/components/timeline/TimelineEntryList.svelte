@@ -221,7 +221,7 @@
 	}
 
 	.dot-comment {
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 	}
 
 	.dot-activity {

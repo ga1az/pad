@@ -1446,7 +1446,7 @@
 		font-size: 0.85em;
 		font-weight: 500;
 		color: #fff;
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		border: none;
 		border-radius: var(--radius-sm);
 		cursor: pointer;

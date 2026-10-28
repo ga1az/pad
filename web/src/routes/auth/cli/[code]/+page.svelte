@@ -315,7 +315,7 @@
 	button {
 		width: 100%;
 		padding: var(--space-3) var(--space-4);
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		color: #fff;
 		border: none;
 		border-radius: var(--radius);
@@ -340,7 +340,7 @@
 		width: 100%;
 		padding: var(--space-3) var(--space-4);
 		margin-top: var(--space-4);
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		color: #fff;
 		border: none;
 		border-radius: var(--radius);

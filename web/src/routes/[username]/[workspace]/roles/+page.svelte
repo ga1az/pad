@@ -1208,7 +1208,7 @@
 	}
 
 	.new-item-btn {
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		color: white;
 		border: none;
 		border-radius: var(--radius);
@@ -1304,7 +1304,7 @@
 		border-color: var(--accent-blue);
 	}
 	.new-item-create-btn {
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		color: white;
 		border: none;
 		border-radius: var(--radius);
@@ -1692,7 +1692,7 @@
 		color: var(--text-primary);
 	}
 	.role-btn-save {
-		background: var(--accent-blue);
+		background: var(--accent-primary-strong);
 		color: white;
 		border-color: var(--accent-blue);
 	}
