@@ -291,21 +291,22 @@ describe('the list view carries the board\'s draft wiring (BUG-3043, TASK-29)', 
 	beforeEach(() => { vi.clearAllMocks(); });
 
 	it('hands the list the placement, the blocked notices and a Discard', async () => {
-		// `status` has a default, so Uncategorized cannot receive a draft typed in a lane that is gone.
+		// A number group field stores nothing for Uncategorized, and its default
+		// would fill the key, so a draft typed in a lane that is gone cannot be rehomed.
 		const withDefault = {
 			...COLLECTION,
-			schema: JSON.stringify({ fields: [{ key: 'status', type: 'select', options: ['open', 'done'], default: 'open' }] }),
+			schema: JSON.stringify({ fields: [{ key: 'status', type: 'number', options: ['1', '2'], default: 1 }] }),
 		};
 		await mountPage('?view=list', withDefault);
 		const props = lastViewProps()!;
 		expect('statusOptions' in props, 'the list is mounted, not the board').toBe(true);
-		const key = draftKey('status', 'wontdo');
+		const key = draftKey('status', '3');
 		(props.draftText as Record<string, string>)[key] = 'Typed in a lane that is gone';
 		await tick();
 		expect((props.draftPlacement as Record<string, { kind: string }>)[key]?.kind).toBe('blocked');
 		const notices = props.blockedDraftNotices as { lane: string; message: string }[];
 		expect(notices.map((n) => n.lane)).toEqual([key]);
-		expect(notices[0]!.message).toContain('Wontdo');
+		expect(notices[0]!.message).toContain('3');
 		(props.onDiscardDraft as (lane: string) => void)(key);
 		await tick();
 		expect((props.draftText as Record<string, string>)[key]).toBeUndefined();

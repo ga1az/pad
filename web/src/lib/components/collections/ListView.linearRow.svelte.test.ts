@@ -40,6 +40,7 @@ const FIELDS = [
 	{ key: 'status', label: 'Status', type: 'select', options: ['open', 'in_progress', 'done'], terminal_options: ['done'] },
 	{ key: 'priority', label: 'Priority', type: 'select', options: ['low', 'medium', 'high', 'urgent'] },
 	{ key: 'area', label: 'Area', type: 'text' },
+	{ key: 'score', label: 'Score', type: 'number', options: ['1', '2'], default: 1 },
 ];
 
 function collection(): Collection {
@@ -292,7 +293,8 @@ describe("the group's +", () => {
 // and a Discard ("blocked"). The list used to render neither.
 describe('a draft whose lane is gone', () => {
 	const statusField = () => parseSchema(collection()).fields.find((f) => f.key === 'status');
-	const labelFor = (k: string) => (k === 'status' ? 'Status' : k);
+	const scoreField = () => parseSchema(collection()).fields.find((f) => f.key === 'score');
+	const labelFor = (k: string) => (k === 'score' ? 'Score' : k);
 
 	it('shows under Uncategorized, marked with the lane it came from, even with no ungrouped item', async () => {
 		const key = draftKey('status', 'wontdo');
@@ -332,17 +334,18 @@ describe('a draft whose lane is gone', () => {
 	});
 
 	it('a blocked draft shows its alert, and Discard draft lets it go', async () => {
-		// `status` has a default the create would fill, so Uncategorized cannot
-		// receive the draft: it is kept, not guessed into a lane.
-		const defaults = { status: 'open' };
-		const key = draftKey('status', 'wontdo');
+		// A number field stores no value for Uncategorized (the key is omitted),
+		// and `score` has a default the create would fill, so Uncategorized
+		// cannot receive the draft: it is kept, not guessed into a lane.
+		const key = draftKey('score', '3');
 		const draftText: Record<string, string> = $state({ [key]: 'Cannot go anywhere' });
-		const placement = draftTargets(draftText, statusField(), defaults);
+		const placement = draftTargets(draftText, scoreField(), {});
 		const target = placement[key];
 		expect(target?.kind).toBe('blocked');
-		const message = blockedDraftMessage(lostLaneLabel(target as never, labelFor), 'Status', 'defaulted');
+		const message = blockedDraftMessage(lostLaneLabel(target as never, labelFor), 'Score', 'defaulted');
 		const onDiscardDraft = vi.fn();
 		const { container } = renderList({
+			groupField: 'score',
 			draftText,
 			onCreateInColumn: vi.fn(),
 			onDiscardDraft,
