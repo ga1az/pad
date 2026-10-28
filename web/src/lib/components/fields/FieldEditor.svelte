@@ -1328,7 +1328,19 @@ handlers — onchange is never called.
 			if (el.scrollHeight > 0) el.style.height = el.scrollHeight + 'px';
 		};
 		fit();
-		return { update: fit };
+		// A change of WIDTH rewraps the text (the page going between its two
+		// columns and the stacked layout), so it refits too.
+		let width = el.clientWidth;
+		const ro =
+			typeof ResizeObserver === 'undefined'
+				? null
+				: new ResizeObserver(() => {
+						if (el.clientWidth === width) return;
+						width = el.clientWidth;
+						fit();
+					});
+		ro?.observe(el);
+		return { update: fit, destroy: () => ro?.disconnect() };
 	}
 
 	function handleTextInput(e: Event) {

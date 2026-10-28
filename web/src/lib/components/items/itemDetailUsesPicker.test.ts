@@ -92,9 +92,14 @@ describe('ItemDetail consumes ItemPicker', () => {
 		const before = markupSource.slice(0, picker);
 		const keyStart = before.lastIndexOf('{#key itemSlug}');
 		expect(keyStart, 'no {#key itemSlug} precedes the picker').toBeGreaterThan(-1);
-		expect(
-			before.slice(keyStart).includes('{/key}'),
-			'the nearest {#key itemSlug} closes before the picker — the picker is outside it'
-		).toBe(false);
+		// Still OPEN at the picker: the blocks opened and closed after it (a sibling
+		// `{#key identityKey}` around ChildItems, say) balance out, and its own closer
+		// has not come. Counting depth, not looking for any `{/key}`, since the panel
+		// holds other key blocks ahead of the picker.
+		let depth = 1;
+		for (const m of before.slice(keyStart + '{#key itemSlug}'.length).matchAll(/\{#key\b|\{\/key\}/g)) {
+			depth += m[0] === '{#key' ? 1 : -1;
+			expect(depth, 'the nearest {#key itemSlug} closes before the picker, so the picker is outside it').toBeGreaterThan(0);
+		}
 	});
 });

@@ -107,6 +107,7 @@ const ASYNC_FUNCTIONS: Record<string, Row> = {
 	ensureGraphComp: { reviewed: 'c1565cfb8a18', why: 'lazy-loads a component module into this instance', may: ['ItemGraphComp', 'graphLoadError'] },
 	// TASK-3537: re-reviewed; this unit's body is unchanged. It re-hashed because the $lib/types import line it names lost getTerminalOptions (the dead terminalStatuses feed).
 	handleCopyRef: { reviewed: 'd0af6ecd002f', why: 'switchedAway before the copied flag' },
+	copySummaryMarkdown: { reviewed: 'aa4cc3e107c2', why: 'switchedAway before the toast; the clipboard text is built from the item at the click, before the await' },
 	// Re-reviewed for BUG-3473: the index await is skipped when the index is
 	// already ready; it adds no await and commits nothing, and every fence
 	// after the Promise.all is unchanged.

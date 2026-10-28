@@ -26,7 +26,9 @@ describe('ItemFieldSummary (TASK-22)', () => {
 				]
 			}
 		});
-		expect(container.querySelector('details')?.hasAttribute('open')).toBe(true);
+		// Closed by default (SPEC-24 / TASK-31): it sits below the body, and the
+		// properties above already show the fields.
+		expect(container.querySelector('details')?.hasAttribute('open')).toBe(false);
 		expect(screen.getByText(long)).toBeTruthy();
 		expect(screen.getByText('Cómo se verifica')).toBeTruthy();
 
@@ -34,7 +36,11 @@ describe('ItemFieldSummary (TASK-22)', () => {
 		await waitFor(() => expect(copyMock).toHaveBeenCalledTimes(1));
 		expect(copyMock.mock.calls[0][0]).toBe(`## TASK-21 Audio\n\n**Tipo:** Backend\n**Cómo se verifica:** ${long}\n`);
 		expect(toastMock).toHaveBeenCalledWith('Summary copied', 'success');
-		// Copy must not also fold the section it sits in.
+		// Copy must not also open (or fold) the section it sits in.
+		expect(container.querySelector('details')?.hasAttribute('open')).toBe(false);
+		await fireEvent.click(container.querySelector('summary')!);
+		expect(container.querySelector('details')?.hasAttribute('open')).toBe(true);
+		await fireEvent.click(screen.getByRole('button', { name: /copy/i }));
 		expect(container.querySelector('details')?.hasAttribute('open')).toBe(true);
 	});
 

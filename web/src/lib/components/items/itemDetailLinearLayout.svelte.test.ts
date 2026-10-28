@@ -183,23 +183,75 @@ describe('the item page grid', () => {
 	it('lays out the head, the properties and the main column, in that reading order', async () => {
 		const r = await mountPage();
 		const grid = q(r, '.item-grid')!;
-		expect([...grid.children].map((c) => c.className.split(' ')[0])).toEqual(['item-head', 'meta-actions', 'item-aside', 'item-main']);
+		// The toolbar is the grid's first row, so it is first in the DOM too: the tab
+		// order is the visual order.
+		expect([...grid.children].map((c) => c.className.split(' ')[0])).toEqual(['meta-actions', 'item-head', 'item-aside', 'item-main']);
 		expect(q(r, '.item-head .title')!.textContent).toContain('Item i1');
 		// The meta line leads with the ref, in plain text.
 		expect(q(r, '.item-head .meta-info .item-ref')!.textContent).toBe('TASK-1');
 	});
 
-	it('the properties column is outside the tab panels, so it stays while the tabs change', async () => {
+	it('the properties column is outside the tab panels; wide it stays, stacked it follows Details', async () => {
 		const r = await mountPage();
 		const aside = q(r, '.item-aside')!;
 		expect(aside.querySelector('.fields-panel')).not.toBeNull();
 		expect(aside.closest('[role="tabpanel"]')).toBeNull();
+		// Details is the first tab: the aside is on.
+		expect(aside.classList.contains('aside-off')).toBe(false);
 		await fireEvent.click(r.getByRole('tab', { name: /Relationships/ }));
 		await tick();
+		// Off, not unmounted: the fields keep their keys and fences. Whether it SHOWS is
+		// the container query (display: none only below 860px; the wide page has no tabs
+		// and always shows it): e2e/task-2209-balanced-fields-pane.spec.ts measures both.
+		expect(aside.classList.contains('aside-off')).toBe(true);
 		expect(aside.classList.contains('tab-hidden')).toBe(false);
 		expect(aside.querySelector('.fields-panel')).not.toBeNull();
-		// The body and the comments are what the tabs switch.
+		await fireEvent.click(r.getByRole('tab', { name: /History/ }));
+		await tick();
+		expect(aside.classList.contains('aside-off')).toBe(true);
+		await fireEvent.click(r.getByRole('tab', { name: /Details/ }));
+		await tick();
+		expect(aside.classList.contains('aside-off')).toBe(false);
+		// The tab panels are the body, the relationships and the history; the comments
+		// sit after them (they show with Details when stacked, and in the Activity
+		// stream when wide).
 		expect(q(r, '.item-main')!.querySelectorAll('[role="tabpanel"]')).toHaveLength(3);
+	});
+
+	it('reads body, then relationships, then Activity (comments, then history), in the DOM', async () => {
+		const r = await mountPage();
+		const main = q(r, '.item-main')!;
+		const order = [...main.children].map((c) => {
+			const label = c.getAttribute('aria-label');
+			if (c.classList.contains('pane-tabs')) return 'tabs';
+			if (label === 'Details') return 'details';
+			if (label === 'Relationships') return 'relationships';
+			if (c.classList.contains('activity-heading')) return 'activity-heading';
+			if (c.id === 'item-comments') return 'comments';
+			if (label === 'History') return 'history';
+			if (c.classList.contains('summary-wrap')) return 'summary';
+			return c.className;
+		});
+		expect(order).toEqual(['tabs', 'details', 'relationships', 'activity-heading', 'comments', 'history']);
+		expect(q(r, '.activity-heading')!.textContent).toBe('Activity');
+		// The Summary sits inside Details, below the body.
+		const details = q(r, '[role="tabpanel"][aria-label="Details"]')!;
+		expect([...details.children].map((c) => c.className.split(' ')[0]).slice(-2)).toEqual(['item-body', 'summary-wrap']);
+		// Sub-issues come before the relationships list.
+		const rel = q(r, '[role="tabpanel"][aria-label="Relationships"]')!;
+		expect(rel.querySelector('#item-children')).not.toBeNull();
+	});
+
+	it('the comments follow Details, and only Details: History and Relationships do not show them', async () => {
+		const r = await mountPage();
+		const comments = q(r, '#item-comments')!;
+		expect(comments.classList.contains('tab-hidden')).toBe(false);
+		await fireEvent.click(r.getByRole('tab', { name: /History/ }));
+		await tick();
+		expect(comments.classList.contains('tab-hidden')).toBe(true);
+		await fireEvent.click(r.getByRole('tab', { name: /Relationships/ }));
+		await tick();
+		expect(comments.classList.contains('tab-hidden')).toBe(true);
 	});
 
 	it('status and priority are the status picker as a row, with the icon and the name', async () => {

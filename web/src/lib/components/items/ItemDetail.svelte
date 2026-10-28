@@ -103,7 +103,7 @@
 	// statements so units that only use the imports above keep their hash.
 	import StatusPicker from '$lib/components/collections/StatusPicker.svelte';
 	import PropertyPicker from '$lib/components/fields/PropertyPicker.svelte';
-	import { buildFieldSummary } from '$lib/items/fieldSummary';
+	import { buildFieldSummary, fieldSummaryMarkdown } from '$lib/items/fieldSummary';
 	import { parseFields, parseSchema, parseSettings, parseTags, formatItemRef, itemUrlId, type ItemIndexRow } from '$lib/types';
 	import ItemPicker from './ItemPicker.svelte';
 	import QuickActionsMenu from '$lib/components/common/QuickActionsMenu.svelte';
@@ -791,6 +791,19 @@
 	let tagSuggestions = $state<string[]>([]);
 	let schema = $derived(collection ? parseSchema(collection) : { fields: [] });
 	let fieldSummaryRows = $derived(buildFieldSummary(schema.fields, fields));
+	// "TASK-12 Title", the Summary's heading and the copied Markdown's.
+	let summaryHeading = $derived(`${item ? (formatItemRef(item) ?? '') : ''} ${item?.title ?? ''}`.trim());
+	// The wide page hides the Summary block (its aside shows full text), so its
+	// Copy lives in the ⋯ menu too. Same text as the block's own button.
+	async function copySummaryMarkdown() {
+		if (!item) return;
+		const targetItem = item;
+		const gen = loadGeneration;
+		const ok = await copyToClipboard(fieldSummaryMarkdown(summaryHeading, fieldSummaryRows));
+		// The text is the item at the click; a toast about it is for that item only.
+		if (switchedAway(targetItem, gen)) return;
+		toastStore.show(ok ? 'Summary copied' : 'Failed to copy the summary', ok ? 'success' : 'error');
+	}
 	// Timeline change pills render a relation as the target rather than the
 	// item ID it stores (BUG-2872). Built here, where the schema and the stores
 	// already are, and handed to both timeline lists.
@@ -6770,6 +6783,303 @@
 		     the reading order in both. -->
 		<div class="item-layout">
 		<div class="item-grid layout-{layout}">
+		<!-- Actions: round icon buttons at the top right of the page (Linear's
+		     toolbar). It is the grid's first row, and first in the DOM, so the
+		     tab order is the visual order. -->
+		<div class="meta-actions">
+			<!-- Star is a per-user, itemId-keyed REST toggle available to viewers too,
+			     and cannot collide across sides — so it is NOT frozen while peeking
+			     (BUG-2263). No canEdit or peeking gate. -->
+			{#key item.id}
+				<ItemLinkCopyButton path={fullPageUrl} />
+			{/key}
+			{#if !embedded && formatItemRef(item)}
+				<!-- The docked pane's header carries its own copy button. -->
+				<button
+					type="button"
+					class="tool-btn copy-ref-btn"
+					onclick={handleCopyRef}
+					title="Copy item ID"
+					aria-label="Copy item ID"
+				>
+					{#if copied}<Icon icon={Tick02Icon} /><span class="copied-tooltip">Copied!</span>{:else}<Icon icon={Copy01Icon} />{/if}
+				</button>
+			{/if}
+			<button
+				class="tool-btn star-btn"
+				class:starred={starredStore.isStarred(item.id)}
+				onclick={() => { if (!item) return; starredStore.toggle(wsSlug, item.slug, item.id); }}
+				title={starredStore.isStarred(item.id) ? 'Unstar' : 'Star'}
+				aria-pressed={starredStore.isStarred(item.id)}
+			>
+				<Icon icon={StarIcon} />
+			</button>
+			<!-- Installed apps' item actions (SPEC-6 U9d over U11): a link out
+			     per action, read-only here, so visible on the peeking side too.
+			     Remounted per item and identity like QuickActionsMenu below. -->
+			{#key itemSlug}
+				{#key identityKey}
+					<ItemAppActions {wsSlug} itemSlug={item.slug} />
+				{/key}
+			{/key}
+			<!-- Quick-actions menu: the prompt-copy actions are read-only and stay
+			     visible on the peeking side (invisible freeze, BUG-2263). But the
+			     owner "New / Manage actions" controls WRITE the whole collection
+			     `settings` JSON from this instance's local snapshot with no merge —
+			     and master + pane can be DIFFERENT items in the SAME collection, so
+			     two concurrent saves are last-write-wins. So `canEdit` (which gates
+			     ONLY those write controls) folds in `!peeking`: the collection-config
+			     writes are confined to the active side, the prompts stay on both. -->
+			{#if collection && (quickActions.length > 0 || isOwner)}
+				<!-- {#key itemSlug}: structural containment (PLAN-2105 / TASK-2112).
+				     Remount this item-scoped menu on every item switch so the
+				     child's OWN local state (open form, in-progress inputs) resets.
+				     Keyed on itemSlug (the URL/ref identity), NOT item.id, so it
+				     resets the instant the ref changes rather than waiting for B to
+				     load. NOTE: the remount does NOT cancel a destroyed instance's
+				     in-flight save promise — that promise still fires
+				     oncollectionupdated into this persistent parent (see the
+				     switch-safety note on the callback). -->
+				{#key itemSlug}
+					{#key identityKey}
+					{@const handedDown = identityKey}
+					<QuickActionsMenu
+						actions={quickActions}
+						{item}
+						{collection}
+						scope="item"
+						{wsSlug}
+						canEdit={isOwner && !peeking}
+						onmanage={() => {
+							editCollectionSection = 'actions';
+							editCollectionOpen = true;
+						}}
+						oncollectionupdated={(updated) => {
+							if (handedDown !== identityKey) return;
+							// Switch-safety note (BUG-2280 — investigated, NOT a live
+							// bug; do NOT add a template-side {@const keyedSlug =
+							// itemSlug} "snapshot" fence here). A quick-action save can
+							// resolve AFTER an A->B switch and fire this callback from a
+							// destroyed {#key} instance, but it's already safe by two
+							// independent layers, so no parent fence is needed:
+							//   1. QuickActionsMenu's OWN child-side guard
+							//      (`collection?.id !== baseCollection.id`, captured
+							//      pre-await) drops the callback on a CROSS-collection
+							//      switch: a destroyed instance's `collection` prop reads
+							//      the LIVE parent value (B's collection), not a frozen
+							//      A — so the guard fails and oncollectionupdated is
+							//      never invoked. (This note said a {@const} snapshot
+							//      would NOT freeze in Svelte 5. That holds for a block
+							//      that is not remounted; inside a {#key} that remounts on
+							//      the change being guarded it DOES freeze, measured for a
+							//      destroyed instance's post-await callback — BUG-3084,
+							//      which gates this callback on `handedDown` for that
+							//      reason. The slug reasoning below is unchanged.)
+							//   2. On a SAME-collection switch the callback DOES fire,
+							//      but `updated` is that same collection, so assigning it
+							//      is correct; and loadData's collection write
+							//      (adoptCollection — BUG-2602 replaced the old
+							//      gen/id escape hatch) still lands the right
+							//      collection regardless of the collectionGen
+							//      bump below, since the live item agrees with it.
+							// Bump the unified fence so an in-flight stale load/refresh
+							// can't revert this fresh write (Codex). adoptCollection adds
+							// the live-item semantic veto on top (BUG-2602).
+							adoptCollection(updated, ++collectionGen);
+						}}
+					/>
+					{/key}
+				{/key}
+			{/if}
+			{#if childTotal > 0}
+				<!--
+					Children jump badge (IDEA-2133). Mirrors the "📎 N" backlinks
+					badge below: surfaces the child completion count (done/total)
+					in the action bar and smooth-scrolls to the Children section.
+					Placed before the backlinks badge so the two jump affordances
+					match the page's reading order (children → backlinks →
+					timeline). Hidden when the item has no children. The count is
+					derived from computedOverrides — the same source the ChildItems
+					section header renders — so badge and section always agree.
+				-->
+				<button
+					class="tool-btn tool-btn-count"
+					title="{childTotal} child item{childTotal === 1 ? '' : 's'}, {childDone} done"
+					aria-label="Jump to Children — {childDone} of {childTotal} done"
+					onclick={() => jumpToSection('relationships', 'item-children')}
+				>
+					<Icon icon={Tree06Icon} /> {childDone}/{childTotal}
+				</button>
+			{/if}
+			{#if backlinksCount > 0}
+				<!--
+					Mention badge (PLAN-1593 / TASK-1596). Surfaces the inbound
+					`[[...]]` reference count in the action bar so users can see
+					at a glance that this item is referenced from elsewhere AND
+					jump straight to the panel without scrolling. Hidden when
+					the count is 0 so items with no inbound links don't
+					advertise an empty surface. The count is driven by
+					BacklinksPanel's onCountChange callback so the two stay in
+					sync without a separate API call.
+				-->
+				<button
+					class="tool-btn tool-btn-count"
+					title="Mentioned in {backlinksCount} other item{backlinksCount === 1 ? '' : 's'}"
+					onclick={() => jumpToSection('relationships', 'item-backlinks')}
+				>
+					<Icon icon={Attachment01Icon} /> {backlinksCount}
+				</button>
+			{/if}
+			<!-- Pane ⋯ overflow (PLAN-2290 Phase 4 PR B): graph / move / share /
+			     delete per the mock. Triggers stay LIVE while peeking (BUG-2263 —
+			     these dispatch side-independent REST/dialog actions); opening the
+			     menu on a peeking side activates it like any other control. -->
+			<div class="menu-anchor">
+				<button
+					class="tool-btn pane-more-btn"
+					bind:this={paneMenuTrigger}
+					aria-haspopup="menu"
+					aria-expanded={paneMenuOpen}
+					aria-label="More item actions"
+					title="More"
+					disabled={moving}
+					onclick={() => {
+						paneMenuView = 'root';
+						paneMenuOpen = !paneMenuOpen;
+					}}
+				><Icon icon={MoreHorizontalIcon} /></button>
+				<!-- mode=portal (BUG-2610): anchored panels clip against the
+				     pane's overflow-y:auto scroll container in split view —
+				     see QuickActionsMenu's matching note. -->
+				<ResponsiveMenu
+					open={paneMenuOpen}
+					onclose={() => { paneMenuOpen = false; paneMenuView = 'root'; }}
+					trigger={paneMenuTrigger}
+					mode="portal"
+					width={260}
+					sheetOnMobile
+					sheetTitle="Item actions"
+					ariaLabel="Item actions"
+					focusKey={paneMenuView}
+				>
+					{#if paneMenuView === 'root'}
+						{#if fieldSummaryRows.length > 0}
+							<ResponsiveMenuItem icon={Copy01Icon} onclick={() => { paneMenuOpen = false; void copySummaryMarkdown(); }}>
+								Copy as Markdown
+							</ResponsiveMenuItem>
+						{/if}
+						{#if graphFocusRef}
+							<ResponsiveMenuItem icon={HierarchySquare01Icon} onclick={() => { paneMenuOpen = false; openGraph(); }}>
+								Dependency graph
+							</ResponsiveMenuItem>
+						{/if}
+						{#if canEdit}
+							<ResponsiveMenuItem icon="⇄" hint="›" onclick={() => (paneMenuView = 'move')} disabled={moving}>
+								{moving ? 'Moving…' : 'Move to collection…'}
+							</ResponsiveMenuItem>
+							<!-- Launcher only — the review step itself is a Modal (PLAN-2373).
+							     Stays `canEdit`-gated like the move row: that correctly admits
+							     an item-edit-grant guest, which the server also admits. The
+							     DESTINATION side is gated separately, inside the dialog. -->
+							<ResponsiveMenuItem
+								icon="⧉"
+								onclick={() => {
+									paneMenuOpen = false;
+									paneMenuView = 'root';
+									copyDialogInitialCollection = '';
+									copyDialogOpen = true;
+								}}
+								disabled={moving}
+							>
+								Copy or move to workspace…
+							</ResponsiveMenuItem>
+						{/if}
+						{#if canPush}
+							<!-- Launcher only; the composer is a Modal. Gated on a
+							     resolved user rather than `canEdit` — the push is
+							     addressed to the caller's OWN sessions, so a viewer
+							     qualifies (see `canPush`). -->
+							<ResponsiveMenuItem
+								icon="➤"
+								onclick={() => {
+									paneMenuOpen = false;
+									paneMenuView = 'root';
+									pushDialogOpen = true;
+								}}
+							>
+								Push to agent…
+							</ResponsiveMenuItem>
+						{/if}
+						{#if isOwner}
+							<ResponsiveMenuItem icon="⇗" onclick={() => { paneMenuOpen = false; shareDialogOpen = true; }}>
+								Share…
+							</ResponsiveMenuItem>
+						{/if}
+						{#if canEdit}
+							<div class="menu-divider" role="separator"></div>
+							<!-- Drill down rather than close: the confirmation is a
+							     'delete' sub-view of THIS panel (PLAN-2326 DR-6), so
+							     the menu stays open and Menu's focusKey hands focus
+							     to the sub-view's first row. -->
+							<ResponsiveMenuItem icon={Delete02Icon} danger hint="›" onclick={() => (paneMenuView = 'delete')}>
+								Delete…
+							</ResponsiveMenuItem>
+						{/if}
+					{:else if paneMenuView === 'move'}
+						<ResponsiveMenuItem icon="‹" onclick={() => (paneMenuView = 'root')}>Back</ResponsiveMenuItem>
+						<div class="menu-divider" role="separator"></div>
+						{#each moveTargets as target (target.slug)}
+							<ResponsiveMenuItem
+								icon={target.icon || '📁'}
+								disabled={moving}
+								onclick={() => handleMove(target.slug)}
+							>
+								{target.name}
+							</ResponsiveMenuItem>
+						{/each}
+					{:else if paneMenuView === 'delete'}
+						<!--
+							Delete confirmation, as a drill-down view (PLAN-2326 DR-6).
+							Cancel comes FIRST so the focusKey handoff lands keyboard
+							focus on the non-destructive row — Enter on arrival must
+							never delete.
+
+							The prompt carries `role="presentation"`: a `role="menu"`
+							owns menuitem / separator / group children, and this says
+							explicitly that the prompt is none of them rather than
+							leaving an undeclared div among them (the `.menu-divider`
+							below is the separator case).
+
+							It is NOT what keeps the prompt out of Menu's arrow-key
+							walk — that selector is `[role^="menuitem"]`, so a bare div
+							was already excluded. The consequence that matters is the
+							same either way: the prompt is never announced on its own,
+							hence the aria-describedby pointing back at it from the
+							destructive row. `role="presentation"` drops the element's
+							own semantics but NOT its text, so that description still
+							computes — verified against the rendered a11y tree, where
+							the row reports name "Delete item" / description "Delete
+							this item?" and Cancel reports no description.
+						-->
+						<div class="menu-confirm-note" role="presentation" id="delete-confirm-note-{uid}">
+							Delete this item?
+						</div>
+						<ResponsiveMenuItem icon="‹" onclick={() => (paneMenuView = 'root')}>Cancel</ResponsiveMenuItem>
+						<div class="menu-divider" role="separator"></div>
+						<ResponsiveMenuItem
+							icon={Delete02Icon}
+							danger
+							describedBy="delete-confirm-note-{uid}"
+							disabled={deleting || !canEdit}
+							onclick={handleDelete}
+						>
+							{deleting ? 'Deleting…' : 'Delete item'}
+						</ResponsiveMenuItem>
+					{/if}
+				</ResponsiveMenu>
+			</div>
+		</div>
+
 		<div class="item-head">
 		<!-- Title -->
 		<div class="title-row">
@@ -6960,304 +7270,13 @@
 		{/if}
 		</div><!-- /item-head -->
 
-		<!-- Actions: round icon buttons at the top right of the page (Linear's
-		     toolbar). The grid puts this row first, whatever its DOM position. -->
-		<div class="meta-actions">
-			<!-- Star is a per-user, itemId-keyed REST toggle available to viewers too,
-			     and cannot collide across sides — so it is NOT frozen while peeking
-			     (BUG-2263). No canEdit or peeking gate. -->
-			{#key item.id}
-				<ItemLinkCopyButton path={fullPageUrl} />
-			{/key}
-			{#if !embedded && formatItemRef(item)}
-				<!-- The docked pane's header carries its own copy button. -->
-				<button
-					type="button"
-					class="tool-btn copy-ref-btn"
-					onclick={handleCopyRef}
-					title="Copy item ID"
-					aria-label="Copy item ID"
-				>
-					{#if copied}<Icon icon={Tick02Icon} /><span class="copied-tooltip">Copied!</span>{:else}<Icon icon={Copy01Icon} />{/if}
-				</button>
-			{/if}
-			<button
-				class="tool-btn star-btn"
-				class:starred={starredStore.isStarred(item.id)}
-				onclick={() => { if (!item) return; starredStore.toggle(wsSlug, item.slug, item.id); }}
-				title={starredStore.isStarred(item.id) ? 'Unstar' : 'Star'}
-				aria-pressed={starredStore.isStarred(item.id)}
-			>
-				<Icon icon={StarIcon} />
-			</button>
-			<!-- Installed apps' item actions (SPEC-6 U9d over U11): a link out
-			     per action, read-only here, so visible on the peeking side too.
-			     Remounted per item and identity like QuickActionsMenu below. -->
-			{#key itemSlug}
-				{#key identityKey}
-					<ItemAppActions {wsSlug} itemSlug={item.slug} />
-				{/key}
-			{/key}
-			<!-- Quick-actions menu: the prompt-copy actions are read-only and stay
-			     visible on the peeking side (invisible freeze, BUG-2263). But the
-			     owner "New / Manage actions" controls WRITE the whole collection
-			     `settings` JSON from this instance's local snapshot with no merge —
-			     and master + pane can be DIFFERENT items in the SAME collection, so
-			     two concurrent saves are last-write-wins. So `canEdit` (which gates
-			     ONLY those write controls) folds in `!peeking`: the collection-config
-			     writes are confined to the active side, the prompts stay on both. -->
-			{#if collection && (quickActions.length > 0 || isOwner)}
-				<!-- {#key itemSlug}: structural containment (PLAN-2105 / TASK-2112).
-				     Remount this item-scoped menu on every item switch so the
-				     child's OWN local state (open form, in-progress inputs) resets.
-				     Keyed on itemSlug (the URL/ref identity), NOT item.id, so it
-				     resets the instant the ref changes rather than waiting for B to
-				     load. NOTE: the remount does NOT cancel a destroyed instance's
-				     in-flight save promise — that promise still fires
-				     oncollectionupdated into this persistent parent (see the
-				     switch-safety note on the callback). -->
-				{#key itemSlug}
-					{#key identityKey}
-					{@const handedDown = identityKey}
-					<QuickActionsMenu
-						actions={quickActions}
-						{item}
-						{collection}
-						scope="item"
-						{wsSlug}
-						canEdit={isOwner && !peeking}
-						onmanage={() => {
-							editCollectionSection = 'actions';
-							editCollectionOpen = true;
-						}}
-						oncollectionupdated={(updated) => {
-							if (handedDown !== identityKey) return;
-							// Switch-safety note (BUG-2280 — investigated, NOT a live
-							// bug; do NOT add a template-side {@const keyedSlug =
-							// itemSlug} "snapshot" fence here). A quick-action save can
-							// resolve AFTER an A->B switch and fire this callback from a
-							// destroyed {#key} instance, but it's already safe by two
-							// independent layers, so no parent fence is needed:
-							//   1. QuickActionsMenu's OWN child-side guard
-							//      (`collection?.id !== baseCollection.id`, captured
-							//      pre-await) drops the callback on a CROSS-collection
-							//      switch: a destroyed instance's `collection` prop reads
-							//      the LIVE parent value (B's collection), not a frozen
-							//      A — so the guard fails and oncollectionupdated is
-							//      never invoked. (This note said a {@const} snapshot
-							//      would NOT freeze in Svelte 5. That holds for a block
-							//      that is not remounted; inside a {#key} that remounts on
-							//      the change being guarded it DOES freeze, measured for a
-							//      destroyed instance's post-await callback — BUG-3084,
-							//      which gates this callback on `handedDown` for that
-							//      reason. The slug reasoning below is unchanged.)
-							//   2. On a SAME-collection switch the callback DOES fire,
-							//      but `updated` is that same collection, so assigning it
-							//      is correct; and loadData's collection write
-							//      (adoptCollection — BUG-2602 replaced the old
-							//      gen/id escape hatch) still lands the right
-							//      collection regardless of the collectionGen
-							//      bump below, since the live item agrees with it.
-							// Bump the unified fence so an in-flight stale load/refresh
-							// can't revert this fresh write (Codex). adoptCollection adds
-							// the live-item semantic veto on top (BUG-2602).
-							adoptCollection(updated, ++collectionGen);
-						}}
-					/>
-					{/key}
-				{/key}
-			{/if}
-			{#if childTotal > 0}
-				<!--
-					Children jump badge (IDEA-2133). Mirrors the "📎 N" backlinks
-					badge below: surfaces the child completion count (done/total)
-					in the action bar and smooth-scrolls to the Children section.
-					Placed before the backlinks badge so the two jump affordances
-					match the page's reading order (children → backlinks →
-					timeline). Hidden when the item has no children. The count is
-					derived from computedOverrides — the same source the ChildItems
-					section header renders — so badge and section always agree.
-				-->
-				<button
-					class="tool-btn tool-btn-count"
-					title="{childTotal} child item{childTotal === 1 ? '' : 's'}, {childDone} done"
-					aria-label="Jump to Children — {childDone} of {childTotal} done"
-					onclick={() => jumpToSection('relationships', 'item-children')}
-				>
-					<Icon icon={Tree06Icon} /> {childDone}/{childTotal}
-				</button>
-			{/if}
-			{#if backlinksCount > 0}
-				<!--
-					Mention badge (PLAN-1593 / TASK-1596). Surfaces the inbound
-					`[[...]]` reference count in the action bar so users can see
-					at a glance that this item is referenced from elsewhere AND
-					jump straight to the panel without scrolling. Hidden when
-					the count is 0 so items with no inbound links don't
-					advertise an empty surface. The count is driven by
-					BacklinksPanel's onCountChange callback so the two stay in
-					sync without a separate API call.
-				-->
-				<button
-					class="tool-btn tool-btn-count"
-					title="Mentioned in {backlinksCount} other item{backlinksCount === 1 ? '' : 's'}"
-					onclick={() => jumpToSection('relationships', 'item-backlinks')}
-				>
-					<Icon icon={Attachment01Icon} /> {backlinksCount}
-				</button>
-			{/if}
-			<!-- Pane ⋯ overflow (PLAN-2290 Phase 4 PR B): graph / move / share /
-			     delete per the mock. Triggers stay LIVE while peeking (BUG-2263 —
-			     these dispatch side-independent REST/dialog actions); opening the
-			     menu on a peeking side activates it like any other control. -->
-			<div class="menu-anchor">
-				<button
-					class="tool-btn pane-more-btn"
-					bind:this={paneMenuTrigger}
-					aria-haspopup="menu"
-					aria-expanded={paneMenuOpen}
-					aria-label="More item actions"
-					title="More"
-					disabled={moving}
-					onclick={() => {
-						paneMenuView = 'root';
-						paneMenuOpen = !paneMenuOpen;
-					}}
-				><Icon icon={MoreHorizontalIcon} /></button>
-				<!-- mode=portal (BUG-2610): anchored panels clip against the
-				     pane's overflow-y:auto scroll container in split view —
-				     see QuickActionsMenu's matching note. -->
-				<ResponsiveMenu
-					open={paneMenuOpen}
-					onclose={() => { paneMenuOpen = false; paneMenuView = 'root'; }}
-					trigger={paneMenuTrigger}
-					mode="portal"
-					width={260}
-					sheetOnMobile
-					sheetTitle="Item actions"
-					ariaLabel="Item actions"
-					focusKey={paneMenuView}
-				>
-					{#if paneMenuView === 'root'}
-						{#if graphFocusRef}
-							<ResponsiveMenuItem icon={HierarchySquare01Icon} onclick={() => { paneMenuOpen = false; openGraph(); }}>
-								Dependency graph
-							</ResponsiveMenuItem>
-						{/if}
-						{#if canEdit}
-							<ResponsiveMenuItem icon="⇄" hint="›" onclick={() => (paneMenuView = 'move')} disabled={moving}>
-								{moving ? 'Moving…' : 'Move to collection…'}
-							</ResponsiveMenuItem>
-							<!-- Launcher only — the review step itself is a Modal (PLAN-2373).
-							     Stays `canEdit`-gated like the move row: that correctly admits
-							     an item-edit-grant guest, which the server also admits. The
-							     DESTINATION side is gated separately, inside the dialog. -->
-							<ResponsiveMenuItem
-								icon="⧉"
-								onclick={() => {
-									paneMenuOpen = false;
-									paneMenuView = 'root';
-									copyDialogInitialCollection = '';
-									copyDialogOpen = true;
-								}}
-								disabled={moving}
-							>
-								Copy or move to workspace…
-							</ResponsiveMenuItem>
-						{/if}
-						{#if canPush}
-							<!-- Launcher only; the composer is a Modal. Gated on a
-							     resolved user rather than `canEdit` — the push is
-							     addressed to the caller's OWN sessions, so a viewer
-							     qualifies (see `canPush`). -->
-							<ResponsiveMenuItem
-								icon="➤"
-								onclick={() => {
-									paneMenuOpen = false;
-									paneMenuView = 'root';
-									pushDialogOpen = true;
-								}}
-							>
-								Push to agent…
-							</ResponsiveMenuItem>
-						{/if}
-						{#if isOwner}
-							<ResponsiveMenuItem icon="⇗" onclick={() => { paneMenuOpen = false; shareDialogOpen = true; }}>
-								Share…
-							</ResponsiveMenuItem>
-						{/if}
-						{#if canEdit}
-							<div class="menu-divider" role="separator"></div>
-							<!-- Drill down rather than close: the confirmation is a
-							     'delete' sub-view of THIS panel (PLAN-2326 DR-6), so
-							     the menu stays open and Menu's focusKey hands focus
-							     to the sub-view's first row. -->
-							<ResponsiveMenuItem icon={Delete02Icon} danger hint="›" onclick={() => (paneMenuView = 'delete')}>
-								Delete…
-							</ResponsiveMenuItem>
-						{/if}
-					{:else if paneMenuView === 'move'}
-						<ResponsiveMenuItem icon="‹" onclick={() => (paneMenuView = 'root')}>Back</ResponsiveMenuItem>
-						<div class="menu-divider" role="separator"></div>
-						{#each moveTargets as target (target.slug)}
-							<ResponsiveMenuItem
-								icon={target.icon || '📁'}
-								disabled={moving}
-								onclick={() => handleMove(target.slug)}
-							>
-								{target.name}
-							</ResponsiveMenuItem>
-						{/each}
-					{:else if paneMenuView === 'delete'}
-						<!--
-							Delete confirmation, as a drill-down view (PLAN-2326 DR-6).
-							Cancel comes FIRST so the focusKey handoff lands keyboard
-							focus on the non-destructive row — Enter on arrival must
-							never delete.
-
-							The prompt carries `role="presentation"`: a `role="menu"`
-							owns menuitem / separator / group children, and this says
-							explicitly that the prompt is none of them rather than
-							leaving an undeclared div among them (the `.menu-divider`
-							below is the separator case).
-
-							It is NOT what keeps the prompt out of Menu's arrow-key
-							walk — that selector is `[role^="menuitem"]`, so a bare div
-							was already excluded. The consequence that matters is the
-							same either way: the prompt is never announced on its own,
-							hence the aria-describedby pointing back at it from the
-							destructive row. `role="presentation"` drops the element's
-							own semantics but NOT its text, so that description still
-							computes — verified against the rendered a11y tree, where
-							the row reports name "Delete item" / description "Delete
-							this item?" and Cancel reports no description.
-						-->
-						<div class="menu-confirm-note" role="presentation" id="delete-confirm-note-{uid}">
-							Delete this item?
-						</div>
-						<ResponsiveMenuItem icon="‹" onclick={() => (paneMenuView = 'root')}>Cancel</ResponsiveMenuItem>
-						<div class="menu-divider" role="separator"></div>
-						<ResponsiveMenuItem
-							icon={Delete02Icon}
-							danger
-							describedBy="delete-confirm-note-{uid}"
-							disabled={deleting || !canEdit}
-							onclick={handleDelete}
-						>
-							{deleting ? 'Deleting…' : 'Delete item'}
-						</ResponsiveMenuItem>
-					{/if}
-				</ResponsiveMenu>
-			</div>
-		</div>
-
 		<!-- Properties: the right column (Linear's). Outside the tab panels, so it
 		     stays while the tabs change. {#key itemSlug}: structural containment
 		     (PLAN-2105 / TASK-2112) — FieldEditor debounces and the assignment
 		     pickers remount on every item switch so a stale field continuation is
 		     discarded. The collab Editor lives in the main column, OUTSIDE any
 		     key, and never remounts. -->
-		<div class="item-aside">
+		<div class="item-aside" class:aside-off={activeTab !== 'details'}>
 			<!-- Fields — {#key itemSlug}: structural containment (PLAN-2105 /
 			     TASK-2112). The fields sidebar (FieldEditor debounces, assignment
 			     selects) remounts on every item switch so a stale field
@@ -7297,7 +7316,7 @@
 						{@const isFieldEmpty = rawFieldValue == null
 							|| rawFieldValue === ''
 							|| (Array.isArray(rawFieldValue) && rawFieldValue.length === 0)}
-						<div class="field-row" class:print-empty={isFieldEmpty}>
+						<div class="field-row" class:field-row-text={field.type === 'text'} class:print-empty={isFieldEmpty}>
 							<span class="field-label">{field.label}</span>
 							<div class="field-value">
 								{#if canEdit && field.type === 'select' && (field.key === 'status' || field.key === 'priority') && field.options && field.options.length > 0 && (rawFieldValue == null || typeof rawFieldValue === 'string')}
@@ -7521,13 +7540,6 @@
 				</div>
 			</div>
 		{/if}
-
-		<!-- Layout wrapper -->
-		<!-- The Summary: every filled field as full wrapped text, Copy for handing
-		     the item to an agent (TASK-22). Keyed like the properties it mirrors. -->
-		{#key itemSlug}
-			<ItemFieldSummary rows={fieldSummaryRows} heading={`${item ? (formatItemRef(item) ?? '') : ''} ${item?.title ?? ''}`.trim()} />
-		{/key}
 
 		<div class="item-body">
 			<!-- Attachment strip (PLAN-2382 / TASK-2383) — deliberately OUTSIDE
@@ -7966,89 +7978,20 @@
 			</div>
 		</div>
 
-		<!-- Comments, under the content (IDEA-2843 / GitHub #1228). They were
-		     reachable only through the Activity tab, which Dave called a
-		     regression: reviewing an agent-written doc means many small
-		     comments, and every one cost a trip away from the passage being
-		     commented on. TASK-2294's own spec had an activity preview on this
-		     panel; it never shipped, and this is that half.
-
-		     This is THE mounted ItemTimeline — the single owner of the fetch,
-		     the SSE subscription, pagination and every mutation. The Activity
-		     and Versions panels render the same feed from `timelineFeed`.
-
-		     {#key itemSlug}: structural containment (PLAN-2105 / TASK-2112),
-		     the same remount the timeline had inside the panel block below —
-		     it cancels in-flight loads and resets the composer on an item
-		     switch. Moving out of that block without bringing the key would
-		     have dropped the guard silently. It wraps ONLY the timeline: the
-		     collab editor above must never be keyed.
-
-		     COMMENTS/REACTIONS are per-item / per-user REST entities,
-		     side-independent, so they are NOT frozen while peeking (BUG-2263) —
-		     composer + controls stay live on the passive side. -->
+		<!-- The Summary: every filled field as full wrapped text, Copy for handing
+		     the item to an agent (TASK-22). Keyed like the properties it mirrors.
+		     SPEC-24 / TASK-31: it sits BELOW the body and closed, because the
+		     stacked layout already shows the properties above it. The wide page
+		     hides it (CSS, so nothing remounts): its aside shows full text, and
+		     "Copy as Markdown" is in the ⋯ menu. -->
+		<div class="summary-wrap">
 		{#key itemSlug}
-			<!-- ITEM IDENTITY PROPS ARE GATED ON itemMatchesRef (codex round 6).
-			     During an A→B navigation `item` still holds A while loadData
-			     fetches B, so itemId/collectionId would describe A while itemSlug
-			     describes B — and an attachment dropped in the composer during
-			     that window is associated with the WRONG item. Honest inputs
-			     rather than a new gate: with no itemId/collectionId,
-			     ItemTimeline's canEdit derives false and the composer hides until
-			     the identities agree.
-
-			     Pre-existing wiring, identical on main — the EXPOSURE is what
-			     changed. The composer used to sit behind the Activity tab, and
-			     tabs reset to Details on an item switch, so reaching it inside
-			     the load window took a deliberate click. It is now on the tab you
-			     land on. -->
-			<div id="item-comments" class="timeline-section">
-				<!-- Behind visibility.seenVisible (BUG-3192 Unit B): a tab loaded HIDDEN
-				     issues these reads when first shown, not at load. One-way, so this
-				     never unmounts anything (PLAN-2290's rule stands). -->
-				{#if visibility.seenVisible}
-				{#key identityKey}
-				{@const handedDown = identityKey}
-				<ItemTimeline
-					bind:this={timelineRef}
-					{wsSlug}
-					{username}
-					{itemSlug}
-					currentContent={item.content ?? ''}
-					currentContentStale={isBodyStale(item)}
-					items={localIndex.getAll(wsSlug)}
-					onRestore={(updated) => { if (handedDown !== identityKey) return; handleVersionRestore(updated); }}
-					flushBeforeRestore={flushCollabBeforeRestore}
-					itemId={itemMatchesRef ? item.id : undefined}
-					hostToken={attachmentHostToken}
-					collectionId={itemMatchesRef ? item.collection_id : undefined}
-					frozen={false}
-					restoreFrozen={peeking || !canEdit /* TASK-2205: viewers; and archived items, whose version restore the server answers 404 (ResolveItem excludes them) */}
-					parentArchived={itemMatchesRef && isArchived}
-					visibleKinds={[...COMMENT_KINDS]}
-					fetchKinds={COMMENT_KINDS}
-					title="Comments"
-					emptyLabel="No comments yet."
-				/>
-				<!-- The History tab's feed (PLAN-2348 U3): renders nothing here;
-				     HistoryView renders `timelineFeed` in the History panel. Mounted
-				     beside the comments instance so it shares its visibility gate and
-				     identity key. -->
-				<ItemTimeline
-					headless
-					bind:feed={timelineFeed}
-					{wsSlug}
-					{username}
-					{itemSlug}
-					itemId={itemMatchesRef ? item.id : undefined}
-					currentContent={item.content ?? ''}
-					fetchKinds={HISTORY_KINDS}
-				/>
-				{/key}
-				{/if}
-			</div>
+			<ItemFieldSummary rows={fieldSummaryRows} heading={summaryHeading} />
 		{/key}
+		</div>
+
 		</div><!-- /tab-panel Details -->
+
 
 		<!-- {#key itemSlug}: structural containment (PLAN-2105 / TASK-2112).
 		     Remounts the item-scoped data panels below (relationships, add-link
@@ -8065,7 +8008,26 @@
 		     to B — the child's OWN prop check can't catch it (its prop is frozen
 		     at A). PLAN-2105 / TASK-2112; coordinator. -->
 		{@const keyedSlug = itemSlug}
-		<div class="tab-panel" class:tab-hidden={activeTab !== 'relationships'} role="tabpanel" id="pane-panel-relationships-{uid}" aria-label="Relationships">
+		<div class="tab-panel panel-relationships" class:tab-hidden={activeTab !== 'relationships'} role="tabpanel" id="pane-panel-relationships-{uid}" aria-label="Relationships">
+		<!-- Child Items: always mounted so SSE subscriptions stay active even when starting with 0 children -->
+		<!-- Wrapper carries the #item-children scroll target for the "🌳 N/M"
+		     action-bar jump badge (IDEA-2133); scroll-margin-top clears the
+		     sticky page/pane header. Plain wrapper — does not affect the
+		     always-mounted SSE guarantee below. -->
+		{#if item && visibility.seenVisible}
+			<div id="item-children" class="children-anchor">
+				<!-- ChildItems takes the REAL `canEdit` and is NOT frozen while peeking
+				     (BUG-2263): add-child (create/link) and reorder are side-independent
+				     REST ops, so they stay live on the peeking side. `frozen={false}`
+				     also stops the dndzone from re-initing on activePane flips — removing
+				     a source of drill-click swallowing. -->
+				{#key identityKey}
+				{@const handedDown = identityKey}
+				<ChildItems {wsSlug} {username} {itemSlug} itemId={item.id} parentFields={fields} onChildrenChange={(children) => { if (keyedSlug !== itemSlug || handedDown !== identityKey) return; handleChildrenChange(children); }} {canEdit} frozen={false} selfDirty={localDirty} selfLastSaveTime={localLastSaveTime} onOpenTarget={paneOpenTarget} progress={computedOverrides._progressTotal !== undefined ? { done: computedOverrides._progressDone, total: computedOverrides._progressTotal, percentage: computedOverrides.progress } : undefined} />
+				{/key}
+			</div>
+		{/if}
+
 		{#if relationshipGroups.length > 0}
 			<div class="relationships-section">
 				<h3 class="section-title">Relationships</h3>
@@ -8150,25 +8112,6 @@
 			</div>
 		{/if}
 
-		<!-- Child Items: always mounted so SSE subscriptions stay active even when starting with 0 children -->
-		<!-- Wrapper carries the #item-children scroll target for the "🌳 N/M"
-		     action-bar jump badge (IDEA-2133); scroll-margin-top clears the
-		     sticky page/pane header. Plain wrapper — does not affect the
-		     always-mounted SSE guarantee below. -->
-		{#if item && visibility.seenVisible}
-			<div id="item-children" class="children-anchor">
-				<!-- ChildItems takes the REAL `canEdit` and is NOT frozen while peeking
-				     (BUG-2263): add-child (create/link) and reorder are side-independent
-				     REST ops, so they stay live on the peeking side. `frozen={false}`
-				     also stops the dndzone from re-initing on activePane flips — removing
-				     a source of drill-click swallowing. -->
-				{#key identityKey}
-				{@const handedDown = identityKey}
-				<ChildItems {wsSlug} {username} {itemSlug} itemId={item.id} parentFields={fields} onChildrenChange={(children) => { if (keyedSlug !== itemSlug || handedDown !== identityKey) return; handleChildrenChange(children); }} {canEdit} frozen={false} selfDirty={localDirty} selfLastSaveTime={localLastSaveTime} onOpenTarget={paneOpenTarget} progress={computedOverrides._progressTotal !== undefined ? { done: computedOverrides._progressDone, total: computedOverrides._progressTotal, percentage: computedOverrides.progress } : undefined} />
-				{/key}
-			</div>
-		{/if}
-
 		<!--
 			Mentioned-in panel (PLAN-1593 / TASK-1596). Placed between
 			child items and the timeline so the reading order matches the
@@ -8211,6 +8154,96 @@
 		{/if}
 		</div><!-- /tab-panel Relationships -->
 
+		<!-- WHERE THIS SITS (SPEC-24 / TASK-31). Comments live outside the Details
+		     panel so that, on the wide page, where the tab strip is hidden and
+		     every panel shows, the DOM order is the page's reading order: body,
+		     sub-issues and relationships, then ONE Activity stream (this, then the
+		     History panel). The stacked layout keeps the tabs: `tab-hidden` shows
+		     the comments with Details, as before.
+
+		     Comments, under the content (IDEA-2843 / GitHub #1228). They were
+		     reachable only through the Activity tab, which Dave called a
+		     regression: reviewing an agent-written doc means many small
+		     comments, and every one cost a trip away from the passage being
+		     commented on. TASK-2294's own spec had an activity preview on this
+		     panel; it never shipped, and this is that half.
+
+		     This is THE mounted ItemTimeline — the single owner of the fetch,
+		     the SSE subscription, pagination and every mutation. The Activity
+		     and Versions panels render the same feed from `timelineFeed`.
+
+		     {#key itemSlug}: structural containment (PLAN-2105 / TASK-2112),
+		     the same remount the timeline had inside the panel block below —
+		     it cancels in-flight loads and resets the composer on an item
+		     switch. Moving out of that block without bringing the key would
+		     have dropped the guard silently. It wraps ONLY the timeline: the
+		     collab editor above must never be keyed.
+
+		     COMMENTS/REACTIONS are per-item / per-user REST entities,
+		     side-independent, so they are NOT frozen while peeking (BUG-2263) —
+		     composer + controls stay live on the passive side. -->
+			<!-- ITEM IDENTITY PROPS ARE GATED ON itemMatchesRef (codex round 6).
+			     During an A→B navigation `item` still holds A while loadData
+			     fetches B, so itemId/collectionId would describe A while itemSlug
+			     describes B — and an attachment dropped in the composer during
+			     that window is associated with the WRONG item. Honest inputs
+			     rather than a new gate: with no itemId/collectionId,
+			     ItemTimeline's canEdit derives false and the composer hides until
+			     the identities agree.
+
+			     Pre-existing wiring, identical on main — the EXPOSURE is what
+			     changed. The composer used to sit behind the Activity tab, and
+			     tabs reset to Details on an item switch, so reaching it inside
+			     the load window took a deliberate click. It is now on the tab you
+			     land on. -->
+			<h2 class="activity-heading">Activity</h2>
+			<div id="item-comments" class="timeline-section activity-comments" class:tab-hidden={activeTab !== 'details'}>
+				<!-- Behind visibility.seenVisible (BUG-3192 Unit B): a tab loaded HIDDEN
+				     issues these reads when first shown, not at load. One-way, so this
+				     never unmounts anything (PLAN-2290's rule stands). -->
+				{#if visibility.seenVisible}
+				{#key identityKey}
+				{@const handedDown = identityKey}
+				<ItemTimeline
+					bind:this={timelineRef}
+					{wsSlug}
+					{username}
+					{itemSlug}
+					currentContent={item.content ?? ''}
+					currentContentStale={isBodyStale(item)}
+					items={localIndex.getAll(wsSlug)}
+					onRestore={(updated) => { if (handedDown !== identityKey) return; handleVersionRestore(updated); }}
+					flushBeforeRestore={flushCollabBeforeRestore}
+					itemId={itemMatchesRef ? item.id : undefined}
+					hostToken={attachmentHostToken}
+					collectionId={itemMatchesRef ? item.collection_id : undefined}
+					frozen={false}
+					restoreFrozen={peeking || !canEdit /* TASK-2205: viewers; and archived items, whose version restore the server answers 404 (ResolveItem excludes them) */}
+					parentArchived={itemMatchesRef && isArchived}
+					visibleKinds={[...COMMENT_KINDS]}
+					fetchKinds={COMMENT_KINDS}
+					title="Comments"
+					emptyLabel="No comments yet."
+				/>
+				<!-- The History tab's feed (PLAN-2348 U3): renders nothing here;
+				     HistoryView renders `timelineFeed` in the History panel. Mounted
+				     beside the comments instance so it shares its visibility gate and
+				     identity key. -->
+				<ItemTimeline
+					headless
+					bind:feed={timelineFeed}
+					{wsSlug}
+					{username}
+					{itemSlug}
+					itemId={itemMatchesRef ? item.id : undefined}
+					currentContent={item.content ?? ''}
+					fetchKinds={HISTORY_KINDS}
+				/>
+				{/key}
+				{/if}
+			</div>
+
+
 		<!-- History — a SECOND VIEW of the one feed (IDEA-2843, PLAN-2348 U3).
 		     The owning <ItemTimeline> lives under the content on Details; this
 		     renders the same entries grouped into events (`historyRows`), so
@@ -8226,7 +8259,7 @@
 		     on them: omitting them renders them nowhere, which is exactly how
 		     the feature shipped invisible the first time (BUG-2301). -->
 		<div
-			class="tab-panel"
+			class="tab-panel panel-history"
 			class:tab-hidden={activeTab !== 'history'}
 			role="tabpanel"
 			id="pane-panel-history-{uid}"
@@ -8691,6 +8724,15 @@
 		min-width: 0;
 		margin-bottom: var(--space-6);
 	}
+	/* Stacked, the properties sit above the tab strip, so they show on Details
+	   only: History and Relationships start at the strip, not below every
+	   property row. Hidden, not unmounted: the fields keep their keys and
+	   fences. The wide page shows them whatever the tab (there is no strip). */
+	@container item-layout (max-width: 859.98px) {
+		.item-aside.aside-off {
+			display: none;
+		}
+	}
 	.item-main {
 		grid-area: main;
 		min-width: 0;
@@ -8716,8 +8758,20 @@
 			column-gap: 48px;
 			justify-content: center;
 		}
+		/* Linear's right panel: it stays in view while the page scrolls, and
+		   scrolls on its own when it is taller than the window. The padding and
+		   negative margin keep the value fields' focus rings (they reach 6px
+		   past the column) from being clipped by the scroll box. */
 		.item-aside {
 			margin-bottom: 0;
+			align-self: start;
+			position: sticky;
+			top: var(--space-2);
+			max-height: calc(100dvh - var(--space-8));
+			overflow-y: auto;
+			margin-inline: -6px;
+			padding: 4px 6px;
+			scrollbar-width: thin;
 		}
 	}
 
@@ -9124,6 +9178,19 @@
 		flex: 1;
 		min-width: 0;
 	}
+	/* A text field is prose, not a pill: its label goes ABOVE the value, which
+	   takes the column's full width and grows with its text (fitTextHeight), so
+	   the whole text reads in the properties column. */
+	.field-row-text {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 0;
+		padding: 4px 0;
+	}
+	.field-row-text .field-label {
+		width: auto;
+		line-height: 24px;
+	}
 
 	/* Stacked (the docked pane, a narrow page): the properties are a compact
 	   block above the body, as the collection's layout setting says. The two
@@ -9161,6 +9228,13 @@
 			width: auto;
 			font-size: 12px;
 			white-space: nowrap;
+		}		.layout-content-primary .field-row-text {
+			flex-direction: row;
+			align-items: center;
+			padding: 0;
+		}
+		.layout-content-primary .field-row-text .field-label {
+			line-height: inherit;
 		}
 	}
 	.computed-value {
@@ -9639,6 +9713,59 @@
 		border-top: 1px solid var(--border);
 	}
 
+	/* ── The wide page's reading order (SPEC-24 / TASK-31) ────────────────
+	   Linear's issue view is one scroll, with no tabs: the body, the
+	   sub-issues and relationships, then ONE Activity stream (a heading, the
+	   comment box and comments, the history). At or above the two-column width
+	   the tab strip is hidden and every panel shows. The DOM is already in that
+	   order, and the panels stay mounted either way (the PaneTab rule), so this
+	   is CSS only. Stacked, the tabs and their panels are as they were. */
+	.activity-heading {
+		display: none;
+	}
+	@container item-layout (min-width: 860px) {
+		.pane-tabs {
+			display: none;
+		}
+		.tab-hidden {
+			display: block;
+		}
+		/* The Summary reads the fields as full text; the wide page has them in
+		   the properties column at full width. Its Copy is in the ⋯ menu. */
+		.summary-wrap {
+			display: none;
+		}
+		.panel-relationships {
+			margin-top: var(--space-6);
+		}
+		.activity-heading {
+			display: block;
+			margin: var(--space-8) 0 0;
+			padding-top: var(--space-6);
+			border-top: 1px solid var(--ui-border);
+			font-size: 15px;
+			font-weight: 600;
+			color: var(--ui-foreground);
+		}
+		.activity-comments,
+		.panel-history #item-timeline {
+			margin-top: 0;
+			padding-top: 0;
+			border-top: 0;
+		}
+		.activity-comments {
+			margin-top: var(--space-4);
+		}
+		.panel-history {
+			margin-top: var(--space-5);
+		}
+		/* The heading above names the stream; the comments' own title and
+		   count would be a second one. */
+		.activity-comments :global(.timeline-header) {
+			display: none;
+		}
+	}
+
 	/* ── Toolbar (SPEC-24 / TASK-31) ──────────────────────────────────────
 	   Round 28px icon buttons at the top right of the page (Linear's): copy
 	   link, copy ref, star, the installed apps' actions, ⚡, the child and
@@ -9850,7 +9977,9 @@
 			display: none !important;
 		}
 		#item-timeline,
-		.timeline-section {
+		.timeline-section,
+		.activity-heading,
+		.summary-wrap {
 			display: none !important;
 		}
 

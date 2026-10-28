@@ -22,7 +22,7 @@
 </script>
 
 {#if rows.length > 0}
-	<details class="field-summary" open>
+	<details class="field-summary">
 		<summary class="field-summary-head">
 			<span class="field-summary-title">Summary</span>
 			<button
