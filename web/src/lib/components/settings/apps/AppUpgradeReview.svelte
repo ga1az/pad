@@ -169,7 +169,7 @@
 		{:else}
 			<p>No new drafts.</p>
 		{/if}
-		<Button variant="ghost" size="sm" onclick={onclose}>Done</Button>
+		<Button variant="default" size="sm" onclick={onclose}>Done</Button>
 	{:else if preview}
 		<p class="not-reviewed" role="note">{preview.notice}</p>
 		{#if preview.upgrade?.notice}<p class="hint">{preview.upgrade.notice}</p>{/if}

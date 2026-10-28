@@ -1053,7 +1053,7 @@
 								onkeydown={(e) => isOwner && e.key === 'Enter' && saveName()}
 							/>
 							{#if isOwner}
-								<Button variant="ghost" size="sm" onclick={saveName} disabled={savingName}>
+								<Button variant="default" size="sm" onclick={saveName} disabled={savingName}>
 									{savingName ? 'Saving...' : 'Save'}
 								</Button>
 								{#if nameStatus === 'saved'}

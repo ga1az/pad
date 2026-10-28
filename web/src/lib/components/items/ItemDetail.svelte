@@ -8035,7 +8035,7 @@
 												<span class="link-status">{formatFieldDisplay(entry.status)}</span>
 											{/if}
 											{#if entry.linkId && canEdit}
-												<button class="link-delete-btn" title="Remove relationship" onclick={() => handleDeleteLink(entry.linkId)}>×</button>
+												<button class="link-delete-btn" title="Remove relationship" aria-label="Remove relationship" onclick={() => handleDeleteLink(entry.linkId)}>×</button>
 											{/if}
 										</span>
 									</div>
@@ -8061,7 +8061,7 @@
 					<div class="add-link-form">
 						<div class="add-link-header">
 							<h4>Add Relationship</h4>
-							<button class="add-link-close" onclick={() => { showAddLink = false; }}>×</button>
+							<button class="add-link-close" aria-label="Close" onclick={() => { showAddLink = false; }}>×</button>
 						</div>
 						<div class="add-link-controls">
 							<select aria-label="Link type" aria-describedby="add-link-reads" bind:value={addLinkType} class="add-link-type-select">

@@ -183,7 +183,7 @@
 				<div class="url-row">
 					<input type="text" readonly aria-label="Join link URL" value={minted.url} onfocus={(e) => e.currentTarget.select()} />
 					<Button variant="ghost" size="sm" onclick={copyMinted}><Icon icon={Copy01Icon} /> Copy</Button>
-					<Button size="sm" variant="ghost" onclick={() => (minted = null)}>Done</Button>
+					<Button size="sm" variant="default" onclick={() => (minted = null)}>Done</Button>
 				</div>
 			</div>
 		{/if}

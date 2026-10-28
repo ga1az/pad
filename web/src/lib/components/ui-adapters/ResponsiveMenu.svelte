@@ -22,8 +22,11 @@
     every `[role^="menuitem"]` row, including plain links a consumer marks up
     itself; Escape closes and refocuses the trigger. The panel owns those
     keys outright (no typeahead), so a text field inside a menu keeps its
-    keystrokes. Escape is also registered on the escape stack while open, so
-    one press closes the menu and not the pane under it.
+    keystrokes. With focus elsewhere, Escape reaches the menu through bits-ui's
+    escape layer (the menu is above any dialog it opened in) and the escape
+    stack, so one press closes the menu and not the dialog or pane under it.
+  - Inside an app dialog the panel portals into the dialog's content, so the
+    dialog's focus trap and outside-press rule treat it as part of the dialog.
   - Items never close the menu by themselves; the consumer's onclick decides
     (drill-down views and in-place confirmations depend on that).
   - Portal mode closes on a scroll that can move the anchor and on resize
@@ -48,6 +51,7 @@
 	import { pushEscapeHandler, ESCAPE_PRIORITY } from '$lib/stores/escapeStack';
 	import { viewport } from '$lib/stores/breakpoint.svelte';
 	import { cn } from '$lib/utils';
+	import { DIALOG_HOST_SELECTOR } from '$lib/utils/portalAction';
 
 	interface Props {
 		/** Controlled by the parent (the trigger owns the state). */
@@ -126,16 +130,36 @@
 		tick().then(() => items(panelEl)[0]?.focus());
 	});
 
-	// ESC chain registration while open (desktop only: BottomSheet owns ESC on
-	// mobile). Fires when focus is outside the panel; inside it, the panel's
-	// own keydown handles Escape first.
+	// Escape, three ways in, one menu closed:
+	// - focus inside the panel: the panel's own keydown (onPanelKeydown);
+	// - focus anywhere else, inside an app dialog: bits-ui's escape layer.
+	//   The menu is the topmost layer, so the dialog under it does not close,
+	//   and the route listeners stand down while a dialog is open
+	//   (hasForeignEscapeOwner), so this is the only path that sees the key;
+	// - focus anywhere else, no dialog: the same layer, and the escape stack
+	//   (desktop only: BottomSheet owns ESC on mobile), which keeps the pane
+	//   under the menu from closing on the same press. The stack handler
+	//   consumes the key even when the layer already closed the menu in this
+	//   dispatch (`open` is false by then; its entry goes on the next flush).
 	$effect(() => {
 		if (!open || useSheet) return;
 		return pushEscapeHandler(() => {
-			close();
+			if (open) close();
 			return true;
 		}, ESCAPE_PRIORITY.menu);
 	});
+
+	function onEscapeKeydown(e: KeyboardEvent) {
+		// bits-ui would close through the root binding without refocusing.
+		e.preventDefault();
+		close();
+	}
+
+	// Inside an app dialog the panel portals into the dialog's content, as
+	// portalAction and EmojiPickerButton do: the dialog traps focus, and a
+	// panel on <body> would have its focus pulled back out (and its presses
+	// counted as outside the dialog).
+	const portalTarget = $derived(trigger?.closest<HTMLElement>(DIALOG_HOST_SELECTOR) ?? undefined);
 
 	// Portal mode: a scroll that can MOVE THE ANCHOR closes the menu, and so
 	// does a resize. Scoped to containers that contain the trigger (BUG-2610);
@@ -275,7 +299,9 @@
 			sideOffset={6}
 			trapFocus={false}
 			preventScroll={false}
-			escapeKeydownBehavior="ignore"
+			escapeKeydownBehavior="close"
+			{onEscapeKeydown}
+			portalProps={{ to: portalTarget }}
 			onOpenAutoFocus={(e) => e.preventDefault()}
 			onCloseAutoFocus={(e) => e.preventDefault()}
 			{onInteractOutside}

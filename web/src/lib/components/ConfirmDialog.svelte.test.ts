@@ -52,6 +52,24 @@ describe('ConfirmDialog', () => {
 		expect(document.activeElement).toBe(byText('Cancel'));
 	});
 
+	it('a queued question gets a fresh dialog: Cancel has the focus again, not the confirm just pressed (TASK-26 review)', async () => {
+		open();
+		const first = confirmDialog.request({ title: 'Delete A?', message: 'M', confirmLabel: 'Delete', danger: true });
+		const second = confirmDialog.request({ title: 'Delete B?', message: 'M', confirmLabel: 'Delete', danger: true });
+		await settle();
+		await new Promise((r) => setTimeout(r, 30));
+		const confirmA = byText('Delete')!;
+		confirmA.focus();
+		confirmA.click();
+		expect(await first).toBe(true);
+		await settle();
+		await new Promise((r) => setTimeout(r, 30));
+		expect(document.body.textContent).toContain('Delete B?');
+		expect(document.activeElement).toBe(byText('Cancel'));
+		byText('Cancel')!.click();
+		expect(await second).toBe(false);
+	});
+
 	it('Cancel answers no', async () => {
 		open();
 		const answer = confirmDialog.request({ title: 'T', message: 'M', confirmLabel: 'Replace content' });
