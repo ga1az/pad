@@ -287,7 +287,7 @@
 		line-height: 1.5;
 		white-space: nowrap;
 		background: color-mix(in srgb, var(--chip-c, var(--accent-gray)) var(--chip-alpha, 16%), transparent);
-		color: color-mix(in srgb, var(--chip-c, var(--accent-gray)) var(--chip-text-mix, 100%), #000);
+		color: color-mix(in srgb, var(--chip-c, var(--accent-gray)) var(--chip-text-mix, 100%), var(--chip-text-toward, #000));
 	}
 
 	.cell-tags {
@@ -308,7 +308,7 @@
 		font-weight: 500;
 		line-height: 1.5;
 		background: color-mix(in srgb, var(--accent-purple) var(--chip-alpha, 16%), transparent);
-		color: color-mix(in srgb, var(--accent-purple) var(--chip-text-mix, 100%), #000);
+		color: color-mix(in srgb, var(--accent-purple) var(--chip-text-mix, 100%), var(--chip-text-toward, #000));
 		max-width: 12rem;
 		overflow: hidden;
 		text-overflow: ellipsis;

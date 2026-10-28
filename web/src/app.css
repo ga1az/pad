@@ -32,9 +32,13 @@
 
 	/* Tint strength for Chip/badge fills (color-mix percentage). */
 	--chip-alpha: 16%;
-	/* Chip TEXT darkening: 100% = raw accent (dark theme); light theme
-	   drops to ~72% mixed toward black so small colored labels hold AA. */
-	--chip-text-mix: 100%;
+	/* Chip TEXT: --chip-text-mix of the chip colour, the rest mixed toward
+	   --chip-text-toward. Dark lifts toward white: the raw accent on its own
+	   16% tint is 4.0:1 (primary), 3.3:1 (red) on a card and lower on a raised
+	   surface; 67% accent / 33% white holds 4.5:1 on panel, card and raised
+	   for every accent (chipContrast.test.ts). Light darkens toward black. */
+	--chip-text-mix: 67%;
+	--chip-text-toward: #fff;
 
 	/* Brand accent. --accent-blue is aliased to it because ~95% of its 462
 	   call sites mean "brand accent", not "blue" (see PLAN-2290); the
@@ -658,7 +662,7 @@ dialog.attachment-crop-modal::backdrop {
 }
 .attachment-crop-modal-aspect-active,
 .attachment-crop-modal-aspect-active:hover {
-	background: var(--accent-blue);
+	background: var(--accent-primary-strong);
 	color: #fff;
 }
 .attachment-crop-modal-stage {
@@ -741,12 +745,12 @@ dialog.attachment-crop-modal::backdrop {
 	background: var(--bg-hover);
 }
 .attachment-crop-modal-primary {
-	background: var(--accent-blue);
+	background: var(--accent-primary-strong);
 	color: #fff;
-	border-color: var(--accent-blue);
+	border-color: var(--accent-primary-strong);
 }
 .attachment-crop-modal-primary:hover {
-	filter: brightness(1.1);
+	filter: brightness(0.92);
 }
 
 /* Light mode */
@@ -768,6 +772,7 @@ dialog.attachment-crop-modal::backdrop {
 	--shadow-card: 0 1px 3px rgba(23, 23, 40, 0.1);
 	--chip-alpha: 12%;
 	--chip-text-mix: 72%;
+	--chip-text-toward: #000;
 	--accent-primary: #7c3aed;
 	--accent-primary-soft: #8b5cf6;
 	--accent-primary-strong: #7c3aed;
@@ -806,6 +811,7 @@ dialog.attachment-crop-modal::backdrop {
 		--shadow-card: 0 1px 3px rgba(23, 23, 40, 0.1);
 	--chip-alpha: 12%;
 	--chip-text-mix: 72%;
+	--chip-text-toward: #000;
 		--accent-primary: #7c3aed;
 		--accent-primary-soft: #8b5cf6;
 	--accent-primary-strong: #7c3aed;
