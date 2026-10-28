@@ -76,6 +76,32 @@ test.describe('TASK-2209: the item page layout follows the item, not the viewpor
 		expect(g.pastPanel).toBeLessThanOrEqual(0.5);
 	});
 
+	test('between 560px and 859px the page is stacked and the balanced properties are a two-column block that fits', async ({ page, fixture, request }, testInfo) => {
+		test.skip(testInfo.project.name !== 'desktop-chromium', 'the viewport is set explicitly');
+		// A full page whose container is 560-859px: wide enough for the compact
+		// two-column properties block, too narrow for the page's own two columns.
+		await page.setViewportSize({ width: 1060, height: 900 });
+		const idea = await seedIdea(fixture, request, `t2209 mid ${Date.now()}`);
+		await browserLogin(page);
+		await page.goto(`/${fixture.adminUsername}/${fixture.workspaceSlug}/ideas/${idea.slug}`);
+		const g = await layoutGeometry(page);
+		expect(g.layoutWidth).toBeGreaterThanOrEqual(560);
+		expect(g.layoutWidth).toBeLessThan(860);
+		// Stacked: one page column.
+		expect(g.tracks).toBe(1);
+		const panel = page.locator('.item-layout .fields-panel').first();
+		const block = await panel.evaluate((el) => ({
+			tracks: getComputedStyle(el).gridTemplateColumns.split(' ').length,
+			display: getComputedStyle(el).display
+		}));
+		// The collection's balanced layout still shapes the compact block: two tracks, as a grid.
+		expect(block.display).toBe('grid');
+		expect(block.tracks).toBe(2);
+		// And it fits: nothing runs past its panel or off the screen.
+		expect(g.pastPanel).toBeLessThanOrEqual(0.5);
+		expect(g.pastViewport).toBeLessThanOrEqual(0);
+	});
+
 	test('the mobile bottom sheet opened from a field is not trapped by the new container', async ({ page, fixture, request }, testInfo) => {
 		test.skip(testInfo.project.name !== 'mobile-chromium', 'the BottomSheet only replaces the anchored panel at the mobile breakpoint');
 		const idea = await seedIdea(fixture, request, `t2209 sheet ${Date.now()}`);

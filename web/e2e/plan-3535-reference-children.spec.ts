@@ -3,6 +3,7 @@ import { browserLogin } from './lib/collab-helpers';
 import type { APIRequestContext } from '@playwright/test';
 import type { SuiteFixture } from './fixtures';
 
+import { openTab } from './lib/item-tabs';
 /**
  * PLAN-3535 — a child in a REFERENCE collection (tracks_work: false) is not
  * part of its parent's work. On the parent page it is listed in its own
@@ -80,10 +81,7 @@ test('PLAN-3535: reference children are listed apart and leave the progress coun
 	const open = async () => {
 		await page.goto(`/${fixture.adminUsername}/${fixture.workspaceSlug}/tasks/${parent.slug}`);
 		// The parent page opens on Details; children live under Relationships.
-		const tab = page.getByRole('tablist', { name: 'Item sections' }).getByRole('tab', { name: 'Relationships' });
-		await expect(tab).toBeVisible();
-		await tab.click();
-		await expect(tab).toHaveAttribute('aria-selected', 'true');
+		await openTab(page, 'Relationships');
 		await expect(page.locator('.child-items .child-count')).toBeVisible();
 	};
 

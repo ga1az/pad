@@ -3,6 +3,7 @@ import type { Page, Locator, APIRequestContext } from '@playwright/test';
 import { browserLogin } from './lib/collab-helpers';
 import { deleteCollection } from './lib/attachment-viewer';
 
+import { openTab } from './lib/item-tabs';
 /**
  * BUG-2872 — an activity change on a `relation` field rendered the item ID the
  * field stores ("owner: → d84fb3b1-…"). It now renders the target's
@@ -48,7 +49,7 @@ async function seed(fixture: import('./fixtures').SuiteFixture, request: APIRequ
  *  replaced the Activity tab (PLAN-2348 U3). */
 async function openHistoryTab(page: Page, fixture: import('./fixtures').SuiteFixture, s: { ws: string; src: { slug: string }; item: { ref: string } }) {
 	await page.goto(`/${fixture.adminUsername}/${s.ws}/${s.src.slug}/${s.item.ref}`);
-	await page.getByRole('tab', { name: /history/i }).click();
+	await openTab(page, /history/i);
 }
 
 /** The History tab's change row for `key` inside `scope`. */

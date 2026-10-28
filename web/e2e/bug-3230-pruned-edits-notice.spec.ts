@@ -4,6 +4,7 @@ import { authJson } from './lib/attachment-viewer';
 import type { Browser, APIRequestContext } from '@playwright/test';
 import type { SuiteFixture } from './fixtures';
 
+import { openTab } from './lib/item-tabs';
 /**
  * BUG-3230 U2: a web write the user sent with "Overwrite them" can DELETE another
  * tab's unsaved edits from the op-log (the direct path, when no tab is open).
@@ -125,7 +126,7 @@ test.describe('an overwrite that deletes another tab\'s edits says so (BUG-3230 
 		await browserLogin(page);
 		await page.goto(`/${fixture.adminUsername}/${fixture.workspaceSlug}/docs/${doc.slug}`);
 		await expect(page.locator(EDITOR_SELECTOR)).toBeVisible({ timeout: SYNC_TIMEOUT });
-		await page.getByRole('tab', { name: /History/ }).click();
+		await openTab(page, /History/);
 		const card = page.locator('#item-timeline .version-card').first();
 		await card.locator('.show-changes').click();
 		await card.getByRole('button', { name: /^Restore to / }).click();

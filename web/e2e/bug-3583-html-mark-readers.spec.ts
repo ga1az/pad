@@ -4,6 +4,7 @@ import { authJson } from './lib/attachment-viewer';
 import type { APIRequestContext } from '@playwright/test';
 import type { SuiteFixture } from './fixtures';
 
+import { openTab } from './lib/item-tabs';
 /**
  * BUG-3583 writes a run markdown delimiters cannot express as inline HTML
  * (`<strong>Hello.</strong>World`). Every reader of the stored body must show
@@ -85,7 +86,7 @@ test.describe('BUG-3583: inline HTML marks render in every reader', () => {
 		await browserLogin(page);
 		await page.goto(`/${fixture.adminUsername}/${fixture.workspaceSlug}/docs?item=${target.ref}`);
 		const pane = page.locator('.item-pane');
-		await pane.getByRole('tab', { name: 'Relationships' }).click();
+		await openTab(pane, 'Relationships');
 		const mentioned = pane.locator('.snippet').filter({ hasText: 'World' });
 		await expect(mentioned).toBeVisible({ timeout: 15_000 });
 		await expect(mentioned).toContainText('Hello.World');

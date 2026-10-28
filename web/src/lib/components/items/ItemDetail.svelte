@@ -9781,9 +9781,16 @@
 			margin-top: var(--space-5);
 		}
 		/* The heading above names the stream; the comments' own title and
-		   count would be a second one. */
+		   count would be a second one on screen. They stay for assistive tech
+		   (and the specs that find the comments by that heading): visually
+		   hidden, not removed. */
 		.activity-comments :global(.timeline-header) {
-			display: none;
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip: rect(0 0 0 0);
+			white-space: nowrap;
 		}
 	}
 

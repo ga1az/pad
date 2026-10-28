@@ -4,6 +4,7 @@ import { deleteCollection } from './lib/attachment-viewer';
 import type { APIRequestContext } from '@playwright/test';
 import type { SuiteFixture } from './fixtures';
 
+import { openTab } from './lib/item-tabs';
 /**
  * BUG-3160 — an open item timeline never showed an activity row the debounce
  * merge had changed. `mergeIntoUnlinkedActivity` folds a second update by the
@@ -59,7 +60,7 @@ test('BUG-3160: an open timeline shows a change the debounce merge folded into a
 		await patchNote(request, fixture, item.slug, first); // opens the "updated" row
 
 		await page.goto(`/${fixture.adminUsername}/${fixture.workspaceSlug}/${coll.slug}/${item.slug}`);
-		await page.getByRole('tab', { name: /History/ }).or(page.getByRole('button', { name: /History/ })).first().click();
+		await openTab(page, 'History');
 		// PRECONDITION: the timeline is loaded and shows the row as it stood.
 		// Scoped to the History panel: the Summary on the Details tab shows the
 		// same field value, hidden while History is open.

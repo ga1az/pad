@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures';
 import { browserLogin, seedDoc } from './lib/collab-helpers';
+import { openTab } from './lib/item-tabs';
 import {
 	DESKTOP,
 	REAL_PNG,
@@ -375,7 +376,7 @@ test.describe('attachment lifecycle completeness — 3c-iii browser proof (TASK-
 		// used to be a switch away from Activity; kept because the test must be
 		// ON Details for the strip's `.att-delete` to be clickable, whatever tab
 		// a future edit leaves us on.
-		await page.getByRole('tab', { name: 'Details' }).click();
+		await openTab(page, 'Details');
 		// The delete control is CSS-revealed on hover / focus-within and sits over the
 		// tile, so focus it first (keyboard-reachable by contract) before clicking —
 		// the same handoff `item-attachment-strip.spec.ts` uses.
@@ -407,8 +408,8 @@ test.describe('attachment lifecycle completeness — 3c-iii browser proof (TASK-
 		// Details now, so the switch that proves the panel is CSS-hidden rather
 		// than unmounted has to go OUT and BACK — leaving on Activity would
 		// assert against a hidden panel and pass for the wrong reason.
-		await page.getByRole('tab', { name: /History/ }).click();
-		await page.getByRole('tab', { name: 'Details' }).click();
+		await openTab(page, /History/);
+		await openTab(page, 'Details');
 		await expect(page.locator(tlMissing)).toBeVisible();
 	});
 });

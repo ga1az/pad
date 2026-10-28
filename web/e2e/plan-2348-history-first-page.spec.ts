@@ -2,6 +2,7 @@ import { test, expect } from './fixtures';
 import { browserLogin } from './lib/collab-helpers';
 import type { SuiteFixture } from './fixtures';
 
+import { openTab } from './lib/item-tabs';
 /**
  * PLAN-2348 U3: the History tab fetches only history kinds. It used to share
  * one feed with the comments, so on an item whose newest 50 entries were
@@ -53,7 +54,7 @@ test.describe('PLAN-2348 U3: History is not paged through comments', () => {
 
 		await browserLogin(page);
 		await page.goto(`/${fixture.adminUsername}/${ws}/tasks/${item.slug}`);
-		await page.getByRole('tab', { name: /History/ }).click();
+		await openTab(page, /History/);
 		const panel = page.locator('[role="tabpanel"][aria-label="History"]');
 		await expect(panel.locator('[data-testid="history-row"]').filter({ hasText: 'created this task' })).toBeVisible({
 			timeout: 15_000

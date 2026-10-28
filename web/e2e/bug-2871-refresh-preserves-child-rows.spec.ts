@@ -4,6 +4,7 @@ import { clickBoardCard } from './lib/boardClickProbe';
 import type { APIRequestContext, Page } from '@playwright/test';
 import type { SuiteFixture } from './fixtures';
 
+import { openTab } from './lib/item-tabs';
 /**
  * BUG-2871 — a child row's DOM node must survive a background refresh.
  *
@@ -71,7 +72,7 @@ test('BUG-2871: a same-data refresh keeps the child row node', async ({
 	await clickBoardCard(page.locator(`.item-card[data-item-slug="${parent.slug}"]`));
 	const pane = page.locator('.item-pane');
 	await expect(pane).toBeVisible();
-	await pane.getByRole('tab', { name: 'Relationships' }).click();
+	await openTab(pane, 'Relationships');
 	const childRow = pane.locator('.child-row', { hasText: kidTitle });
 	await expect(childRow).toBeVisible();
 

@@ -3,6 +3,7 @@ import { browserLogin } from './lib/collab-helpers';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import type { SuiteFixture } from './fixtures';
 
+import { openTab } from './lib/item-tabs';
 // Run this file's tests one at a time. Each seeds its own collection(s), so
 // they don't race a shared resource the way an earlier version of this
 // spec did — but the suite's collection-prefix derivation
@@ -467,7 +468,7 @@ test('a collection migration completing after a cross-collection navigation does
 	// nav did.
 	// Relationships moved under the Relationships tab (PLAN-2290 Phase 4) — activate
 	// it on the master before clicking the related link.
-	await page.locator('.item-page-host > .item-page').getByRole('tab', { name: 'Relationships' }).click();
+	await openTab(page.locator('.item-page-host > .item-page'), 'Relationships');
 	await page
 		.locator('.relationship-group', { hasText: 'Related' })
 		.locator('a.link-target', { hasText: bTitle })

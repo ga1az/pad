@@ -4,6 +4,7 @@ import { CdpTouch, deleteCollection } from './lib/attachment-viewer';
 import type { APIRequestContext, Page } from '@playwright/test';
 import type { SuiteFixture } from './fixtures';
 
+import { openTab } from './lib/item-tabs';
 /**
  * BUG-3159 — the two drag zones BUG-3158 left out, same class: a finger held
  * past svelte-dnd-action's 500ms delayTouchStart picks an item up.
@@ -244,7 +245,7 @@ async function childrenDrag(
 
 		await page.goto(`/${fixture.adminUsername}/${fixture.workspaceSlug}/${coll.slug}/${parent.slug}`);
 		// The child list lives on the Relationships tab, not Details.
-		await page.getByRole('tab', { name: 'Relationships' }).or(page.getByRole('button', { name: 'Relationships' })).first().click();
+		await openTab(page, 'Relationships');
 		const row1 = page.locator('.child-row').filter({ hasText: first });
 		const row2 = page.locator('.child-row').filter({ hasText: second });
 		await row2.scrollIntoViewIfNeeded();

@@ -4,6 +4,7 @@ import type { APIRequestContext, Page } from '@playwright/test';
 import type { SuiteFixture } from './fixtures';
 import { backThenDrillAfterSettleArms } from './lib/paneSettle';
 
+import { openTab } from './lib/item-tabs';
 /**
  * Full-page pane HOST — Phase-2 CAPSTONE runtime verification
  * (PLAN-2154 Phase 2 / Architecture E / TASK-2175).
@@ -243,7 +244,7 @@ function collabRoom(url: string): string | null {
 async function openPaneViaRelated(page: Page, titlePrefix: string): Promise<void> {
 	// Relationships moved under the Relationships tab (PLAN-2290 Phase 4) — activate
 	// it on the master before clicking the related link.
-	await masterCol(page).getByRole('tab', { name: 'Relationships' }).click();
+	await openTab(masterCol(page), 'Relationships');
 	await masterCol(page)
 		.locator('.relationship-group', { hasText: 'Related' })
 		.locator('a.link-target', { hasText: titlePrefix })
@@ -326,7 +327,7 @@ test.describe('full-page pane host CAPSTONE (PLAN-2154 Phase 2 / TASK-2175)', ()
 		await page.keyboard.press('Escape');
 		// Relationships tab: the per-link remove button (rendered but `display:none`
 		// until row-hover, so assert DOM presence) and the "+ Add relationship" opener.
-		await col.getByRole('tab', { name: 'Relationships' }).click();
+		await openTab(col, 'Relationships');
 		await expect(col.locator('button.link-delete-btn')).toHaveCount(1);
 		await expect(col.locator('button.add-relationship-btn')).toBeVisible();
 		// Details tab: the comment composer, under the content (IDEA-2843 —
@@ -334,7 +335,7 @@ test.describe('full-page pane host CAPSTONE (PLAN-2154 Phase 2 / TASK-2175)', ()
 		// History tab now, PLAN-2348 U3). Return to Details first, since the Relationships
 		// click above left us elsewhere; the peek-era editor checks below need
 		// this tab anyway.
-		await col.getByRole('tab', { name: 'Details' }).click();
+		await openTab(col, 'Details');
 		await expect(col.locator('#item-comments .compose')).toBeVisible();
 
 		// ── Open the pane → focus-follows-editing (PLAN-2179 DR-2 / TASK-2181) keeps
@@ -391,7 +392,7 @@ test.describe('full-page pane host CAPSTONE (PLAN-2154 Phase 2 / TASK-2175)', ()
 		//    per focus-follows (the same un-peek a field click always triggered), then
 		//    the edit must persist to THIS master's fields (server-side), proving
 		//    updateField fired for the right item id. ──
-		await col.getByRole('tab', { name: 'Details' }).click();
+		await openTab(col, 'Details');
 		await noteInput.fill('edited-while-peeking');
 		await expect
 			.poll(
@@ -549,7 +550,7 @@ test.describe('full-page pane host CAPSTONE (PLAN-2154 Phase 2 / TASK-2175)', ()
 		// {master, related, grandchild}. This is "one pane provider that re-targets, not N".
 		// Children moved under the Relationships tab (PLAN-2290 Phase 4); revealing
 		// the child-row needs the pane's Relationships tab active first.
-		await pane.getByRole('tab', { name: 'Relationships' }).click();
+		await openTab(pane, 'Relationships');
 		await pane.locator('.child-row', { hasText: 'FP ws grandchild' }).click();
 		await expect(pane.locator('.title', { hasText: 'FP ws grandchild' })).toBeVisible();
 		await expect

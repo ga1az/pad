@@ -19,6 +19,7 @@ import { browserLogin, seedDoc } from './lib/collab-helpers';
 import type { APIRequestContext, Page } from '@playwright/test';
 import type { SuiteFixture } from './fixtures';
 
+import { openTab } from './lib/item-tabs';
 const DESKTOP = { width: 1200, height: 900 };
 
 function authHeaders(fixture: SuiteFixture) {
@@ -114,7 +115,7 @@ test.describe('selection toolbar — Comment (IDEA-2843)', () => {
 		// master's Details tab back on screen (which re-activates it), then
 		// re-peek — the master is frozen WITH its editor visible.
 		const pane = page.locator('.item-pane');
-		await masterPage.getByRole('tab', { name: 'Relationships' }).click();
+		await openTab(masterPage, 'Relationships');
 		await page
 			.locator('.relationship-group', { hasText: 'Related' })
 			.locator('a.link-target', { hasText: 'Peek comment related' })
@@ -122,7 +123,7 @@ test.describe('selection toolbar — Comment (IDEA-2843)', () => {
 		await expect(pane).toBeVisible();
 		await expect.poll(() => openItemParam(page)).toBe(relatedRef);
 		await pane.locator('.editor-wrapper .ProseMirror').click();
-		await masterPage.getByRole('tab', { name: 'Details' }).click();
+		await openTab(masterPage, 'Details');
 		await pane.locator('.editor-wrapper .ProseMirror').click();
 		await expect(masterMain).toHaveAttribute('contenteditable', 'false');
 

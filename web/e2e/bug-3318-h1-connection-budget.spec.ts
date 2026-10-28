@@ -55,8 +55,9 @@ test.describe('BUG-3318: open pad tabs must not starve a new page of connections
 		expect((await collections).ok(), 'the new page never got its collections list: the browser had no connection to send it on').toBe(
 			true
 		);
-		// The item page finishes loading: its tab strip renders past the skeleton.
-		await expect(next.getByRole('tab', { name: 'Details' })).toBeVisible({ timeout: 20_000 });
+		// The item page finishes loading: its Details panel renders past the skeleton
+		// (the tab strip does too, but only while the page is stacked).
+		await expect(next.getByRole('tabpanel', { name: 'Details' })).toBeVisible({ timeout: 20_000 });
 	});
 
 	test('one tab holds the access stream; when it closes, another takes over and still hears hints', async ({

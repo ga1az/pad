@@ -1,4 +1,5 @@
 import { test, expect, request, type Locator, type Page } from '@playwright/test';
+import { openTab } from './lib/item-tabs';
 import {
 	actAs,
 	seedPermissionWalk,
@@ -395,7 +396,7 @@ test.describe('guestPrecedence: a view-only card does not move (BUG-3259)', () =
 	test('children (door 7): drag and the Move menu on a view-only child', async ({ page }) => {
 		const writes = recordWrites(page);
 		await open(page, `/tasks/${walk.tasks[2].slug}`);
-		await page.getByRole('tab', { name: 'Relationships' }).click();
+		await openTab(page, 'Relationships');
 		const child = (t: string) => titled(page, '.child-list > .child-item-wrapper', '.child-title', t);
 		await expect(child(A())).toBeVisible();
 		await expect(child(B()).locator('.iam-trigger'), 'control: B has the menu').toHaveCount(1);
@@ -418,7 +419,7 @@ test.describe('guestPrecedence: a view-only card does not move (BUG-3259)', () =
 	test('children (door 7): keyboard drag (Space on the focused child)', async ({ page }) => {
 		const writes = recordWrites(page);
 		await open(page, `/tasks/${walk.tasks[2].slug}`);
-		await page.getByRole('tab', { name: 'Relationships' }).click();
+		await openTab(page, 'Relationships');
 		const child = (t: string) => titled(page, '.child-list > .child-item-wrapper', '.child-title', t);
 		await expect(child(A())).toBeVisible();
 		expect(await keyboardEngages(page, child(A())), 'A must not lift by keyboard').toBe(false);

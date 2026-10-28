@@ -2,6 +2,7 @@ import { test, expect } from './fixtures';
 import type { Request as PWRequest } from '@playwright/test';
 import { browserLogin, SYNCED_BADGE_SELECTOR, expectEditorMounted } from './lib/collab-helpers';
 
+import { openTab } from './lib/item-tabs';
 /**
  * Version-restore under live collab (BUG-2264).
  *
@@ -331,7 +332,7 @@ test('an unflushed live edit is captured in the restore undo-point via the UI (B
 	);
 	// Version cards are on the History tab (PLAN-2348 U3; the Versions tab
 	// before that, PLAN-2290 Phase 4).
-	await page.getByRole('tab', { name: /History/ }).click();
+	await openTab(page, /History/);
 	const card = page.locator('#item-timeline .version-card').first();
 	await card.locator('.show-changes').click(); // expand
 	await card.getByRole('button', { name: /^Restore to / }).click();

@@ -4,6 +4,7 @@ import { authJson } from './lib/attachment-viewer';
 import type { Page, APIRequestContext, Route } from '@playwright/test';
 import type { SuiteFixture } from './fixtures';
 
+import { openTab } from './lib/item-tabs';
 /**
  * BUG-3050 U3: every page that renders a body the server marked as behind the
  * live document (`content_state: applied_pending_flush`, BUG-3000) says so.
@@ -195,7 +196,7 @@ test.describe('stale body renders (BUG-3050 U3)', () => {
 		await markItemReads(page, fixture, item.id);
 		await markChangesRows(page, fixture, item.id);
 		await page.goto(`/${fixture.adminUsername}/${fixture.workspaceSlug}/docs?item=${item.ref}`);
-		await page.getByRole('tab', { name: /History/ }).click();
+		await openTab(page, /History/);
 		// The update is inside the version throttle (same writer and door), so
 		// no row holds it: the History shows it as the diff from the last saved
 		// version to the current body, which is the diff with a current side.
@@ -241,7 +242,7 @@ test.describe('stale body renders (BUG-3050 U3)', () => {
 		// PREMISE: the delta the page received holds this item.
 		const seed = await (await seedDelivered).json();
 		expect(seed.updated.map((u: { id: string }) => u.id), 'the seed delta does not hold the item').toContain(item.id);
-		await page.getByRole('tab', { name: /History/ }).click();
+		await openTab(page, /History/);
 		// The update is inside the version throttle (same writer and door), so
 		// no row holds it: the History shows it as the diff from the last saved
 		// version to the current body, which is the diff with a current side.

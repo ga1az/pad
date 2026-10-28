@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import { browserLogin } from './lib/collab-helpers';
+import { browserLogin, seedDoc } from './lib/collab-helpers';
 import { authJson } from './lib/attachment-viewer';
 import type { Locator, Page } from '@playwright/test';
 
@@ -57,6 +57,65 @@ test.describe('BUG-3231: a drag started inside a menu and released outside does 
 
 		await page.mouse.click(OUTSIDE.x, OUTSIDE.y);
 		await expect(list).toBeHidden();
+	});
+
+	// The boxed FieldEditor select (`.select-dropdown`, closed by `clickOutside`)
+	// no longer ships on the item page, whose properties are pickers (TASK-31),
+	// but it is still the control the copy dialog hands a destination field's value
+	// to. That dropdown keeps its own drag-out leg here.
+	test('field select dropdown (FieldEditor, form appearance, in the copy dialog)', async ({ page, fixture, request }) => {
+		const headers = authJson(fixture);
+		const wsName = `Drag Dest ${Date.now()}`;
+		const wsResp = await request.post('/api/v1/workspaces', { headers, data: { name: wsName, template: 'blank' } });
+		expect(wsResp.ok(), await wsResp.text()).toBeTruthy();
+		const dest = (await wsResp.json()) as { slug: string };
+		const collResp = await request.post(`/api/v1/workspaces/${dest.slug}/collections`, {
+			headers,
+			data: {
+				name: 'Bugs',
+				slug: 'bugs',
+				schema: JSON.stringify({
+					fields: [{ key: 'severity', label: 'Severity', type: 'select', options: ['low', 'high'], required: true }],
+				}),
+			},
+		});
+		expect(collResp.ok(), await collResp.text()).toBeTruthy();
+		const { slug } = await seedDoc(fixture, request, 'Select drag');
+		await page.goto(`/${fixture.adminUsername}/${fixture.workspaceSlug}/docs/${slug}`);
+
+		await page.getByRole('button', { name: 'More item actions' }).first().click();
+		await page.getByRole('menuitem', { name: 'Copy or move to workspace…' }).click();
+		const dialog = page.getByRole('dialog', { name: /^Copy or move / });
+		await expect(dialog).toBeVisible();
+		await dialog.getByLabel('Workspace', { exact: true }).selectOption(dest.slug);
+		const preflight = page.waitForResponse((r) => r.url().includes('/copy/preflight') && r.status() === 200);
+		await dialog.getByLabel('Collection', { exact: true }).selectOption('bugs');
+		await preflight;
+
+		await dialog.locator('.select-trigger').click();
+		const list = dialog.locator('.select-dropdown[role="listbox"]');
+		await expect(list).toBeVisible();
+
+		// Press an option, release outside the list (on the dialog's own heading,
+		// so the dialog itself stays): the click lands on a common ancestor.
+		const heading = dialog.getByRole('heading').first();
+		const box = await heading.boundingBox();
+		if (!box) throw new Error('the dialog heading has no box');
+		const outside = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+		const opt = await list.getByRole('option').first().boundingBox();
+		if (!opt) throw new Error('the option has no box');
+		await page.mouse.move(opt.x + 4, opt.y + opt.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(opt.x + opt.width / 2, opt.y + opt.height / 2, { steps: 4 });
+		await page.mouse.move(outside.x, outside.y, { steps: 10 });
+		await page.mouse.up();
+		await expect(list).toBeVisible();
+		await expect(dialog).toBeVisible();
+
+		// A real press outside closes it (and only it).
+		await page.mouse.click(outside.x, outside.y);
+		await expect(list).toBeHidden();
+		await expect(dialog).toBeVisible();
 	});
 
 	test('board lane actions menu, tag input (BoardView)', async ({ page, fixture, request }) => {
