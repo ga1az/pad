@@ -140,6 +140,7 @@ vi.mock('$lib/stores/collections.svelte', () => ({
 
 import { page } from '$app/state';
 import CollectionPage from './+page.svelte';
+import { draftKey } from '$lib/collections/laneDrafts';
 
 const COLLECTION = {
 	id: 'c1', slug: 'tasks', name: 'Tasks',
@@ -153,7 +154,7 @@ function lastViewProps(): Props | undefined {
 	return [...all].reverse().find((p) => 'onGroupReorder' in p);
 }
 
-async function mountPage(search = '') {
+async function mountPage(search = '', collection: Record<string, unknown> = COLLECTION) {
 	(globalThis as { __stubProps?: Props[] }).__stubProps = [];
 	toasts.length = 0;
 	collectionGets.length = 0;
@@ -164,7 +165,7 @@ async function mountPage(search = '') {
 		if (collectionGets.length === 0) throw new Error('no collection fetch yet');
 		return collectionGets[0]!;
 	});
-	get.resolve({ ...COLLECTION });
+	get.resolve({ ...collection });
 	await waitFor(() => {
 		if (!r.container.querySelector('.view-toolbar')) throw new Error('toolbar not rendered yet');
 		if (r.container.querySelectorAll('.view-tab').length < 3) throw new Error('saved views not loaded yet');
@@ -239,5 +240,31 @@ describe('the tabs row (TASK-29)', () => {
 		expect(container.querySelector('.filter-summary')).toBeNull();
 		expect(filterButton().querySelector('.filter-badge')).toBeNull();
 		expect(lastViewProps()?.filtered).toBe(false);
+	});
+});
+
+describe('the list view carries the board\'s draft wiring (BUG-3043, TASK-29)', () => {
+	beforeEach(() => { vi.clearAllMocks(); });
+
+	it('hands the list the placement, the blocked notices and a Discard', async () => {
+		// `status` has a default, so Uncategorized cannot receive a draft typed in a lane that is gone.
+		const withDefault = {
+			...COLLECTION,
+			schema: JSON.stringify({ fields: [{ key: 'status', type: 'select', options: ['open', 'done'], default: 'open' }] }),
+		};
+		await mountPage('?view=list', withDefault);
+		const props = lastViewProps()!;
+		expect('statusOptions' in props, 'the list is mounted, not the board').toBe(true);
+		const key = draftKey('status', 'wontdo');
+		(props.draftText as Record<string, string>)[key] = 'Typed in a lane that is gone';
+		await tick();
+		expect((props.draftPlacement as Record<string, { kind: string }>)[key]?.kind).toBe('blocked');
+		const notices = props.blockedDraftNotices as { lane: string; message: string }[];
+		expect(notices.map((n) => n.lane)).toEqual([key]);
+		expect(notices[0]!.message).toContain('Wontdo');
+		(props.onDiscardDraft as (lane: string) => void)(key);
+		await tick();
+		expect((props.draftText as Record<string, string>)[key]).toBeUndefined();
+		expect(props.blockedDraftNotices).toEqual([]);
 	});
 });

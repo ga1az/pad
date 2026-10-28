@@ -7,7 +7,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import type { Collection, Item } from '$lib/types';
-import { draftKey } from '$lib/collections/laneDrafts';
+import {
+	blockedDraftMessage,
+	draftCreateFields,
+	draftKey,
+	draftTargets,
+	lostLaneLabel,
+} from '$lib/collections/laneDrafts';
+import { parseSchema } from '$lib/types';
 
 const vp = vi.hoisted(() => ({ mobile: false }));
 vi.mock('$lib/stores/breakpoint.svelte', () => ({
@@ -243,7 +250,111 @@ describe("the group's +", () => {
 		cleanup();
 		// `area` is text: item 7 and item 12 have none, so they are ungrouped.
 		const byArea = renderList({ groupField: 'area', onCreateInColumn: vi.fn() });
-		const labels = [...byArea.container.querySelectorAll('.group-add-btn')].map((b) => b.getAttribute('aria-label'));
-		expect(labels).toEqual(['Add item to Web']);
+		expect(byArea.container.querySelectorAll('.item-group')).toHaveLength(2);
+		expect(byArea.container.querySelector('.group-add-btn')).toBeNull();
+	});
+
+	it('is withheld on a group the list discovered from item values, which the save path cannot place', async () => {
+		// "Web" exists only because item 130 holds it. The board offers `+` on the
+		// field's declared options (`draftableLanes`), and a draft typed in a lane
+		// that is not one is classed as lost: it would save with `area: ''`, into
+		// Uncategorized, or be refused on a required field.
+		const items = [...ITEMS, item(131, { status: 'open', area: 'web' })];
+		const byArea = renderList({ items, groupField: 'area', onCreateInColumn: vi.fn() });
+		expect(groupNamed(byArea.container, 'Web')).toBeTruthy();
+		expect(byArea.container.querySelector('.group-add-btn')).toBeNull();
+	});
+
+	it('on a declared option saves into that option, through the real draft save path', async () => {
+		const field = parseSchema(collection()).fields.find((f) => f.key === 'priority');
+		const created: Record<string, unknown>[] = [];
+		const onCreateInColumn = vi.fn(async (key: string, _title: string) => {
+			const built = draftCreateFields(key, field, 'priority', {});
+			if (!built.ok) throw new Error(built.message);
+			created.push(built.fields);
+		});
+		const { container } = renderList({ groupField: 'priority', onCreateInColumn });
+		// "High" is a declared option: its + is there, and the draft saves priority=high.
+		const group = groupNamed(container, 'High');
+		await fireEvent.click(group.querySelector('.group-add-btn')!);
+		await tick();
+		const input = group.querySelector<HTMLInputElement>('.group-draft input')!;
+		await fireEvent.input(input, { target: { value: 'Ship it' } });
+		await fireEvent.keyDown(input, { key: 'Enter' });
+		await tick();
+		expect(onCreateInColumn).toHaveBeenCalledWith(draftKey('priority', 'high'), 'Ship it', true);
+		expect(created).toEqual([{ priority: 'high' }]);
+	});
+});
+
+// BUG-3043: a draft whose lane no longer exists is shown under Uncategorized
+// ("rehomed"), or, where Uncategorized cannot receive it, kept with a notice
+// and a Discard ("blocked"). The list used to render neither.
+describe('a draft whose lane is gone', () => {
+	const statusField = () => parseSchema(collection()).fields.find((f) => f.key === 'status');
+	const labelFor = (k: string) => (k === 'status' ? 'Status' : k);
+
+	it('shows under Uncategorized, marked with the lane it came from, even with no ungrouped item', async () => {
+		const key = draftKey('status', 'wontdo');
+		const draftText: Record<string, string> = $state({ [key]: 'Typed before the lane went' });
+		const onCreateInColumn = vi.fn(async () => {});
+		const { container } = renderList({
+			// Every item has a status: no item is ungrouped.
+			items: ITEMS,
+			draftText,
+			onCreateInColumn,
+			draftPlacement: draftTargets(draftText, statusField(), {}),
+		});
+		const group = groupNamed(container, 'Uncategorized');
+		expect(group, 'the Uncategorized group is shown for the draft').toBeTruthy();
+		expect(group.querySelector('.group-draft-moved')?.textContent).toContain('Moved from');
+		const input = group.querySelector<HTMLInputElement>('.group-draft input')!;
+		expect(input.value).toBe('Typed before the lane went');
+		await fireEvent.keyDown(input, { key: 'Enter' });
+		await tick();
+		// Submitted under its ORIGINAL key, which is where the page resolves the target.
+		expect(onCreateInColumn).toHaveBeenCalledWith(key, 'Typed before the lane went', true);
+	});
+
+	it('is discarded from its row', async () => {
+		const key = draftKey('status', 'wontdo');
+		const draftText: Record<string, string> = $state({ [key]: 'Lost lane' });
+		const onDiscardDraft = vi.fn();
+		const { container } = renderList({
+			draftText,
+			onCreateInColumn: vi.fn(),
+			onDiscardDraft,
+			draftPlacement: draftTargets(draftText, statusField(), {}),
+		});
+		const group = groupNamed(container, 'Uncategorized');
+		await fireEvent.click([...group.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Discard')!);
+		expect(onDiscardDraft).toHaveBeenCalledWith(key);
+	});
+
+	it('a blocked draft shows its alert, and Discard draft lets it go', async () => {
+		// `status` has a default the create would fill, so Uncategorized cannot
+		// receive the draft: it is kept, not guessed into a lane.
+		const defaults = { status: 'open' };
+		const key = draftKey('status', 'wontdo');
+		const draftText: Record<string, string> = $state({ [key]: 'Cannot go anywhere' });
+		const placement = draftTargets(draftText, statusField(), defaults);
+		const target = placement[key];
+		expect(target?.kind).toBe('blocked');
+		const message = blockedDraftMessage(lostLaneLabel(target as never, labelFor), 'Status', 'defaulted');
+		const onDiscardDraft = vi.fn();
+		const { container } = renderList({
+			draftText,
+			onCreateInColumn: vi.fn(),
+			onDiscardDraft,
+			draftPlacement: placement,
+			blockedDraftNotices: [{ lane: key, message }],
+		});
+		const alert = container.querySelector<HTMLElement>('[role="alert"]')!;
+		expect(alert.textContent).toContain(message);
+		expect(alert.textContent).toContain('Cannot go anywhere');
+		// A blocked draft is not re-homed: no Uncategorized row for it.
+		expect(container.querySelector('.group-draft')).toBeNull();
+		await fireEvent.click([...alert.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Discard draft')!);
+		expect(onDiscardDraft).toHaveBeenCalledWith(key);
 	});
 });

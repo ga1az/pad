@@ -4856,6 +4856,9 @@
 				onCreateInColumn={canEditThisCollection ? quickCreateInColumn : undefined}
 				bind:draftText
 				bind:draftOpen
+				{draftPlacement}
+				{blockedDraftNotices}
+				onDiscardDraft={discardDraft}
 				{itemProgress}
 				{progressLabel}
 				canEdit={canEditThisCollection}
