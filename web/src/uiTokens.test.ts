@@ -85,12 +85,21 @@ describe('ui.css tokens', () => {
 });
 
 describe('shadcn components', () => {
-	const sources = files(join(SRC, 'lib/components/ui')).filter((f) => /\.(svelte|ts)$/.test(f));
+	// ui/ and the app adapters built on it (TASK-26). An adapter's scoped
+	// <style> is left out: ResponsiveMenuItem's plain row (the mobile sheet)
+	// keeps common/MenuItem's app.css look on purpose, and Tailwind never
+	// reads a style block's variables.
+	const adapters = readdirSync(join(SRC, 'lib/components/ui-adapters'))
+		.filter((n) => n.endsWith('.svelte'))
+		.map((n) => join(SRC, 'lib/components/ui-adapters', n));
+	const sources = [...files(join(SRC, 'lib/components/ui')).filter((f) => /\.(svelte|ts)$/.test(f)), ...adapters];
+	const read = (file: string) =>
+		readFileSync(file, 'utf8').replace(file.includes('ui-adapters') ? /<style>[\s\S]*?<\/style>/g : /$^/, '');
 
 	it('reads tokens only as --ui-* variables (or Tailwind --tw-*, bits-ui --bits-*)', () => {
 		expect(sources.length).toBeGreaterThan(0);
 		for (const file of sources) {
-			const text = readFileSync(file, 'utf8');
+			const text = read(file);
 			// `var(--x)`, `var( --x)`, Tailwind's `bg-(--x)` shorthand and its
 			// typed form `w-(length:--x)`.
 			for (const m of text.matchAll(/(?:var\(\s*|\((?:[\w-]+:)?)(--[\w-]+)/g)) {
@@ -106,7 +115,7 @@ describe('shadcn components', () => {
 
 	it('uses no rem arbitrary values (app.css sets a 14px root)', () => {
 		for (const file of sources) {
-			const text = readFileSync(file, 'utf8');
+			const text = read(file);
 			const rem = text.match(/-\[[\d.]+rem\]/g) ?? [];
 			expect(rem, `${file} sizes in rem; use px`).toEqual([]);
 		}

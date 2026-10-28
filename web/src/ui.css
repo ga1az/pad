@@ -35,7 +35,7 @@
 
 @source "./lib/components/ui/**/*.{svelte,ts}";
 @source "./routes/_ui-preview/**/*.svelte";
-@source "./lib/components/ui-adapters/**/*.{svelte,ts}";
+@source "./lib/components/ui-adapters/*.svelte";
 
 /* `dark:` follows the app's own theme switch (see app.css "Light mode" and
    the comment atop lib/components/editor/mermaidTheme.ts). There is no

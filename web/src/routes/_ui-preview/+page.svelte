@@ -88,7 +88,7 @@
 				<div class="min-w-0 text-xs/relaxed">
 					<div class="font-mono text-foreground">--ui-{s.token}</div>
 					<div class="text-muted-foreground">{s.hex} · {s.role}</div>
-					<div class="truncate font-mono text-subtle-foreground">{resolved[s.token] ?? ''}</div>
+					<div class="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-subtle-foreground">{resolved[s.token] ?? ''}</div>
 				</div>
 			</div>
 		{/each}
