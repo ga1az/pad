@@ -24,8 +24,13 @@ const SAME_MEANING = new Set([
 	'sr-only' // app.css's .sr-only is the same visually-hidden rule
 ]);
 
-// The migrated surfaces: they use Tailwind on purpose.
-const MIGRATED = ['lib/components/ui/', 'lib/components/ui-adapters/', 'routes/_ui-preview/'];
+// The migrated surfaces use Tailwind on purpose: every path ui.css scans
+// (its `@source "..."` lines), as a prefix up to the first glob character.
+// Reading them from ui.css keeps this list from going stale as each task
+// adds the files it migrates.
+const MIGRATED = [
+	...readFileSync(join(SRC, 'ui.css'), 'utf8').matchAll(/^@source\s+"\.\/([^"]+)"/gm)
+].map((m) => m[1].split(/[*{]/)[0]);
 
 function svelteFiles(dir: string): string[] {
 	return readdirSync(dir).flatMap((name) => {
@@ -40,7 +45,7 @@ function legacyClassNames(): Map<string, string[]> {
 	const used = new Map<string, string[]>();
 	for (const file of svelteFiles(SRC)) {
 		const rel = relative(SRC, file);
-		if (MIGRATED.some((dir) => rel.startsWith(dir))) continue;
+		if (MIGRATED.some((path) => rel.startsWith(path))) continue;
 		const markup = readFileSync(file, 'utf8')
 			.replace(/<style[\s\S]*?<\/style>/g, '')
 			.replace(/<!--[\s\S]*?-->/g, '');
@@ -71,6 +76,7 @@ describe('ui.css utilities vs legacy class names', () => {
 		const emitted = await emittedClassNames();
 		// PRECONDITION: the build really ran and emitted utilities.
 		expect(emitted.has('inline-flex'), 'ui.css built no utilities').toBe(true);
+		expect(MIGRATED, 'read no @source lines from ui.css').toContain('lib/components/ui/');
 		const legacy = legacyClassNames();
 		expect(legacy.size, 'no legacy markup was read').toBeGreaterThan(100);
 		const collisions = [...legacy]
