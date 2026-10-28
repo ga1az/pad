@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Command as CommandPrimitive } from "bits-ui";
+	import type { AriaRole } from "svelte/elements";
 	import { cn } from "$lib/utils.js";
 
 	let {
@@ -42,9 +43,9 @@
 		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 		<div
 			{...props}
-			role={hasOptions ? props.role : undefined}
-			aria-label={hasOptions ? props["aria-label"] : undefined}
-			tabindex={hasOptions ? props.tabindex : undefined}
+			role={hasOptions ? (props.role as AriaRole) : undefined}
+			aria-label={hasOptions ? (props["aria-label"] as string) : undefined}
+			tabindex={hasOptions ? (props.tabindex as number) : undefined}
 		>
 			<!-- The viewport is what the search field's aria-controls names; without it
 			     the combobox has nothing to point at (axe: aria-required-attr). -->
