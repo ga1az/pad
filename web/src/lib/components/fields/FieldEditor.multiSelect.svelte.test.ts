@@ -189,7 +189,7 @@ describe('multi_select editor, review round 1 (IDEA-3223)', () => {
 	it('a display hold that is not an array (another field type\'s text) does not throw', async () => {
 		const text = { key: 'labels', label: 'Labels', type: 'text' as const };
 		const { container, rerender } = render(FieldEditor, { props: { field: text, value: '', onchange: vi.fn(), itemId: 'i1' } });
-		const input = container.querySelector('input') as HTMLInputElement;
+		const input = container.querySelector('textarea') as HTMLTextAreaElement;
 		input.value = '[';
 		input.dispatchEvent(new Event('input', { bubbles: true }));
 		await tick();

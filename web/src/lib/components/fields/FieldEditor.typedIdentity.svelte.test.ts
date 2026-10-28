@@ -61,14 +61,14 @@ afterEach(() => {
 	vi.restoreAllMocks();
 });
 
-function type(input: HTMLInputElement, text: string) {
+function type(input: HTMLInputElement | HTMLTextAreaElement, text: string) {
 	input.value = text;
 	input.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 function mount(onchange: (v: unknown) => void) {
 	const result = render(FieldEditor, { props: { field, value: '', onchange, itemId: 'item-A' } });
-	return result.container.querySelector('input') as HTMLInputElement;
+	return result.container.querySelector('textarea') as HTMLTextAreaElement;
 }
 
 describe('a typed burst belongs to the identity that typed it (BUG-3130)', () => {

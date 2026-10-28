@@ -1305,8 +1305,20 @@ handlers — onchange is never called.
 		typedDisplay = null;
 	});
 
+	// Sizes the text field's textarea to its content (TASK-22), on mount and
+	// whenever the shown text changes. A hidden one measures 0 and is left
+	// alone, so it is not collapsed before it is shown.
+	function fitTextHeight(el: HTMLTextAreaElement, _text: string) {
+		const fit = () => {
+			el.style.height = 'auto';
+			if (el.scrollHeight > 0) el.style.height = el.scrollHeight + 'px';
+		};
+		fit();
+		return { update: fit };
+	}
+
 	function handleTextInput(e: Event) {
-		const target = e.target as HTMLInputElement;
+		const target = e.target as HTMLInputElement | HTMLTextAreaElement;
 		typedDisplay = target.value;
 		scheduleSave(target.value);
 	}
@@ -1982,15 +1994,18 @@ handlers — onchange is never called.
 	</div>
 
 {:else}
-	<!-- Text fallback -->
-	<input
-		class="field-input"
-		type="text"
+	<!-- Text fallback. A textarea that wraps and grows with its text (TASK-22):
+	     a one-line input hid everything past its width. Enter adds a line; the
+	     value saves while typing and on blur, as it did. -->
+	<textarea
+		class="field-input field-text"
+		rows="1"
 		aria-label={ariaLabel}
 		value={typedDisplay ?? value ?? ''}
 		oninput={handleTextInput}
 		onblur={flushPendingSave}
-	/>
+		use:fitTextHeight={typedDisplay ?? value ?? ''}
+	></textarea>
 {/if}
 {#if replacing}
 	<button type="button" class="mismatch-action" onclick={() => (replacingKey = null)}>Keep the stored value</button>
@@ -2187,6 +2202,17 @@ handlers — onchange is never called.
 
 	.field-input::placeholder {
 		color: var(--text-muted);
+	}
+
+	/* The text field's textarea (TASK-22): wraps, keeps the input's look, and
+	   grows by fitTextHeight rather than by a resize handle. */
+	.field-text {
+		display: block;
+		resize: none;
+		overflow: hidden;
+		line-height: 1.45;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
 	}
 
 	/* ── Date picker ─────────────────────────────────────────────────── */

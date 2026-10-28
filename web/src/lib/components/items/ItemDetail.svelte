@@ -95,6 +95,10 @@
 	import { BotIcon } from '@hugeicons/core-free-icons';
 	import { assigneeGroups, assigneeName } from '$lib/agent/joinedAgents';
 	import { listAssignableAgents } from '$lib/agent/assignableAgents';
+	// The Summary of the filled fields (TASK-22), in their own statements so
+	// units that only use the imports above keep their reviewed hash.
+	import ItemFieldSummary from './ItemFieldSummary.svelte';
+	import { buildFieldSummary } from '$lib/items/fieldSummary';
 	import { parseFields, parseSchema, parseSettings, parseTags, formatItemRef, itemUrlId, type ItemIndexRow } from '$lib/types';
 	import ItemPicker from './ItemPicker.svelte';
 	import QuickActionsMenu from '$lib/components/common/QuickActionsMenu.svelte';
@@ -781,6 +785,7 @@
 	let tags = $derived(parseTags(item));
 	let tagSuggestions = $state<string[]>([]);
 	let schema = $derived(collection ? parseSchema(collection) : { fields: [] });
+	let fieldSummaryRows = $derived(buildFieldSummary(schema.fields, fields));
 	// Timeline change pills render a relation as the target rather than the
 	// item ID it stores (BUG-2872). Built here, where the schema and the stores
 	// already are, and handed to both timeline lists.
@@ -7317,6 +7322,7 @@
 			     the instant the ref changes. -->
 			{#key itemSlug}
 			<div class="fields-panel">
+				<ItemFieldSummary rows={fieldSummaryRows} heading={`${item ? (formatItemRef(item) ?? '') : ''} ${item?.title ?? ''}`.trim()} />
 				<div class="fields-header">Properties</div>
 				{#each schema.fields as field (field.key)}
 					{#if field.computed}

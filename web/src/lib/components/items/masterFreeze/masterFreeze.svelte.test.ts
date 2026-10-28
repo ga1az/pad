@@ -337,7 +337,8 @@ describe('field stays interactive across a peeking flip (BUG-2263)', () => {
 		const r = mountProbe(onchange);
 
 		// Type a value — arms the 500ms debounce, does NOT fire yet.
-		const input = r.querySelector<HTMLInputElement>('input.field-input')!;
+		// A text field is a textarea since TASK-22.
+		const input = r.querySelector<HTMLTextAreaElement>('textarea.field-input')!;
 		input.value = 'ui/editor';
 		input.dispatchEvent(new Event('input', { bubbles: true }));
 		flushSync();
@@ -349,7 +350,7 @@ describe('field stays interactive across a peeking flip (BUG-2263)', () => {
 		r.querySelector<HTMLButtonElement>('[data-testid="begin-peek"]')!.click();
 		flushSync();
 		expect(text(r, 'probe-peeking')).toBe('true');
-		expect(r.querySelector('input.field-input')).not.toBeNull();
+		expect(r.querySelector('textarea.field-input')).not.toBeNull();
 
 		// The debounce fires → the value reaches the parent (→ updateField).
 		vi.advanceTimersByTime(500);

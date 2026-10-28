@@ -69,7 +69,7 @@ afterEach(() => {
 });
 
 /** Type into the field's input the way a user does — one `input` event. */
-function type(input: HTMLInputElement, text: string) {
+function type(input: HTMLInputElement | HTMLTextAreaElement, text: string) {
 	input.value = text;
 	input.dispatchEvent(new Event('input', { bubbles: true }));
 }
@@ -78,8 +78,9 @@ function mount(initial: string, onchange: (v: unknown) => void) {
 	const result = render(FieldEditor, {
 		props: { field, value: initial, onchange, itemId: 'item-A' },
 	});
-	const input = result.container.querySelector('input') as HTMLInputElement;
-	expect(input, 'text field should render an input').toBeTruthy();
+	// The text field is a textarea since TASK-22 (it wraps and grows).
+	const input = result.container.querySelector('textarea') as HTMLTextAreaElement;
+	expect(input, 'text field should render a textarea').toBeTruthy();
 	return { ...result, input };
 }
 
@@ -222,7 +223,7 @@ describe('the fence is the item, not the text', () => {
 		const { container, rerender } = render(FieldEditor, {
 			props: { field, value: '', onchange },
 		});
-		const input = container.querySelector('input') as HTMLInputElement;
+		const input = container.querySelector('textarea') as HTMLTextAreaElement;
 
 		type(input, 'a');
 		await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
@@ -246,7 +247,7 @@ describe('the fence is the item, not the text', () => {
 		const { container, rerender } = render(FieldEditor, {
 			props: { field, value: '', onchange },
 		});
-		const input = container.querySelector('input') as HTMLInputElement;
+		const input = container.querySelector('textarea') as HTMLTextAreaElement;
 
 		type(input, 'a');
 		await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
@@ -515,7 +516,7 @@ describe('the subject can change without the row changing (finding 5)', () => {
 		await rerender({ field, value: 'server', onchange, itemId: 'item-A', readonly: false });
 		await tick();
 
-		const after = document.querySelector('input.field-input') as HTMLInputElement | null;
+		const after = document.querySelector('textarea.field-input') as HTMLTextAreaElement | null;
 		expect(after?.value ?? '', 'the abandoned draft must not come back').toBe('server');
 	});
 });

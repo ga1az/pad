@@ -204,6 +204,9 @@ const POPULATION: string[] = [
 	'lib/components/items/PushToAgentDialog.svelte',
 	// No requests and no awaits; renders a Hugeicons SVG (or an emoji) it is given.
 	'lib/icons/Icon.svelte',
+	// TASK-22: no requests; its one await is the clipboard write, after which it
+	// only shows a toast.
+	'lib/components/items/ItemFieldSummary.svelte',
 ];
 
 /**
@@ -265,6 +268,7 @@ const KNOWN_OUTSIDE_FENCE: Record<string, string> = {
 	'lib/components/items/ItemAppActions.svelte::open::tab.close': 'cleanup: closes the blank tab this click opened when the mint is refused; must run under any identity, carries no data',
 	// ── identity-free UI after a LOCAL await (clipboard; no server request) ──
 	'lib/components/ShareDialog.svelte::handleCopyLink::toastStore.show ×2': 'local: constant text after a clipboard write',
+	'lib/components/items/ItemFieldSummary.svelte::copy::toastStore.show': 'local: constant text after a clipboard write',
 	'lib/components/items/PushToAgentDialog.svelte::handleCopyInstead::toastStore.show ×2': 'local: constant text after a clipboard write',
 	'lib/components/items/PushToAgentDialog.svelte::handleCopyInstead::handleDismiss': 'local: after a clipboard write, view-fenced on destroyed/presenceGen',
 	'lib/components/common/QuickActionsMenu.svelte::copyAndAnnounce::announce': 'local: copied/failed kind after a clipboard write',
