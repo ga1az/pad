@@ -25,6 +25,7 @@ export type EachKeyReason = keyof typeof EACH_KEY_REASONS;
 export const EACH_KEY_CENSUS: Record<string, { reason: EachKeyReason; note: string }> = {
 	"routes/_ui-preview/+page.svelte :: each list as s (s.token)": { reason: 'static-literal', note: "`surfaces`, `texts` or `statuses`, three literals whose token names are distinct within each list (TASK-25)" },
 	"routes/_ui-preview/+page.svelte :: each statuses as s (s.token)": { reason: 'static-literal', note: "five distinct status tokens" },
+	"lib/components/status/PriorityIcon.svelte :: each BARS as bar, i (bar.x)": { reason: 'static-literal', note: "`BARS`, three priority bars at the distinct x offsets 1.5, 5.75 and 10 (TASK-28)" },
 	"routes/_ui-preview/+page.svelte :: each themes as t (t)": { reason: 'static-literal', note: "dark, light, system" },
 	"routes/_ui-preview/+page.svelte :: each sizes as size (size)": { reason: 'static-literal', note: "three distinct Button sizes" },
 	"routes/_ui-preview/+page.svelte :: each variants as variant (variant)": { reason: 'static-literal', note: "six distinct Button variants" },

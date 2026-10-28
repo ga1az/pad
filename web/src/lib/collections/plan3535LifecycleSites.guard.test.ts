@@ -59,7 +59,8 @@ const SITES: Record<string, [number, string]> = {
 
 	// Keep.
 	'src/lib/components/collections/BoardView.svelte::doneFieldTerminalOptions': [1, "keep: the board's terminal-lane display cap, a collection's own view"],
-	'src/lib/items/localLists.ts::childState': [1, "keep: tags and starred pages filter an item's own open state; a reference doc can be open"]
+	'src/lib/items/localLists.ts::childState': [1, "keep: tags and starred pages filter an item's own open state; a reference doc can be open"],
+	'src/lib/components/status/statusCategory.ts::isTerminalStatusDefault': [2, "keep: draws one value's status icon; it counts no work or progress"]
 };
 
 // A literal done list: an array opening with 'done' followed by another
