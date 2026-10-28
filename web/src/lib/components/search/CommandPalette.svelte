@@ -1529,17 +1529,6 @@
 		color: var(--ui-foreground);
 		background: color-mix(in srgb, var(--ui-foreground) 8%, transparent);
 	}
-	.scope-dot {
-		width: 8px;
-		height: 8px;
-		border-radius: 50%;
-		background: var(--text-muted);
-		border: 1px solid var(--border);
-	}
-	.scope-dot.on {
-		background: var(--accent-primary-strong);
-		border-color: var(--accent-blue);
-	}
 
 	/* Filter chips */
 	.filters-row {

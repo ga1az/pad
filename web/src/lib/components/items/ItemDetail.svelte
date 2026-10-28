@@ -8639,14 +8639,6 @@
 />
 
 <style>
-	.center-message {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		height: 50vh;
-		color: var(--text-muted);
-	}
-
 	/* ── Pane tabs (PLAN-2290 Phase 4) ────────────────────────────────── */
 	.pane-tabs {
 		display: flex;

@@ -576,11 +576,6 @@
 		padding-bottom: var(--space-2);
 		border-bottom: 1px solid var(--border);
 	}
-	.block-sub {
-		font-size: 0.8em;
-		color: var(--text-muted);
-		margin-top: calc(-1 * var(--space-2));
-	}
 	.empty {
 		padding: var(--space-6) 0;
 		text-align: center;
@@ -840,9 +835,6 @@
 		.block-title {
 			font-size: 12pt;
 			padding-bottom: 0.25rem;
-		}
-		.block-sub {
-			font-size: 8.5pt;
 		}
 		.block {
 			gap: 0.45rem;

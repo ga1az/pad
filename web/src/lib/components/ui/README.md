@@ -87,3 +87,18 @@ Unwanted candidates can be excluded in `ui.css` with `@source not inline("word")
 - **Summary** (the TASK-22 card for handing an item to an agent) is a closed, borderless block BELOW the body in the stacked layout. The wide page hides it (the properties column shows the full text) and its Copy is "Copy as Markdown" in the ⋯ menu.
 - **Sub-issues stay on the Relationships tab** when stacked, where about twenty e2e specs address them, and come first in it; only their look moved (no divider, a gray "+ Add child").
 - **Phone targets.** At 768px and below every property row, its control and the toolbar buttons are 44px (the TASK-2244 ruling), with 16px input text.
+
+## Cleanup (TASK-32)
+
+Deleted from `components/common/`: `Button`, `Chip`, `Modal`, `Menu`, `MenuItem`, `ToastContainer` (1,238 lines; nothing imported them after TASK-26..31) and their `eachKeyCensus.ts` entries. Kept: `BottomSheet`, `DockedSheet`, and `components/ConfirmDialog.svelte`, which is the Alert Dialog host mounted in `routes/+layout.svelte` (it was never in `common/`).
+
+Dead CSS removed (found with svelte-check's unused-selector warnings plus a scan of every `<style>` and `app.css` class against markup, strings and e2e specs):
+
+| File | Selector | Lines |
+| --- | --- | --- |
+| `app.css` (print block) | `.modal`, `.modal-backdrop` in the chrome-hiding list; the comment now names AppDialog | 2 (+3 comment) |
+| `search/CommandPalette.svelte` | `.scope-dot`, `.scope-dot.on` | 11 |
+| `items/ItemDetail.svelte` | `.center-message` | 8 |
+| `routes/[username]/[workspace]/insights/print/+page.svelte` | `.block-sub` (screen rule and the `@media print` one) | 8 |
+
+Flagged by earlier tasks but checked and KEPT, because they are live: `.search-hint` (already gone), the collection page's `.title-row` (rendered under `viewport.isMobile`, so its base rules are the phone rules) and `.view-sheet-*` (the phone view picker), ItemDetail's `.assignment-readonly` (read-only assignee, pinned by a test) and `.layout-balanced` / `.layout-content-primary` (the stacked block still follows the collection's layout setting), and `.epb-dropdown` (QuickActionsMenu's outside-press exemption). Not touched, because they predate SPEC-24: the two "empty ruleset" warnings (`NestedChildren`, `ChildItems`) and the `<svelte:self>` deprecation.
