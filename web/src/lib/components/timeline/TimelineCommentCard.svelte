@@ -431,19 +431,10 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-2);
-		padding: var(--space-2) var(--space-3);
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		border-left: 3px solid var(--accent-blue);
-	}
-
-	.comment-card.border-agent {
-		border-left-color: var(--accent-purple, #a855f7);
-	}
-
-	.comment-card.border-user {
-		border-left-color: var(--accent-blue);
+		padding: var(--space-3) var(--space-4);
+		background: transparent;
+		border: 1px solid var(--ui-border);
+		border-radius: 8px;
 	}
 
 	.comment-header {

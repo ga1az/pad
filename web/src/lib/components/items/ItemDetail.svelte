@@ -7081,7 +7081,7 @@
 					class="tool-btn tool-btn-count"
 					title="{childTotal} child item{childTotal === 1 ? '' : 's'}, {childDone} done"
 					aria-label="Jump to Children — {childDone} of {childTotal} done"
-					onclick={() => jumpToSection('relationships', 'item-children')}
+					onclick={() => jumpToSection('details', 'item-children')}
 				>
 					<Icon icon={Tree06Icon} /> {childDone}/{childTotal}
 				</button>
@@ -7965,6 +7965,32 @@
 			</div>
 		</div>
 
+		<!-- Sub-issues sit under the body (Linear's), on the tab you land on, and
+		     stay mounted whichever tab is showing. The key and `keyedSlug` are the
+		     ones they had in the Relationships panel: the guard on
+		     onChildrenChange reads them. -->
+		{#key itemSlug}
+		{@const keyedSlug = itemSlug}
+		<!-- Child Items: always mounted so SSE subscriptions stay active even when starting with 0 children -->
+		<!-- Wrapper carries the #item-children scroll target for the "🌳 N/M"
+		     action-bar jump badge (IDEA-2133); scroll-margin-top clears the
+		     sticky page/pane header. Plain wrapper — does not affect the
+		     always-mounted SSE guarantee below. -->
+		{#if item && visibility.seenVisible}
+			<div id="item-children" class="children-anchor">
+				<!-- ChildItems takes the REAL `canEdit` and is NOT frozen while peeking
+				     (BUG-2263): add-child (create/link) and reorder are side-independent
+				     REST ops, so they stay live on the peeking side. `frozen={false}`
+				     also stops the dndzone from re-initing on activePane flips — removing
+				     a source of drill-click swallowing. -->
+				{#key identityKey}
+				{@const handedDown = identityKey}
+				<ChildItems {wsSlug} {username} {itemSlug} itemId={item.id} parentFields={fields} onChildrenChange={(children) => { if (keyedSlug !== itemSlug || handedDown !== identityKey) return; handleChildrenChange(children); }} {canEdit} frozen={false} selfDirty={localDirty} selfLastSaveTime={localLastSaveTime} onOpenTarget={paneOpenTarget} progress={computedOverrides._progressTotal !== undefined ? { done: computedOverrides._progressDone, total: computedOverrides._progressTotal, percentage: computedOverrides.progress } : undefined} />
+				{/key}
+			</div>
+		{/if}
+		{/key}
+
 		<!-- Comments, under the content (IDEA-2843 / GitHub #1228). They were
 		     reachable only through the Activity tab, which Dave called a
 		     regression: reviewing an agent-written doc means many small
@@ -8146,25 +8172,6 @@
 						<p class="add-link-reads" id="add-link-reads">{linkSentence(addLinkDirection, formatItemRef(item) ?? 'This item')}</p>
 					</div>
 				{/if}
-			</div>
-		{/if}
-
-		<!-- Child Items: always mounted so SSE subscriptions stay active even when starting with 0 children -->
-		<!-- Wrapper carries the #item-children scroll target for the "🌳 N/M"
-		     action-bar jump badge (IDEA-2133); scroll-margin-top clears the
-		     sticky page/pane header. Plain wrapper — does not affect the
-		     always-mounted SSE guarantee below. -->
-		{#if item && visibility.seenVisible}
-			<div id="item-children" class="children-anchor">
-				<!-- ChildItems takes the REAL `canEdit` and is NOT frozen while peeking
-				     (BUG-2263): add-child (create/link) and reorder are side-independent
-				     REST ops, so they stay live on the peeking side. `frozen={false}`
-				     also stops the dndzone from re-initing on activePane flips — removing
-				     a source of drill-click swallowing. -->
-				{#key identityKey}
-				{@const handedDown = identityKey}
-				<ChildItems {wsSlug} {username} {itemSlug} itemId={item.id} parentFields={fields} onChildrenChange={(children) => { if (keyedSlug !== itemSlug || handedDown !== identityKey) return; handleChildrenChange(children); }} {canEdit} frozen={false} selfDirty={localDirty} selfLastSaveTime={localLastSaveTime} onOpenTarget={paneOpenTarget} progress={computedOverrides._progressTotal !== undefined ? { done: computedOverrides._progressDone, total: computedOverrides._progressTotal, percentage: computedOverrides.progress } : undefined} />
-				{/key}
 			</div>
 		{/if}
 

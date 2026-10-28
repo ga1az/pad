@@ -1115,9 +1115,10 @@
 {/if}
 
 <style>
+	/* Sub-issues sit right under the body (SPEC-24 / TASK-31); the divider
+	   under them is the comments section's own. */
 	.child-items {
-		padding: var(--space-4) 0;
-		border-top: 1px solid var(--border);
+		padding: var(--space-2) 0;
 	}
 
 	.section-header {
@@ -1129,7 +1130,7 @@
 
 	.section-header h3 {
 		margin: 0;
-		font-size: 0.95em;
+		font-size: 15px;
 		font-weight: 600;
 		color: var(--text-primary);
 	}
@@ -1348,17 +1349,20 @@
 	.add-child-toggle {
 		background: none;
 		border: none;
-		padding: var(--space-1) var(--space-2);
-		font-size: 0.8em;
+		height: 28px;
+		padding: 0 8px;
+		font-size: 13px;
 		font-weight: 500;
-		color: var(--accent-blue);
-		border-radius: var(--radius-sm);
+		color: var(--ui-muted-foreground);
+		border-radius: 6px;
 		cursor: pointer;
 		white-space: nowrap;
 	}
 
+	/* A borderless text action: gray, brightening on hover over a +4% fill. */
 	.add-child-toggle:hover:not(:disabled) {
-		background: var(--bg-hover);
+		background: color-mix(in oklab, var(--ui-foreground) 4%, transparent);
+		color: var(--ui-foreground);
 	}
 
 	.add-child-toggle:disabled {

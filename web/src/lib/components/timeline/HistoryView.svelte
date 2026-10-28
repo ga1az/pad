@@ -365,25 +365,25 @@
 	.filter-chip {
 		display: inline-flex;
 		align-items: center;
-		padding: 0.3em 0.9em;
-		border: 1px solid var(--border);
+		padding: 0.25em 0.8em;
+		border: 1px solid var(--ui-border);
 		border-radius: 999px;
-		background: var(--bg-secondary);
+		background: transparent;
 		color: var(--text-secondary);
 		font: inherit;
-		font-size: 0.85em;
+		font-size: 12.5px;
 		cursor: pointer;
 	}
 
 	.filter-chip:hover {
-		background: var(--bg-tertiary);
+		background: color-mix(in oklab, var(--ui-foreground) 4%, transparent);
 	}
 
 	.filter-chip.on {
-		border-color: var(--accent-purple);
-		color: var(--accent-purple);
-		background: color-mix(in srgb, var(--accent-purple) 12%, transparent);
-		font-weight: 600;
+		border-color: transparent;
+		color: var(--ui-foreground);
+		background: color-mix(in oklab, var(--ui-foreground) 9%, transparent);
+		font-weight: 500;
 	}
 
 	.people select {
@@ -419,9 +419,7 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
-		font-size: 0.75em;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
+		font-size: 12px;
 		color: var(--text-muted);
 	}
 
@@ -433,7 +431,7 @@
 
 	.row {
 		display: flex;
-		gap: var(--space-3);
+		gap: var(--space-2);
 		min-width: 0;
 	}
 
@@ -448,10 +446,11 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		width: 28px;
-		height: 28px;
+		width: 16px;
+		height: 16px;
+		margin-top: 2px;
 		border-radius: 50%;
-		font-size: 0.8em;
+		font-size: 9px;
 		font-weight: 600;
 		color: #fff;
 	}
@@ -468,11 +467,9 @@
 		background: var(--text-muted);
 	}
 
+	/* Events are one line each (Linear's), with no rail between them. */
 	.line {
-		flex: 1;
-		width: 2px;
-		margin-top: var(--space-1);
-		background: var(--border);
+		display: none;
 	}
 
 	.row:last-of-type .line {
@@ -484,23 +481,23 @@
 		min-width: 0;
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-2);
-		padding: var(--space-2) var(--space-3);
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
+		gap: var(--space-1);
+		padding: 0;
+		font-size: 13px;
 	}
 
 	.head {
 		display: flex;
 		align-items: center;
 		flex-wrap: wrap;
-		gap: var(--space-2);
+		gap: var(--space-1) var(--space-2);
 		min-width: 0;
+		color: var(--text-muted);
 	}
 
 	.name {
-		font-weight: 600;
+		font-weight: 500;
+		color: var(--text-secondary);
 		max-width: 24ch;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -513,14 +510,17 @@
 		overflow-wrap: anywhere;
 	}
 
+	/* The time follows the event on the same line, as "· 6w ago". */
 	.spacer {
-		flex: 1;
+		display: none;
 	}
 
 	.time {
-		font-size: 0.8em;
 		color: var(--text-muted);
 		white-space: nowrap;
+	}
+	.time::before {
+		content: '·\00a0';
 	}
 
 	.field-row {
@@ -528,7 +528,7 @@
 		align-items: baseline;
 		gap: var(--space-3);
 		flex-wrap: wrap;
-		font-size: 0.85em;
+		font-size: 12.5px;
 	}
 
 	.field-label {

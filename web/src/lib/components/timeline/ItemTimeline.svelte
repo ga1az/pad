@@ -1425,7 +1425,7 @@
 				{wsSlug}
 				{itemId}
 				{hostToken}
-				placeholder="Write a comment… (paste or drop an image to attach)"
+				placeholder="Leave a comment…"
 				submitLabel="Comment"
 				{submitting}
 				onSubmit={submitComment}
@@ -1503,7 +1503,7 @@
 
 	.timeline-title {
 		margin: 0;
-		font-size: 1em;
+		font-size: 15px;
 		font-weight: 600;
 		color: var(--text-primary);
 	}
@@ -1514,10 +1514,10 @@
 		justify-content: center;
 		min-width: 1.5em;
 		padding: 0 var(--space-1);
-		background: var(--bg-tertiary);
+		background: transparent;
 		border-radius: 9999px;
-		font-size: 0.75em;
-		font-weight: 600;
+		font-size: 12.5px;
+		font-weight: 500;
 		color: var(--text-muted);
 		line-height: 1.6;
 	}

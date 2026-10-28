@@ -203,13 +203,9 @@
 		gap: var(--space-3);
 	}
 
+	/* Linear's comments hang on no rail: the cards stand on their own. */
 	.entry-rail {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		flex-shrink: 0;
-		width: 16px;
-		padding-top: var(--space-2);
+		display: none;
 	}
 
 	.dot {
@@ -253,7 +249,7 @@
 	.entry-content {
 		flex: 1;
 		min-width: 0;
-		padding-bottom: var(--space-3);
+		padding-bottom: var(--space-2);
 	}
 
 	.empty {

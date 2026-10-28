@@ -17,6 +17,8 @@
 	 * edit mode.
 	 */
 	import { onMount, onDestroy } from 'svelte';
+	import Icon from '$lib/icons/Icon.svelte';
+	import { ArrowUp02Icon } from '@hugeicons/core-free-icons';
 	import { Editor } from '@tiptap/core';
 	import StarterKit from '@tiptap/starter-kit';
 	import Link from '@tiptap/extension-link';
@@ -342,31 +344,47 @@
 			{#if onCancel}
 				<button class="ce-cancel" type="button" onclick={onCancel} disabled={saving}>Cancel</button>
 			{/if}
-			<button class="ce-submit" type="button" onclick={doSubmit} disabled={busy || empty}>
-				{saving || submitting ? 'Posting…' : submitLabel}
+			<!-- Posting a new comment is a round send button (Linear's); the
+			     label stays as its accessible name. Editing keeps the text
+			     button beside Cancel. -->
+			<button class="ce-submit" class:ce-send={!onCancel} type="button" onclick={doSubmit} disabled={busy || empty}>
+				{#if onCancel}
+					{saving || submitting ? 'Posting…' : submitLabel}
+				{:else}
+					<span class="ce-send-icon" aria-hidden="true"><Icon icon={ArrowUp02Icon} /></span>
+					<span class="sr-only">{saving || submitting ? 'Posting…' : submitLabel}</span>
+				{/if}
 			</button>
 		</div>
 	</div>
 </div>
 
 <style>
+	/* The box is the whole editor (SPEC-24 / TASK-31, Linear's): the card
+	   fill, a hairline, 8px corners, with the actions inside its bottom edge. */
 	.comment-editor {
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-2);
+		padding: 12px 12px 8px 14px;
+		background: var(--ui-card);
+		border: 1px solid var(--ui-border);
+		border-radius: 8px;
+	}
+	.comment-editor:focus-within {
+		border-color: color-mix(in oklab, var(--ui-foreground) 20%, transparent);
 	}
 
 	.ce-surface {
 		width: 100%;
-		min-height: 60px;
+		min-height: 44px;
 		max-height: 360px;
 		overflow-y: auto;
-		padding: var(--space-2) var(--space-3);
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
+		padding: 0;
+		background: transparent;
+		border: none;
 		color: var(--text-primary);
-		font-size: 0.9em;
+		font-size: 14px;
 		line-height: 1.5;
 	}
 
@@ -403,10 +421,6 @@
 		border-radius: var(--radius-sm);
 	}
 
-	.ce-surface:focus-within {
-		border-color: var(--accent-blue);
-	}
-
 	.comment-editor.busy .ce-surface {
 		opacity: 0.85;
 	}
@@ -441,6 +455,27 @@
 
 	.ce-submit:hover:not(:disabled) {
 		filter: brightness(1.1);
+	}
+
+	/* The round send button: 28px, gray until there is something to send. */
+	.ce-submit.ce-send {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 28px;
+		height: 28px;
+		padding: 0;
+		border-radius: 50%;
+		font-size: 14px;
+	}
+	.ce-send-icon {
+		display: inline-flex;
+	}
+	/* Nothing to send yet: a quiet gray disc, not a dimmed indigo one. */
+	.ce-submit.ce-send:disabled {
+		background: color-mix(in oklab, var(--ui-foreground) 10%, transparent);
+		color: var(--ui-muted-foreground);
+		opacity: 1;
 	}
 
 	.ce-submit:disabled {
