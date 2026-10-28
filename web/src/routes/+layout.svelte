@@ -589,50 +589,6 @@
 	}
 
 	/*
-		Until the page tasks (TASK-28..31) restyle the content, the legacy
-		SURFACE tokens are pointed at the Linear ones inside the dark panel, so
-		the steps read frame < panel <= column < card instead of a near-black
-		page inside a lighter frame. Hex, not var(--ui-*): computed colours stay
-		rgb(), which the e2e contrast measurements parse. Text colours keep
-		their legacy values. The board and its cards (TASK-28) read --ui-*
-		directly now, but no line here was the board's alone: --bg-secondary,
-		--border and --bg-hover have over a hundred other readers, and
-		--card-bg / --card-border are still read by the activity feed
-		(EpisodeFeed). Drop each line as its last reader migrates.
-	*/
-	@media not print {
-		:global([data-theme='dark']) .content-panel.desktop {
-			--bg-primary: #1f2023;
-			--bg-secondary: #1f2023;
-			--bg-tertiary: #28292c;
-			/* Raised surfaces (menus, popovers drawn in place) one step above
-			   the card, as --ui-popover; the legacy #1c1c25 sat below the panel. */
-			--bg-raised: #2e2f33;
-			--bg-hover: #27282b;
-			--bg-active: #2c2d30;
-			--card-bg: #28292c;
-			--card-border: #2d2d2f;
-			--border: #2d2d2f;
-			--border-subtle: #262729;
-		}
-	}
-	@media screen and (not (prefers-color-scheme: light)) {
-		:global(:root:not([data-theme='light'])) .content-panel.desktop {
-			--bg-primary: #1f2023;
-			--bg-secondary: #1f2023;
-			--bg-tertiary: #28292c;
-			/* Raised surfaces (menus, popovers drawn in place) one step above
-			   the card, as --ui-popover; the legacy #1c1c25 sat below the panel. */
-			--bg-raised: #2e2f33;
-			--bg-hover: #27282b;
-			--bg-active: #2c2d30;
-			--card-bg: #28292c;
-			--card-border: #2d2d2f;
-			--border: #2d2d2f;
-			--border-subtle: #262729;
-		}
-	}
-	/*
 		Mobile: the consolidated <TopBar mobile /> is rendered as a sibling
 		of .app-layout and uses position: fixed (z-index 35). Without an
 		offset the .app-layout content would slide under the bar. Pad the

@@ -1118,7 +1118,7 @@
 	   states (TASK-3312); the colour is set inline. The initial is NOT white:
 	   white on these palette colours measured 1.67-2.75:1 on the full colour
 	   and 1.39-1.79:1 on the light-mode inactive mix. An inactive icon takes
-	   --text-primary (#191922 on the light mix, #f0f0f4 on the dark mix:
+	   --text-primary (#191922 on the light mix, #e6e6e7 on the dark mix:
 	   9.74:1 and 4.19:1 at worst), and an active one, on the full colour in
 	   either theme, a fixed dark ink (6.34:1 at worst). */
 	.workspace-tab .workspace-icon {
