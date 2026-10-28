@@ -287,6 +287,12 @@
 		outline: 2px solid var(--ui-ring);
 		outline-offset: 1px;
 	}
+	/* Touch (the TASK-2244 ruling): a 44px target on a phone. */
+	@media (max-width: 768px) {
+		.picker-row {
+			min-height: 44px;
+		}
+	}
 	.picker-row-text {
 		min-width: 0;
 		overflow: hidden;

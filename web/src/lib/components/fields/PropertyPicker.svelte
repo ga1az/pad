@@ -249,6 +249,12 @@
 		outline: 2px solid var(--ui-ring);
 		outline-offset: 1px;
 	}
+	/* Touch (the TASK-2244 ruling): a 44px target on a phone. */
+	@media (max-width: 768px) {
+		.prop-trigger {
+			min-height: 44px;
+		}
+	}
 	.prop-readonly {
 		display: inline-flex;
 		align-items: center;

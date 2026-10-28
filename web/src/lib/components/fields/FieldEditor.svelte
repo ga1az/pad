@@ -2747,4 +2747,44 @@ handlers — onchange is never called.
 	.fe-property .relation-action {
 		font-size: 12px;
 	}
+	/* Touch (the TASK-2244 ruling): every control in a property row is a 44px
+	   target on a phone, and its text 16px so iOS does not zoom on focus. The
+	   switch keeps its look and grows an invisible hit area. This follows the
+	   rules above, whose min-heights it overrides. */
+	@media (max-width: 768px) {
+		.fe-property .select-trigger,
+		.fe-property .field-input,
+		.fe-property .number-wrapper,
+		.fe-property .relation-chip,
+		.fe-property .readonly-display {
+			min-height: 44px;
+		}
+		.fe-property .field-input,
+		.fe-property .number-input {
+			font-size: 16px;
+		}
+		.fe-property .number-btn {
+			width: 44px;
+			height: 44px;
+		}
+		.fe-property .number-btn:first-child {
+			right: 44px;
+		}
+		.fe-property .date-clear {
+			min-width: 44px;
+			min-height: 44px;
+		}
+		.fe-property .url-open {
+			top: 0;
+			bottom: 0;
+			right: 0;
+			width: 44px;
+			justify-content: center;
+		}
+		.fe-property .toggle::after {
+			content: '';
+			position: absolute;
+			inset: -12px -4px;
+		}
+	}
 </style>

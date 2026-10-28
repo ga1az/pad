@@ -233,6 +233,21 @@
 		padding: 0.15em 0.1em;
 		outline: none;
 	}
+	/* Touch (the TASK-2244 ruling): the chip, with its remove button, and the
+	   entry are 44px targets on a phone. 16px keeps iOS from zooming on focus. */
+	@media (max-width: 768px) {
+		.tag-chip {
+			height: 44px;
+		}
+		.tag-remove {
+			width: 32px;
+			height: 32px;
+		}
+		.tag-entry {
+			min-height: 44px;
+			font-size: 16px;
+		}
+	}
 	.tag-entry::placeholder {
 		color: var(--ui-muted-foreground);
 	}

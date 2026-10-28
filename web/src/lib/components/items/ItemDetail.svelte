@@ -6809,7 +6809,8 @@
 				class="tool-btn star-btn"
 				class:starred={starredStore.isStarred(item.id)}
 				onclick={() => { if (!item) return; starredStore.toggle(wsSlug, item.slug, item.id); }}
-				title={starredStore.isStarred(item.id) ? 'Unstar' : 'Star'}
+				title="Star"
+				aria-label="Star"
 				aria-pressed={starredStore.isStarred(item.id)}
 			>
 				<Icon icon={StarIcon} />
@@ -8671,6 +8672,10 @@
 		color: var(--text-secondary);
 		background: var(--bg-hover);
 	}
+	.pane-tab:focus-visible {
+		outline: 2px solid var(--ui-ring);
+		outline-offset: -2px;
+	}
 
 	.pane-tab.on {
 		color: var(--text-primary);
@@ -9174,6 +9179,12 @@
 		gap: var(--space-2);
 		min-height: 32px;
 		padding: 0;
+	}
+	/* Touch (the TASK-2244 ruling): a property row is a 44px target on a phone. */
+	@media (max-width: 768px) {
+		.field-row {
+			min-height: 44px;
+		}
 	}
 	.field-label {
 		font-size: 13px;
@@ -9822,7 +9833,8 @@
 		background: color-mix(in oklab, var(--ui-tab), white 5%);
 		color: var(--ui-foreground);
 	}
-	.meta-actions :global(.tool-btn:focus-visible) {
+	.meta-actions :global(.tool-btn:focus-visible),
+	.meta-actions :global(.quick-actions-menu > .trigger-btn:focus-visible) {
 		outline: 2px solid var(--ui-ring);
 		outline-offset: 2px;
 	}
@@ -9835,6 +9847,25 @@
 		width: auto;
 		padding: 0 10px;
 		font-size: 12px;
+	}
+	/* Touch (the TASK-2244 ruling): 44px buttons on a phone. Eight of them do
+	   not fit one row of a 390px screen, so here, and only here, the toolbar
+	   wraps. */
+	@media (max-width: 768px) {
+		.meta-actions {
+			flex-wrap: wrap;
+		}
+		.meta-actions :global(.tool-btn),
+		.meta-actions :global(.quick-actions-menu > .trigger-btn) {
+			width: 44px;
+			height: 44px;
+		}
+		.meta-actions :global(.tool-btn.tool-btn-count) {
+			width: auto;
+		}
+		.meta-actions :global(.app-action-btn) {
+			min-height: 44px;
+		}
 	}
 	.meta-actions > :global(div.quick-actions-menu),
 	.menu-anchor {
@@ -9994,12 +10025,9 @@
 			display: none !important;
 		}
 
-		/* Title row — page-1 document header block (BUG-626).
-		   DOM order is [item-ref, title]; in print we want [title, ref]
-		   visually, so `order` flips the display sequence without
-		   touching the template. Title takes the remaining width and
-		   wraps naturally; `.item-ref` stays compact on the right,
-		   baseline-aligned to the title's first line. */
+		/* Title row — page-1 document header block (BUG-626). The title takes the
+		   whole row; the ref is on the meta line below it (SPEC-24 / TASK-31 moved
+		   it out of this row). */
 		.title-row {
 			display: flex;
 			justify-content: flex-start;
@@ -10008,20 +10036,6 @@
 			margin: 0 0 4pt 0;
 			padding: 0;
 			border: none;
-		}
-		.title-row .item-ref {
-			order: 2;
-			flex: 0 0 auto;
-			font-size: 10pt;
-			font-weight: 500;
-			color: #555;
-			margin-left: auto;
-			padding: 0;
-			background: transparent;
-			border: none;
-			letter-spacing: 0.03em;
-			font-variant-numeric: tabular-nums;
-			white-space: nowrap;
 		}
 		.title-row .title,
 		.title-row .title-input {
@@ -10050,6 +10064,13 @@
 			white-space: pre-wrap;
 		}
 
+		/* The ref on the meta line prints plain. */
+		.meta-info .item-ref {
+			padding: 0;
+			background: transparent;
+			font-weight: 600;
+			color: #555;
+		}
 		/* Meta info subtitle (created / updated by). Border-bottom
 		   separates the page-1 document header block from the
 		   properties card below. BUG-626. */

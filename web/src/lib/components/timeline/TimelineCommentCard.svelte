@@ -207,7 +207,7 @@
 	const reactionGroups = $derived(groupReactions(comment.reactions));
 </script>
 
-<div class="comment-card {getBorderClass(comment.created_by)}">
+<div class="comment-card">
 	<div class="comment-header">
 		<!-- The label clips (see .actor-label), so it carries its full value in
 		     a title. <bdi> isolates a self-declared name so a bidi control in it

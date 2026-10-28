@@ -472,10 +472,6 @@
 		display: none;
 	}
 
-	.row:last-of-type .line {
-		display: none;
-	}
-
 	.card {
 		flex: 1;
 		min-width: 0;
