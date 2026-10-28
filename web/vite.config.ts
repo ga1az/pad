@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { BUILD_SOURCE_FILE, buildSourceStamp } from './src/lib/build/buildSourceStamp';
+import { sonnerZIndex } from './sonnerZIndex.ts';
 import { dynamicCompileOptions } from './svelteCompileOptions.ts';
 
 const WEB_DIR = fileURLToPath(new URL('.', import.meta.url));
@@ -28,6 +29,7 @@ function buildSource(): Plugin {
 export default defineConfig({
 	plugins: [
 		buildSource(),
+		sonnerZIndex(),
 		tailwindcss(),
 		// The SvelteKit and Svelte config, here rather than in svelte.config.js
 		// (TASK-3423; SvelteKit 3 refuses that file). Kit's own keys (adapter)
