@@ -151,7 +151,7 @@ test.describe('BUG-3165: the list keeps its position across the split pane', () 
 		}
 	});
 
-	test('rows that reflow taller in the column: the CLICKED row stays put, not merely the top one', async ({ page, fixture, request }) => {
+	test('long titles in the narrower column: the CLICKED row stays put, not merely the top one', async ({ page, fixture, request }) => {
 		// Long titles wrap onto more lines in the narrower column than at full
 		// width, so every row above the clicked one grows: holding the TOP row in
 		// place would push the clicked row down by that growth. 250 characters
@@ -164,9 +164,12 @@ test.describe('BUG-3165: the list keeps its position across the split pane', () 
 			const { title, before } = await scrollAndPick(page);
 			const heightBefore = await rowHeight(page, title);
 			await openRow(page, title);
-			// Precondition: the rows really grew, or this leg cannot tell the two
-			// anchors apart.
-			expect(await rowHeight(page, title), 'precondition: rows reflow taller in the column').toBeGreaterThan(heightBefore + 10);
+			// The rows used to grow here, so holding the TOP row would push the
+			// clicked one down. Since TASK-29 a desktop list row is Linear's fixed
+			// 44px line and a long title ellipsizes, so nothing reflows: pinned, so
+			// a change that brings reflow back brings this leg's original
+			// precondition back with it. The clicked row must still stay put.
+			expect(await rowHeight(page, title), 'a list row keeps its 44px height in the narrower column').toBe(heightBefore);
 			const opened = await rowTop(page, title);
 			expect(opened, 'opening the pane moved the clicked row').toBeGreaterThan(before - 40);
 			expect(opened).toBeLessThan(before + 40);

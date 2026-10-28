@@ -450,10 +450,11 @@ test.describe('pane controller: depth/ownership state machine (PLAN-2154 / TASK-
 		await expect(pane).toBeHidden();
 		expect(new URL(page.url()).pathname).toBe(newPath);
 		// Still a LIVE collection page — the renamed collection renders its own
-		// heading, not a "Collection not found" error. (The item list re-hydrates
+		// name, not a "Collection not found" error. (The item list re-hydrates
 		// the renamed collection asynchronously via the local index, so we assert
-		// page liveness via the heading rather than a specific row.)
-		await expect(page.getByRole('heading', { level: 1, name: new RegExp(newName) })).toBeVisible();
+		// page liveness via the name rather than a specific row.) Since TASK-29
+		// the name is in the tabs row's "All <name>" pill: the heading is gone.
+		await expect(page.locator('.view-toolbar .view-tab').first()).toHaveText(new RegExp(`^All ${newName}$`, 'i'));
 	});
 
 	// ── Detach at depth>0 (PLAN-2154 Architecture C / D-detach / TASK-2161) ──

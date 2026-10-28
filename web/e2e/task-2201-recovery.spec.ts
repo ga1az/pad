@@ -32,7 +32,9 @@ test.describe('TASK-2201: one recovery signal', () => {
 
 		await expect(errorCard).toHaveCount(0);
 		await expect(savedCopy).toHaveCount(0);
-		await expect(page.locator('.page-header h1')).toContainText('Docs');
+		// The collection's own row renders (TASK-29: its "All docs" pill tab,
+		// which the page draws from the loaded collection; the heading is gone).
+		await expect(page.locator('.view-toolbar .view-tab').first()).toHaveText('All docs');
 	});
 
 	test('the dashboard and activity pages show the live-stream status', async ({ page, fixture, request }) => {

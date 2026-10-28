@@ -101,11 +101,11 @@ for (const key of ACCOUNT_KEYS) {
 			for (const coll of SEES[key]) {
 				await open(page, key, `/${coll}`, 'list');
 				await expect(page.getByText(anchorTitle(coll), { exact: true }).first()).toBeVisible();
-				await expect(page.locator('button.new-btn'), `${key} on ${coll}`).toHaveCount(
-					EDITS[key].includes(coll) ? 1 : 0
-				);
-				// The sidebar's "+ New {collection}" under the nav (BUG-3258,
-				// codex round 1).
+				// The page's own "+ New" is phone-only since TASK-29 (this walk is
+				// desktop): on desktop it would repeat the panel header's, below.
+				await expect(page.locator('button.new-btn'), `${key} on ${coll}`).toHaveCount(0);
+				// The "+ New {collection}" under the nav (BUG-3258, codex round 1),
+				// in the panel header since TASK-27: the gate this leg walks.
 				await expect(page.locator('button.new-item-btn'), `${key} sidebar on ${coll}`).toHaveCount(
 					EDITS[key].includes(coll) ? 1 : 0
 				);
