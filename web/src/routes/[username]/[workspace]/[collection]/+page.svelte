@@ -5635,8 +5635,9 @@
 			width: 44px;
 		}
 		/* The round icon Buttons (Sort, collection menu; TASK-26) carry the
-		   class too, but a scoped rule does not reach a component's root. */
-		.header-actions :global([data-slot='button'].toolbar-icon-btn) {
+		   class too, but a scoped rule does not reach a component's root (and
+		   their data-slot is the tooltip trigger's). */
+		.header-actions :global(.toolbar-icon-btn) {
 			width: 44px;
 			height: 44px;
 			min-width: 44px;
