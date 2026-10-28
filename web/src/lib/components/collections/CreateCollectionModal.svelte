@@ -468,7 +468,7 @@
 		{:else}
 			<h2 id="create-collection-title">New Collection</h2>
 		{/if}
-		<button class="close-btn" type="button" onclick={requestClose}>&#10005;</button>
+		<button class="close-btn" type="button" onclick={requestClose} aria-label="Close">&#10005;</button>
 	</div>
 
 			{#if step === 'templates'}
