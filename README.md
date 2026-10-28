@@ -4,6 +4,10 @@ Este repositorio es mi fork de [PerpetualSoftware/pad](https://github.com/Perpet
 
 La rama principal de este fork es **`custom`**. La rama **`main`** se conserva como referencia del upstream. La interfaz usa shadcn-svelte y una estética oscura inspirada en Linear. Incluye agentes por invitación (SPEC-15). Las políticas de aprobación están en desarrollo: **todavía no se aplican en `custom` ni en el servicio local**.
 
+![Tablero de tareas del fork personal de Pad, con navegación lateral y columnas de aprobación, trabajo en curso y revisión, en tema oscuro](docs/screenshots/fork-local.png)
+
+_Captura real del workspace Pad en la instancia local (`127.0.0.1:7777`), tomada el 28 de octubre de 2026. Las tareas de aprobación visibles corresponden a trabajo en desarrollo._
+
 ## Compilar y usar localmente
 
 Necesitas Go **1.26.5** como mínimo, Node.js **24** (la versión usada en CI) y `make`. `go.mod` declara `toolchain go1.26.10`; Go puede conservar un toolchain instalado más nuevo. Para reproducir esa versión exacta, usa `GOTOOLCHAIN=go1.26.10`. Los scripts del frontend están en `web/package.json`.
