@@ -1418,6 +1418,10 @@
 		max-width: 640px;
 		background: var(--ui-popover);
 		color: var(--ui-popover-foreground);
+		/* The grays on this surface clear 4.5:1 (axe, task-2234) even under the
+		   row highlight; --ui-muted-foreground, measured from Linear, is 4.4:1
+		   on the popover surface, so the palette mixes its own from the text. */
+		--cp-muted: color-mix(in srgb, var(--ui-foreground) 66%, var(--ui-popover));
 		border: 1px solid var(--ui-border);
 		border-radius: 12px;
 		box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
@@ -1440,7 +1444,7 @@
 		flex-shrink: 0;
 	}
 	.search-icon {
-		color: var(--ui-muted-foreground);
+		color: var(--cp-muted);
 		flex-shrink: 0;
 	}
 	/* The big borderless field. app.css gives inputs a box and a focus
@@ -1459,7 +1463,7 @@
 		border-radius: 0;
 	}
 	.search-input::placeholder {
-		color: var(--ui-muted-foreground);
+		color: var(--cp-muted);
 	}
 	.search-input:focus {
 		border: none;
@@ -1469,7 +1473,7 @@
 		width: 16px;
 		height: 16px;
 		border: 2px solid var(--ui-border);
-		border-top-color: var(--ui-muted-foreground);
+		border-top-color: var(--cp-muted);
 		border-radius: 50%;
 		animation: spin 0.6s linear infinite;
 		flex-shrink: 0;
@@ -1495,7 +1499,7 @@
 		padding: 2px 8px;
 		border-radius: 6px;
 		font-size: 12px;
-		color: var(--ui-muted-foreground);
+		color: var(--cp-muted);
 		background: none;
 		border: none;
 		cursor: pointer;
@@ -1546,7 +1550,7 @@
 		font-size: 12px;
 		background: transparent;
 		border: 1px solid var(--ui-border);
-		color: var(--ui-muted-foreground);
+		color: var(--cp-muted);
 		cursor: pointer;
 		transition: background 0.15s ease, color 0.15s ease;
 	}
@@ -1566,7 +1570,7 @@
 		text-transform: capitalize;
 	}
 	.chip-count {
-		color: var(--ui-muted-foreground);
+		color: var(--cp-muted);
 		font-size: 0.9em;
 	}
 	.chip-dot {
@@ -1577,7 +1581,7 @@
 	}
 	.clear-filters {
 		font-size: 12px;
-		color: var(--ui-muted-foreground);
+		color: var(--cp-muted);
 		background: none;
 		border: none;
 		cursor: pointer;
@@ -1594,7 +1598,7 @@
 	.result-count {
 		padding: 4px 16px;
 		font-size: 12px;
-		color: var(--ui-muted-foreground);
+		color: var(--cp-muted);
 		border-bottom: 1px solid var(--ui-border);
 		flex-shrink: 0;
 	}
@@ -1615,7 +1619,7 @@
 		gap: var(--space-2);
 		padding: 8px 8px 4px;
 		font-size: 12px;
-		color: var(--ui-muted-foreground);
+		color: var(--cp-muted);
 		font-weight: 500;
 	}
 	.group-name {
@@ -1638,7 +1642,7 @@
 		width: 12px;
 		height: 12px;
 		border: 2px solid var(--ui-border);
-		border-top-color: var(--ui-muted-foreground);
+		border-top-color: var(--cp-muted);
 		border-radius: 50%;
 		animation: spin 0.6s linear infinite;
 		flex-shrink: 0;
@@ -1646,7 +1650,7 @@
 	.content-scope {
 		font-size: 12px;
 		font-weight: 400;
-		color: var(--ui-muted-foreground);
+		color: var(--cp-muted);
 	}
 
 	/* Result cards */
@@ -1677,7 +1681,7 @@
 	.result-ref {
 		font-family: var(--font-mono);
 		font-size: 12px;
-		color: var(--ui-muted-foreground);
+		color: var(--cp-muted);
 		flex-shrink: 0;
 	}
 	.result-title {
@@ -1708,13 +1712,13 @@
 	}
 	.result-date {
 		font-size: 12px;
-		color: var(--ui-muted-foreground);
+		color: var(--cp-muted);
 		flex-shrink: 0;
 		white-space: nowrap;
 	}
 	.result-snippet {
 		font-size: 12px;
-		color: var(--ui-muted-foreground);
+		color: var(--cp-muted);
 		margin-top: 2px;
 		margin-left: 24px;
 		overflow: hidden;
@@ -1737,7 +1741,7 @@
 	.search-failed-line {
 		padding: var(--space-1) var(--space-3);
 		font-size: 12px;
-		color: var(--ui-muted-foreground);
+		color: var(--cp-muted);
 	}
 	.search-retry-link {
 		border: 0;
@@ -1752,7 +1756,7 @@
 	.coverage-line {
 		padding: 8px 12px;
 		font-size: 12px;
-		color: var(--ui-muted-foreground);
+		color: var(--cp-muted);
 	}
 
 	/* Load more */
@@ -1762,7 +1766,7 @@
 	}
 	.load-more-btn {
 		font-size: 12px;
-		color: var(--ui-muted-foreground);
+		color: var(--cp-muted);
 		background: none;
 		border: none;
 		padding: 6px 12px;
@@ -1784,7 +1788,7 @@
 		padding: 24px 16px;
 		text-align: center;
 		font-size: 13px;
-		color: var(--ui-muted-foreground);
+		color: var(--cp-muted);
 	}
 	.search-tips {
 		padding: var(--space-4);
@@ -1795,11 +1799,11 @@
 	}
 	.tip-label {
 		font-size: 12px;
-		color: var(--ui-muted-foreground);
+		color: var(--cp-muted);
 	}
 	.tip-example {
 		font-size: 12px;
-		color: var(--ui-muted-foreground);
+		color: var(--cp-muted);
 	}
 	.tip-code {
 		font-family: var(--font-mono);
@@ -1822,12 +1826,12 @@
 	}
 	.recent-label {
 		font-size: 12px;
-		color: var(--ui-muted-foreground);
+		color: var(--cp-muted);
 		font-weight: 500;
 	}
 	.clear-recent {
 		font-size: 12px;
-		color: var(--ui-muted-foreground);
+		color: var(--cp-muted);
 		background: none;
 		border: none;
 		cursor: pointer;
@@ -1855,7 +1859,7 @@
 		background: color-mix(in srgb, var(--ui-foreground) 5%, transparent);
 	}
 	.recent-icon {
-		color: var(--ui-muted-foreground);
+		color: var(--cp-muted);
 		flex-shrink: 0;
 	}
 	.recent-text {
@@ -1878,7 +1882,7 @@
 		width: 32px;
 		height: 32px;
 		border-radius: 6px;
-		color: var(--ui-muted-foreground);
+		color: var(--cp-muted);
 		background: none;
 		border: none;
 		cursor: pointer;
@@ -2000,7 +2004,7 @@
 		padding: 0 16px;
 		border-top: 1px solid var(--ui-border);
 		font-size: 12px;
-		color: var(--ui-muted-foreground);
+		color: var(--cp-muted);
 		flex-shrink: 0;
 	}
 	.cp-hint {

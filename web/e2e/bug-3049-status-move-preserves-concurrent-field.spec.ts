@@ -73,7 +73,7 @@ test('BUG-3049: a status click does not revert a field written after page load',
 	const card = itemCard(page, title);
 	await expect(card).toBeVisible();
 	// BUG-3157: the chip opens a status picker; the move is choosing a row.
-	const statusChip = card.locator('[aria-haspopup="menu"][title="Change status"]');
+	const statusChip = card.locator('[aria-haspopup][title="Change status"]');
 	await expect(statusChip).toBeVisible();
 	const statusBefore = (await statusChip.innerText()).trim();
 

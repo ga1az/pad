@@ -57,3 +57,12 @@ The desktop sidebar (`layout/SidebarDesktop.svelte`) and the content panel's hea
 - **Lists need `list-none`** while there is no Preflight: the breadcrumb's `<ol>` showed "1." markers.
 
 Unwanted candidates can be excluded in `ui.css` with `@source not inline("word")` when a scanned file has to contain the word (PanelHeader passes NotificationPanel a `visible` prop).
+
+## Popover and Command (TASK-30)
+
+`popover` and `command` are the shadcn components restyled to Linear: the Popover is a hairline-bordered `--ui-popover` surface at z-400 (the Dropdown Menu's layer), the Command's search row is borderless with a hairline under it (a search glyph only with `showIcon`), and a row is 32px / 13px with a highlight of the foreground at 5% (so +5% white in dark). The CLI also pulled `input-group`, `input` and `textarea` for the search field; they are dropped, and `Command.Input` renders a bare input. `command-item` has no built-in check: a picker draws its own.
+
+- **AnchoredPopover** (`ui-adapters/`) is the Popover the pickers share: controlled `open`, the consumer's own trigger as anchor (exempt from outside presses so its click toggles), the dialog portal target, the escape stack, focus to the search on open and back to the trigger on Escape or a choice (`close(true)`, after the panel unmounts, because its focus trap would take it back).
+- **Filtering is ours** (`shouldFilter={false}`) wherever the rows are numbered or searched by more than their label (StatusPicker, EmojiPickerPanel). `columns={6}` gives the icon grid its four-arrow navigation.
+- **jsdom** needs `Element.prototype.scrollIntoView`, which Command calls when the highlight moves; `src/test/setup-jsdom.ts` stubs it.
+- The **command palette** (`search/CommandPalette.svelte`) is NOT built on bits-ui Command: its combobox ARIA, focus return, covered-page handling and docked mobile sheet are its own and are pinned by tests. It takes the same tokens and Linear's measurements in its scoped CSS.
