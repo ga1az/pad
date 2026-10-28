@@ -940,8 +940,8 @@ dialog.attachment-crop-modal::backdrop {
 
 	/* Modals / dialogs / tooltips. Most KeyboardShortcuts-style overlays
 	   carry role="dialog" on the backdrop. AppDialog's content carries
-	   role="dialog" too; the native <dialog>s left (the attachment crop modal,
-	   BottomSheet) are covered by the `dialog[open]` selector above.
+	   role="dialog" too; any native <dialog> (the attachment crop modal, the
+	   legacy modals) is covered by the `dialog[open]` selector above.
 	   `:not(.item-pane)` keeps the detail pane printable: on mobile the pane
 	   carries role="dialog" (TASK-2131) but IS the content being printed, not a
 	   transient overlay to strip.
