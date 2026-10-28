@@ -23,6 +23,7 @@ vi.mock('$lib/stores/workspace.svelte', () => ({
 		current: { slug: 'ws', owner_username: 'u', name: 'Demo', is_guest: false },
 		workspaces: [
 			{ slug: 'ws', owner_username: 'u', name: 'Demo' },
+			{ slug: 'kept', owner_username: 'u', name: 'Kept' },
 			{ slug: 'other', owner_username: 'u', name: 'Other' },
 		],
 		canEditCollection: () => true,
@@ -31,6 +32,18 @@ vi.mock('$lib/stores/workspace.svelte', () => ({
 	},
 }));
 vi.mock('$lib/stores/collections.svelte', async () => await import('./sidebarQuickAdd.fixture.svelte'));
+const tabs = vi.hoisted(() => ({ open: vi.fn(async () => {}), order: [] as string[] }));
+vi.mock('$lib/stores/tabs.svelte', () => ({
+	tabsStore: {
+		// The open set: 'ws' and 'kept'; 'other' is not open.
+		tabs: [
+			{ slug: 'ws', owner_username: 'u', name: 'Demo' },
+			{ slug: 'kept', owner_username: 'u', name: 'Kept' },
+		],
+		open: tabs.open,
+		routeFor: () => null,
+	},
+}));
 
 import Sidebar from './Sidebar.svelte';
 import { goto } from '$app/navigation';
@@ -48,7 +61,15 @@ beforeEach(() => {
 	uiStore.openSidebar();
 	uiStore.closeSearch();
 	uiStore.clearQuickAddRequest();
-	vi.mocked(goto).mockClear();
+	vi.mocked(goto).mockReset();
+	tabs.open.mockReset();
+	tabs.order.length = 0;
+	tabs.open.mockImplementation(async () => {
+		tabs.order.push('open');
+	});
+	vi.mocked(goto).mockImplementation(async () => {
+		tabs.order.push('goto');
+	});
 });
 
 describe('desktop sidebar (TASK-27)', () => {
@@ -93,16 +114,37 @@ describe('desktop sidebar (TASK-27)', () => {
 		expect(document.querySelector('#sidebar-section-collections .nav-label')?.textContent).toBe('Tasks');
 	});
 
-	it('the workspace switcher goes to another workspace', async () => {
+	async function pick(name: string) {
 		render(Sidebar);
 		await settle();
 		await fireEvent.click(document.querySelector<HTMLButtonElement>('button.ws-switcher')!);
 		await settle();
-		const other = [...document.querySelectorAll<HTMLElement>('[role^=menuitem]')].find(
-			(el) => el.textContent?.trim() === 'Other'
+		const row = [...document.querySelectorAll<HTMLElement>('[role^=menuitem]')].find(
+			(el) => el.textContent?.trim() === name
 		);
-		expect(other).toBeDefined();
-		await fireEvent.click(other!);
+		expect(row, `${name} is not in the switcher`).toBeDefined();
+		await fireEvent.click(row!);
+		await settle();
+	}
+
+	it('a workspace outside the open set is opened as a kept tab, then shown', async () => {
+		// Like WorkspaceSwitcher.selectOther and WorkspaceDiscovery: without
+		// the open it would land as an ephemeral tab.
+		await pick('Other');
+		expect(tabs.open).toHaveBeenCalledWith('other', false);
 		expect(goto).toHaveBeenCalledWith('/u/other');
+		expect(tabs.order).toEqual(['open', 'goto']);
+	});
+
+	it('an open tab is shown without opening it again', async () => {
+		await pick('Kept');
+		expect(tabs.open).not.toHaveBeenCalled();
+		expect(goto).toHaveBeenCalledWith('/u/kept');
+	});
+
+	it('the current workspace goes to its dashboard', async () => {
+		await pick('Demo');
+		expect(tabs.open).not.toHaveBeenCalled();
+		expect(goto).toHaveBeenCalledWith('/u/ws');
 	});
 });

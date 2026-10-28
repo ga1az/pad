@@ -30,6 +30,8 @@
 	import ResponsiveMenuItem from '$lib/components/ui-adapters/ResponsiveMenuItem.svelte';
 	import Icon from '$lib/icons/Icon.svelte';
 	import { workspaceStore } from '$lib/stores/workspace.svelte';
+	import { tabsStore } from '$lib/stores/tabs.svelte';
+	import { authStore } from '$lib/stores/auth.svelte';
 	import { uiStore } from '$lib/stores/ui.svelte';
 	import { GITHUB_REPO_URL } from '$lib/brand/links';
 	import { modKeyLabel } from '$lib/utils/platform';
@@ -139,16 +141,24 @@
 	let switcherEl = $state<HTMLButtonElement | null>(null);
 	let ws = $derived(workspaceStore.current);
 
-	// Like WorkspaceSwitcher.select: the current workspace goes to its
-	// dashboard, another one to the route it was last on.
-	function selectWorkspace(target: { slug: string; owner_username?: string }) {
+	// Like WorkspaceSwitcher: the current workspace goes to its dashboard,
+	// an open tab to the route it was last on, and a workspace outside the
+	// open set is opened as a kept tab first (selectOther; WorkspaceDiscovery
+	// does the same), behind the identity fence, so it does not land as an
+	// ephemeral one.
+	async function selectWorkspace(target: { slug: string; owner_username?: string }) {
 		switcherOpen = false;
 		const current = workspaceStore.current;
-		goto(
-			current && target.slug === current.slug
-				? `/${current.owner_username}/${current.slug}`
-				: workspaceRestoreTarget(target)
-		);
+		if (current && target.slug === current.slug) {
+			goto(`/${current.owner_username}/${current.slug}`);
+			return;
+		}
+		if (!tabsStore.tabs.some((tab) => tab.slug === target.slug)) {
+			const isSameIdentity = authStore.identityFence();
+			await tabsStore.open(target.slug, false).catch(() => {});
+			if (!isSameIdentity()) return;
+		}
+		goto(workspaceRestoreTarget(target));
 	}
 
 	function openSearch() {
@@ -300,7 +310,9 @@
 					`data-membership` says whether the caller's membership has settled
 					(BUG-3267); the e2e permission walk waits on it.
 				-->
+				<!-- Named: the panel's breadcrumb is a second nav landmark. -->
 				<nav
+					aria-label="Workspace"
 					class="collection-nav flex flex-col"
 					data-membership={workspaceStore.membershipKnown ? 'known' : 'pending'}
 				>
