@@ -49,7 +49,7 @@
 							aria-label={name}
 							aria-checked={emoji === selected}
 							title={name}
-							class="aria-checked:bg-foreground/10 aria-checked:ring-1 aria-checked:ring-inset aria-checked:ring-(color:--command-focus) data-selected:aria-checked:bg-foreground/15 size-9 min-h-0 justify-center p-0 text-lg"
+							class="aria-checked:bg-foreground/10 aria-checked:ring-1 aria-checked:ring-inset aria-checked:ring-[color-mix(in_srgb,var(--ui-ring)_60%,var(--ui-popover-foreground))] data-selected:aria-checked:bg-foreground/15 size-9 min-h-0 justify-center p-0 text-lg"
 							onSelect={() => onselect(emoji)}
 						>
 							{emoji}

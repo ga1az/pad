@@ -12,6 +12,6 @@
 <CommandPrimitive.Empty
 	bind:ref
 	data-slot="command-empty"
-	class={cn("text-(color:--command-muted) py-6 text-center text-[13px]", className)}
+	class={cn("text-[color-mix(in_srgb,var(--ui-popover-foreground)_66%,var(--ui-popover))] py-6 text-center text-[13px]", className)}
 	{...restProps}
 />
