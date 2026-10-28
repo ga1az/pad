@@ -1300,7 +1300,7 @@
 					{#if contentLoading || contentResults.length > 0}
 						<div class="result-group content-group" role="listbox" id={CONTENT_LISTBOX_ID} aria-label="Matches in content">
 							<div class="group-header" aria-hidden="true">
-									<span class="group-name">Matches in content</span>
+								<span class="group-name">Matches in content</span>
 								{#if searchAllWorkspaces}
 									<!--
 										The local list above can span every ready workspace,
@@ -1426,6 +1426,9 @@
 		--cp-muted: color-mix(in srgb, var(--ui-foreground) 66%, var(--ui-popover));
 		/* --ui-border is nearly the popover's own gray; the dividers need to show. */
 		--cp-line: color-mix(in srgb, var(--ui-foreground) 10%, transparent);
+		/* The search row's focus line. --ui-ring itself is 2.8:1 on the popover
+		   (a focus indicator owes 3:1); mixed toward the text it is 5:1. */
+		--cp-focus: color-mix(in srgb, var(--ui-ring) 60%, var(--ui-foreground));
 		border: 1px solid var(--ui-border);
 		border-radius: 12px;
 		box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
@@ -1446,6 +1449,13 @@
 		padding: 0 16px;
 		border-bottom: 1px solid var(--cp-line);
 		flex-shrink: 0;
+	}
+	/* The field below shows no ring of its own, so the ROW shows focus: the
+	   hairline under it turns --cp-focus and doubles with an inset 1px line
+	   (fieldFocusIndicator.test.ts reads this rule as the field's indicator). */
+	.search-row:focus-within {
+		border-bottom-color: var(--cp-focus);
+		box-shadow: inset 0 -1px 0 0 var(--cp-focus);
 	}
 	.search-icon {
 		color: var(--cp-muted);
@@ -1670,9 +1680,13 @@
 		font-size: 13px;
 		color: var(--ui-foreground);
 	}
-	.result:hover,
+	/* Hover and the keyboard highlight are told apart: 3% under the pointer,
+	   6% on the selected row (--cp-muted clears 4.5:1 on both). */
+	.result:hover {
+		background: color-mix(in srgb, var(--ui-foreground) 3%, transparent);
+	}
 	.result.selected {
-		background: color-mix(in srgb, var(--ui-foreground) 5%, transparent);
+		background: color-mix(in srgb, var(--ui-foreground) 6%, transparent);
 	}
 	.result-main {
 		display: flex;
@@ -1860,9 +1874,11 @@
 		font-size: 13px;
 		color: var(--ui-foreground);
 	}
-	.recent-item:hover,
+	.recent-item:hover {
+		background: color-mix(in srgb, var(--ui-foreground) 3%, transparent);
+	}
 	.recent-item.selected {
-		background: color-mix(in srgb, var(--ui-foreground) 5%, transparent);
+		background: color-mix(in srgb, var(--ui-foreground) 6%, transparent);
 	}
 	.recent-icon {
 		color: var(--cp-muted);

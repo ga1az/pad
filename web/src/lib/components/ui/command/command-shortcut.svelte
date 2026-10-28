@@ -13,7 +13,7 @@
 <span
 	bind:this={ref}
 	data-slot="command-shortcut"
-	class={cn("text-muted-foreground ml-auto text-xs", className)}
+	class={cn("text-(color:--command-muted) ml-auto text-xs", className)}
 	{...restProps}
 >
 	{@render children?.()}
