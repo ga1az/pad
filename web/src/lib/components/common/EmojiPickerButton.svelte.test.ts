@@ -124,6 +124,26 @@ describe('EmojiPickerButton (desktop)', () => {
 	});
 });
 
+describe('EmojiPickerButton inside a dialog', () => {
+	it('portals into the dialog and lifts its clipping only while open', async () => {
+		const host = document.createElement('div');
+		host.setAttribute('data-slot', 'dialog-content');
+		host.style.overflow = 'auto';
+		document.body.appendChild(host);
+		const screen = render(EmojiPickerButton, { target: host, props: { value: '📋' } });
+		await fireEvent.click(trigger(screen.container));
+		await tick();
+		await tick();
+		expect(host.querySelector('[data-slot="popover-content"]'), 'the panel is not inside the dialog').not.toBeNull();
+		expect(host.style.overflow).toBe('visible');
+		await fireEvent.keyDown(search()!, { key: 'Escape' });
+		await tick();
+		await tick();
+		expect(host.style.overflow).toBe('auto');
+		host.remove();
+	});
+});
+
 describe('EmojiPickerButton (mobile)', () => {
 	it('keeps the BottomSheet with the plain grid: no popover, no search', async () => {
 		viewportState.isMobile = true;
