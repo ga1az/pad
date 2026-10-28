@@ -398,8 +398,17 @@
 		color: var(--ui-foreground);
 		background: var(--ui-background);
 	}
+	/* app.css strips button outlines; put a ring back for the keyboard. */
+	.filter-btn:focus-visible,
+	.parent-filter:focus-visible,
+	.parent-chip:focus-visible,
+	.unparented-chip:focus-visible,
+	.relation-filter-trigger:focus-visible,
+	.relation-filter-clear:focus-visible {
+		outline: 2px solid var(--ui-ring);
+		outline-offset: 1px;
+	}
 	.parent-filter:focus-visible {
-		outline: none;
 		border-color: var(--ui-ring);
 	}
 

@@ -2050,7 +2050,12 @@
 		return name;
 	}
 
+	// A saved view's pill is pressed while its filters are what is applied, and
+	// not past the first edit of them: the three filter doors below (field
+	// filters, tags, "Unparented only") leave the view, as Clear does. A search
+	// is not part of a view's config, so it does not.
 	function handleFilterChange(filters: Record<string, string>) {
+		activeViewId = null;
 		activeFilters = filters;
 		// Mutual exclusivity with the unparented chip (PLAN-2095 DR-3):
 		// setting a specific-parent filter clears "Unparented only".
@@ -2063,6 +2068,7 @@
 	// Mutual exclusivity in the other direction: switching the "Unparented
 	// only" chip on clears any specific-parent filter (PLAN-2095 DR-3).
 	function handleUnparentedChange(value: boolean) {
+		activeViewId = null;
 		unparentedFilter = value;
 		if (value) {
 			activeFilters = clearParentFilter(activeFilters);
@@ -2071,6 +2077,7 @@
 	}
 
 	function handleTagFilterChange(tags: string[]) {
+		activeViewId = null;
 		selectedTags = tags;
 		updateUrlFilters();
 	}
@@ -4476,13 +4483,14 @@
 					saved views' management), quick actions and the collection ⋯.
 				-->
 				<div class="view-toolbar">
+					<div class="view-tabs-row">
 					<div class="view-tabs" role="group" aria-label="Views">
 						<button
 							type="button"
 							class="view-tab"
 							aria-pressed={activeViewId === null}
 							onclick={clearActiveView}
-						>All {collection.name.toLowerCase()}</button>
+						><span class="view-tab-label">All {collection.name.toLowerCase()}</span></button>
 						{#each savedViews as view (view.id)}
 							<button
 								type="button"
@@ -4496,18 +4504,20 @@
 								{/if}
 							</button>
 						{/each}
-						{#if canSaveView}
-							<Tooltip.Root>
-								<Tooltip.Trigger onclick={openSaveView}>
-									{#snippet child({ props })}
-										<Button {...props} variant="ghost" size="icon" class="view-tab-save" aria-label="Save current view">
-											<Icon icon={Layers01Icon} size={14} />
-										</Button>
-									{/snippet}
-								</Tooltip.Trigger>
-								<Tooltip.Content>Save current view</Tooltip.Content>
-							</Tooltip.Root>
-						{/if}
+					</div>
+					<!-- Outside the scrolling strip, so it stays in reach with many views. -->
+					{#if canSaveView}
+						<Tooltip.Root>
+							<Tooltip.Trigger onclick={openSaveView}>
+								{#snippet child({ props })}
+									<Button {...props} variant="ghost" size="icon" class="view-tab-save" aria-label="Save current view">
+										<Icon icon={Layers01Icon} size={14} />
+									</Button>
+								{/snippet}
+							</Tooltip.Trigger>
+							<Tooltip.Content>Save current view</Tooltip.Content>
+						</Tooltip.Root>
+					{/if}
 					</div>
 					<!-- The count the old heading showed ("9", or "3 of 9" when
 					     filtered), for assistive tech; the filter row below shows the
@@ -4856,6 +4866,9 @@
 				onCreateInColumn={canEditThisCollection ? quickCreateInColumn : undefined}
 				bind:draftText
 				bind:draftOpen
+				{draftPlacement}
+				{blockedDraftNotices}
+				onDiscardDraft={discardDraft}
 				{itemProgress}
 				{progressLabel}
 				canEdit={canEditThisCollection}
@@ -5249,20 +5262,37 @@
 		height: 47px;
 		padding-right: 2px;
 	}
-	.view-tabs {
+	.view-tabs-row {
 		display: flex;
 		flex: 1 1 auto;
 		align-items: center;
+		gap: 2px;
+		min-width: 0;
+	}
+	/* The pills scroll sideways when there are more than fit; they keep their
+	   size (an empty capsule says nothing). `overflow-x` makes `overflow-y`
+	   clip too, so the 3px of padding (pulled back by the margin) is where a
+	   pill's focus ring is drawn. */
+	.view-tabs {
+		display: flex;
+		flex: 0 1 auto;
+		align-items: center;
 		gap: 6px;
 		min-width: 0;
-		overflow: hidden;
+		padding: 3px;
+		margin: -3px;
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+	.view-tabs::-webkit-scrollbar {
+		display: none;
 	}
 	/* The pill tab: 28px, fully round, 13px medium; the active one a step
 	   lighter with the light text. Mixed toward the foreground, so the light
 	   theme darkens where the dark one lightens. */
 	.view-tab {
 		display: inline-flex;
-		flex: 0 1 auto;
+		flex: 0 0 auto;
 		align-items: center;
 		gap: 5px;
 		min-width: 0;
@@ -5290,7 +5320,7 @@
 		outline: 2px solid var(--ui-ring);
 		outline-offset: 1px;
 	}
-	.view-tabs :global(.view-tab-save) {
+	.view-tabs-row :global(.view-tab-save) {
 		flex: none;
 		margin-left: 2px;
 	}
@@ -5319,8 +5349,12 @@
 		font-size: 14px;
 	}
 	.view-toolbar .header-actions :global(div.quick-actions-menu > .trigger-btn:hover) {
-		background: color-mix(in oklch, var(--ui-tab), white 5%);
+		background: color-mix(in oklch, var(--ui-tab), var(--ui-foreground) 5%);
 		color: var(--ui-foreground);
+	}
+	.view-toolbar .header-actions :global(div.quick-actions-menu > .trigger-btn:focus-visible) {
+		outline: 2px solid var(--ui-ring);
+		outline-offset: 1px;
 	}
 
 	.title-row {
@@ -5567,6 +5601,12 @@
 	}
 	.filter-summary-text:hover .filter-summary-count {
 		color: var(--ui-foreground);
+	}
+	.filter-summary-text:focus-visible,
+	.filter-chip-remove:focus-visible,
+	.filter-summary-clear:focus-visible {
+		outline: 2px solid var(--ui-ring);
+		outline-offset: 1px;
 	}
 	.filter-chips {
 		display: flex;

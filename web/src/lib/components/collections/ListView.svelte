@@ -8,7 +8,7 @@
 	import StatusIcon from '$lib/components/status/StatusIcon.svelte';
 	import PriorityIcon from '$lib/components/status/PriorityIcon.svelte';
 	import { priorityLevel, statusCategory } from '$lib/components/status/statusCategory';
-	import { draftKey } from '$lib/collections/laneDrafts';
+	import { draftKey, draftableLanes, lostLaneLabel, type DraftSaveTarget } from '$lib/collections/laneDrafts';
 	import { itemComparator, type SortMode } from '$lib/collections/itemSort';
 	import { formatLaneLabel, isUngrouped, laneKey, laneValue } from '$lib/collections/boardColumns';
 	import { laneOrderAfterMove, disabledDirections, type ReorderDirection } from '$lib/collections/reorder';
@@ -86,6 +86,18 @@
 		onCreateInColumn?: (groupValue: string, title: string, reveal: boolean) => Promise<unknown> | void;
 		draftText?: Record<string, string>;
 		draftOpen?: Record<string, boolean>;
+		/**
+		 * Where each non-empty draft saves (BUG-3043), as the board's prop of the
+		 * same name. A `rehomed` draft's lane is not one this view offers a `+` on:
+		 * it renders under Uncategorized, marked with the lane it came from, and
+		 * that group is shown for it. Submitting it still passes its ORIGINAL key
+		 * to `onCreateInColumn`, where the page resolves the target.
+		 */
+		draftPlacement?: Record<string, DraftSaveTarget>;
+		/** Drafts that cannot be saved anywhere honest, with the notice naming the lost lane. */
+		blockedDraftNotices?: { lane: string; message: string }[];
+		/** Discard one draft (the way out of a blocked or re-homed one). */
+		onDiscardDraft?: (lane: string) => void;
 		itemProgress?: Record<string, { total: number; done: number }>;
 		progressLabel?: string;
 		/**
@@ -167,6 +179,9 @@
 		onCreateInColumn,
 		draftText = $bindable({}),
 		draftOpen = $bindable({}),
+		draftPlacement = {},
+		blockedDraftNotices = [],
+		onDiscardDraft,
 		itemProgress,
 		progressLabel = 'tasks',
 		canEdit = true,
@@ -210,9 +225,12 @@
 	// The rows' ref column is as wide as the longest ref in the list, so every
 	// title starts at the same x (Linear's list). Refs are short ASCII, and at
 	// 12px tabular figures a character is about 0.62em.
-	let refWidth = $derived(
-		`${Math.max(4, ...items.map((i) => formatItemRef(i)?.length ?? 0)) * 7.4 + 2}px`,
-	);
+	let refWidth = $derived.by(() => {
+		// A loop, not `Math.max(...)`: spreading thousands of rows overflows the stack.
+		let longest = 4;
+		for (const i of items) longest = Math.max(longest, formatItemRef(i)?.length ?? 0);
+		return `${longest * 7.4 + 2}px`;
+	});
 	/**
 	 * Why grouping is refused for this field, or null (U4).
 	 *
@@ -295,6 +313,19 @@
 	// repeat (TASK-3539).
 	let groupOptions = $derived(uniqueStrings((field?.options ?? []).filter((o) => o !== '')));
 
+	// Drafts whose lane is gone, shown under Uncategorized (BUG-3043). That
+	// group is rendered for them even when no ITEM is ungrouped: without it the
+	// re-home would move the draft somewhere nobody can see.
+	let rehomedDrafts = $derived(
+		Object.entries(draftPlacement).flatMap(([lane, t]) =>
+			t.kind === 'rehomed' ? [{ lane, lost: { lostLane: t.lostLane, lostField: t.lostField } }] : []
+		)
+	);
+	/** A schema field's label by key, for a draft moved here by a regroup (BUG-3214). */
+	function fieldLabelFor(fieldKey: string): string {
+		return schema.fields.find((f) => f.key === fieldKey)?.label || fieldKey;
+	}
+
 	/**
 	 * Display groups: predefined options first, then any additional
 	 * values discovered from items (handles text fields with no options).
@@ -309,7 +340,7 @@
 			// invisible while every caller normalises first — which is the exact
 			// assumption that stopped holding and produced this bug.
 			const hasEmpty = items.some((i) => isUngrouped(groupValueFor(i)));
-			return hasEmpty ? [...lanes, ''] : lanes;
+			return hasEmpty || rehomedDrafts.length > 0 ? [...lanes, ''] : lanes;
 		}
 		const known = new Set(groupOptions);
 		const extra: string[] = [];
@@ -328,7 +359,7 @@
 			}
 		}
 		const groups = [...groupOptions, ...extra.sort()];
-		if (hasUngrouped) groups.push('');
+		if (hasUngrouped || rehomedDrafts.length > 0) groups.push('');
 		return groups;
 	});
 
@@ -554,9 +585,21 @@
 	let draftInputs: Record<string, HTMLInputElement | undefined> = {};
 	let savingDraft = $state(false);
 
-	/** Whether a group offers `+`: the board's gate for its lane `+`. */
+	/**
+	 * Whether a group offers `+`: the board's gate, which offers it on the lanes
+	 * `draftableLanes` names — the field's declared options. This view also
+	 * discovers groups from item values (a text field has no options), and a
+	 * draft typed in one of those is not a lane the save path knows: it would
+	 * be classed as lost and saved with the group field blank.
+	 */
 	function canAddTo(groupName: string): boolean {
-		return !!onCreateInColumn && !isUngrouped(groupName) && !isRelationGroup && !groupingRefusal;
+		return (
+			!!onCreateInColumn &&
+			!isUngrouped(groupName) &&
+			!isRelationGroup &&
+			!groupingRefusal &&
+			draftableLanes(field).has(groupName)
+		);
 	}
 
 	function openDraft(groupName: string) {
@@ -613,6 +656,57 @@
 			{relationGroupingRefusalMessage(groupingRefusal)}
 		</p>
 	{/if}
+	{#snippet draftRow(key: string, groupName: string, movedFrom: { lostLane: string; lostField?: string } | null)}
+		<div class="group-draft" class:group-draft-rehomed={movedFrom !== null}>
+			{#if movedFrom !== null}
+				<p class="group-draft-moved">Moved from {lostLaneLabel(movedFrom, fieldLabelFor)}, a lane that no longer exists</p>
+			{:else if groupIcon === 'status'}
+				<StatusIcon category={statusCategory(groupName, field)} />
+			{:else if groupIcon === 'priority'}
+				<PriorityIcon level={priorityLevel(groupName)} />
+			{/if}
+			<input
+				aria-label="New item title"
+				bind:this={draftInputs[key]}
+				bind:value={draftText[key]}
+				class="group-draft-input"
+				placeholder="Enter a title…"
+				disabled={savingDraft}
+				onkeydown={(e) => {
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						submitDraft(key);
+					} else if (e.key === 'Escape' && movedFrom === null) {
+						e.preventDefault();
+						e.stopPropagation();
+						draftOpen[key] = false;
+					}
+				}}
+			/>
+			<button
+				type="button"
+				class="group-draft-add"
+				disabled={!draftText[key]?.trim() || savingDraft}
+				onclick={() => submitDraft(key)}
+			>Add</button>
+			{#if movedFrom === null}
+				<button type="button" class="group-draft-close" onclick={() => (draftOpen[key] = false)}>Close</button>
+			{:else if onDiscardDraft}
+				<button type="button" class="group-draft-close" onclick={() => onDiscardDraft?.(key)}>Discard</button>
+			{/if}
+		</div>
+	{/snippet}
+	{#each blockedDraftNotices as notice (notice.lane)}
+		<!-- BUG-3043 edge 1: the draft is kept, not re-homed into a place that
+		     would not hold it; this is where the user sees it and can let it go. -->
+		<div class="list-draft-blocked" role="alert">
+			<p>{notice.message}</p>
+			<p class="list-draft-blocked-text">“{draftText[notice.lane]}”</p>
+			{#if onDiscardDraft}
+				<button type="button" class="group-draft-close" onclick={() => onDiscardDraft?.(notice.lane)}>Discard draft</button>
+			{/if}
+		</div>
+	{/each}
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		class="list-view"
@@ -755,41 +849,17 @@
 				</div>
 
 				{#if canAddTo(groupName) && draftOpen[draftKey(groupField, groupName)]}
-					{@const key = draftKey(groupField, groupName)}
 					<!-- The inline draft (TASK-29). Outside the dndzone, so it is not a
 					     row and cannot be dragged; it is not an item until Enter. -->
-					<div class="group-draft">
-						{#if groupIcon === 'status'}
-							<StatusIcon category={statusCategory(groupName, field)} />
-						{:else if groupIcon === 'priority'}
-							<PriorityIcon level={priorityLevel(groupName)} />
-						{/if}
-						<input
-							aria-label="New item title"
-							bind:this={draftInputs[key]}
-							bind:value={draftText[key]}
-							class="group-draft-input"
-							placeholder="Enter a title…"
-							disabled={savingDraft}
-							onkeydown={(e) => {
-								if (e.key === 'Enter') {
-									e.preventDefault();
-									submitDraft(key);
-								} else if (e.key === 'Escape') {
-									e.preventDefault();
-									e.stopPropagation();
-									draftOpen[key] = false;
-								}
-							}}
-						/>
-						<button
-							type="button"
-							class="group-draft-add"
-							disabled={!draftText[key]?.trim() || savingDraft}
-							onclick={() => submitDraft(key)}
-						>Add</button>
-						<button type="button" class="group-draft-close" onclick={() => (draftOpen[key] = false)}>Close</button>
-					</div>
+					{@render draftRow(draftKey(groupField, groupName), groupName, null)}
+				{/if}
+				{#if isUngrouped(groupName) && onCreateInColumn}
+					<!-- Re-homed drafts (BUG-3043): their lane is not one this view offers,
+					     and there is no "+" left to reopen one with, so these are always
+					     rendered, not gated on `draftOpen`. -->
+					{#each rehomedDrafts as d (d.lane)}
+						{@render draftRow(d.lane, groupName, d.lost)}
+					{/each}
 				{/if}
 
 				{#if !collapsedGroups.has(groupName)}
@@ -913,6 +983,13 @@
 		color: var(--ui-foreground);
 		background: color-mix(in oklch, var(--ui-foreground) 6%, transparent);
 	}
+	/* app.css strips button outlines; put a ring back for the keyboard. */
+	.group-menu-btn:focus-visible,
+	.group-add-btn:focus-visible,
+	.archive-group-btn:focus-visible {
+		outline: 2px solid var(--ui-ring);
+		outline-offset: 1px;
+	}
 
 	@media (min-width: 769px) {
 		.group-menu-btn {
@@ -990,6 +1067,13 @@
 		font-size: 13px;
 	}
 
+	/* Each sticky header is its own stacking context (z-index 2), so the ⋯ menu
+	   inside it (z 20) is trapped there and the NEXT group's header, later in
+	   the DOM, paints over it. The open group's header goes above its siblings. */
+	.item-group.menu-open .group-header {
+		z-index: 30;
+	}
+
 	.group-toggle {
 		display: flex;
 		align-items: center;
@@ -1019,14 +1103,15 @@
 		flex-shrink: 0;
 	}
 
-	.group-header:hover .archive-group-btn {
+	.group-header:hover .archive-group-btn,
+	.group-header:focus-within .archive-group-btn {
 		opacity: 1;
 	}
 
 	.archive-group-btn {
 		background: none;
 		border: none;
-		color: var(--text-muted);
+		color: var(--ui-muted-foreground);
 		font-size: 0.8em;
 		cursor: pointer;
 		padding: 2px 4px;
@@ -1067,8 +1152,8 @@
 	}
 
 	.archive-group-btn:hover {
-		color: var(--text-primary);
-		background: var(--bg-hover);
+		color: var(--ui-foreground);
+		background: color-mix(in oklch, var(--ui-foreground) 6%, transparent);
 	}
 
 	.archive-confirm {
@@ -1215,6 +1300,38 @@
 		color: var(--ui-foreground);
 		background: color-mix(in oklch, var(--ui-foreground) 6%, transparent);
 	}
+	.group-draft-add:focus-visible,
+	.group-draft-close:focus-visible {
+		outline: 2px solid var(--ui-ring);
+		outline-offset: 1px;
+	}
+	/* A draft moved here from a lane that is gone (BUG-3043): the note takes
+	   its own line above the input. */
+	.group-draft-rehomed {
+		flex-wrap: wrap;
+		height: auto;
+		min-height: 44px;
+		padding-block: 6px;
+	}
+	.group-draft-moved {
+		flex: 1 0 100%;
+		margin: 0;
+		font-size: 12px;
+	}
+	.list-draft-blocked {
+		margin: 0 0 8px;
+		padding: 8px 12px;
+		border: 1px solid var(--ui-destructive);
+		border-radius: 6px;
+		font-size: 13px;
+		color: var(--ui-foreground);
+	}
+	.list-draft-blocked p {
+		margin: 0 0 4px;
+	}
+	.list-draft-blocked-text {
+		color: var(--ui-muted-foreground);
+	}
 
 	.list-row {
 		cursor: grab;
@@ -1262,6 +1379,14 @@
 
 	.list-row:active {
 		cursor: grabbing;
+	}
+
+	/* k / ArrowUp scroll the focused CARD into view with block: 'nearest', which
+	   leaves it flush with the top edge, under the 36px sticky group header.
+	   The margin (header + the 2px gap) keeps it clear. Phone width has no
+	   sticky header (below). */
+	.list-row :global(.item-card) {
+		scroll-margin-top: 38px;
 	}
 
 	/* A row the caller may only view does not drag (BUG-3259). */
@@ -1316,6 +1441,7 @@
 			border-bottom: none;
 		}
 		.list-row :global(.item-card) {
+			scroll-margin-top: 0;
 			border: none;
 			border-radius: 0;
 			background: transparent;
