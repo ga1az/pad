@@ -11,6 +11,18 @@ describe('statusCategory', () => {
 		for (const v of ['review', 'in-review', 'in_review']) expect(statusCategory(v), v).toBe('review');
 	});
 
+	it('maps the templates\' other open workflow names', () => {
+		for (const v of ['planning', 'triaged', 'reviewed', 'applied']) expect(statusCategory(v), v).toBe('planned');
+		for (const v of ['fixing', 'building', 'researching', 'in-sprint', 'in_sprint', 'screen', 'interviewing', 'onsite', 'drafting']) {
+			expect(statusCategory(v), v).toBe('progress');
+		}
+		expect(statusCategory('offer')).toBe('review');
+		// `published` is open in the content template (only `archived` closes).
+		expect(statusCategory('published', { terminal_options: ['archived'] })).toBe('progress');
+		// Still backlog: the funnel's entry and the parked states.
+		for (const v of ['sourced', 'pending', 'proposed', 'interested', 'on-hold', 'paused']) expect(statusCategory(v), v).toBe('backlog');
+	});
+
 	it('reads an unknown open value, an empty one or a non-string as backlog', () => {
 		expect(statusCategory('blocked')).toBe('backlog');
 		expect(statusCategory('')).toBe('backlog');
@@ -48,6 +60,18 @@ describe('statusCategory', () => {
 		expect(statusCategory('archived', field)).toBe('done');
 	});
 
+	it('treats `reject` and similar stems as abandoned when the field declares no abandoned_options', () => {
+		// The hiring template's loop `result`, as seeded.
+		const result = { terminal_options: ['advance', 'hold', 'reject'] };
+		expect(statusCategory('reject', result)).toBe('cancelled');
+		expect(statusCategory('advance', result)).toBe('done');
+		// The interviewing template's stage closes on withdrawn too.
+		expect(statusCategory('withdrawn', { terminal_options: ['accepted', 'rejected', 'withdrawn'] })).toBe('cancelled');
+		expect(statusCategory('accepted', { terminal_options: ['accepted', 'rejected', 'withdrawn'] })).toBe('done');
+		// A declared abandoned_options still wins over every name.
+		expect(statusCategory('reject', { ...result, abandoned_options: ['hold'] })).toBe('done');
+	});
+
 	it('ignores a mistyped schema list', () => {
 		const field = { terminal_options: 'done' as unknown as string[] };
 		expect(statusCategory('done', field)).toBe('done');
@@ -62,6 +86,13 @@ describe('priorityLevel', () => {
 		expect(priorityLevel('high')).toBe('high');
 		expect(priorityLevel('Medium')).toBe('medium');
 		expect(priorityLevel('low')).toBe('low');
+	});
+
+	it('maps the conventions\' must / should / nice-to-have onto the bars', () => {
+		expect(priorityLevel('must')).toBe('high');
+		expect(priorityLevel('should')).toBe('medium');
+		expect(priorityLevel('nice-to-have')).toBe('low');
+		expect(priorityLevel('nice_to_have')).toBe('low');
 	});
 
 	it('reads empty, unknown and non-string values as no priority', () => {
