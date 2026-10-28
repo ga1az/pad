@@ -127,7 +127,7 @@ describe('the modal resets on the OPEN TRANSITION, not on every effect run', () 
 		const templates = deferred<unknown[]>();
 		api.templates.list.mockReturnValue(templates.promise);
 
-		const { container } = render(CreateWorkspaceModal, { props: {} });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: {} });
 		const name = container.querySelector('#ws-create-name') as HTMLInputElement;
 		await fireEvent.input(name, { target: { value: 'Typed before templates' } });
 		await settle();
@@ -144,7 +144,7 @@ describe('the modal resets on the OPEN TRANSITION, not on every effect run', () 
 		const templates = deferred<unknown[]>();
 		api.templates.list.mockReturnValue(templates.promise);
 
-		const { container } = render(CreateWorkspaceModal, { props: {} });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: {} });
 		btn(container, /^Import$/).click();
 		await settle();
 		expect(container.querySelector('input[type="file"]')).not.toBeNull();
@@ -162,7 +162,7 @@ describe('BUG-2991: the create-workspace modal does not act for a session that e
 		api.workspaces.create.mockReturnValue(created.promise);
 		const onWorkspaceCreated = vi.fn();
 
-		const { container } = render(CreateWorkspaceModal, { props: { onWorkspaceCreated } });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: { onWorkspaceCreated } });
 		const name = container.querySelector('#ws-create-name') as HTMLInputElement;
 		await fireEvent.input(name, { target: { value: 'Other' } });
 		await fireEvent.click(btn(container, /Create Workspace/));
@@ -189,7 +189,7 @@ describe('BUG-2991: the create-workspace modal does not act for a session that e
 		api.workspaces.create.mockResolvedValue(WS);
 		const onWorkspaceCreated = vi.fn();
 
-		const { container } = render(CreateWorkspaceModal, { props: { onWorkspaceCreated } });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: { onWorkspaceCreated } });
 		const name = container.querySelector('#ws-create-name') as HTMLInputElement;
 		await fireEvent.input(name, { target: { value: 'Other' } });
 		await fireEvent.click(btn(container, /Create Workspace/));
@@ -204,7 +204,7 @@ describe('BUG-2991: the create-workspace modal does not act for a session that e
 		api.workspaces.importBundle.mockReturnValue(imported.promise);
 		const onWorkspaceCreated = vi.fn();
 
-		const { container } = render(CreateWorkspaceModal, { props: { onWorkspaceCreated } });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: { onWorkspaceCreated } });
 		await attachBundle(container);
 		await fireEvent.click(btn(container, /Import Workspace/));
 
@@ -229,7 +229,7 @@ describe('BUG-2991: the create-workspace modal does not act for a session that e
 		api.workspaces.list.mockReturnValue(listing.promise);
 		const onWorkspaceCreated = vi.fn();
 
-		const { container } = render(CreateWorkspaceModal, { props: { onWorkspaceCreated } });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: { onWorkspaceCreated } });
 		await attachBundle(container);
 		btn(container, /Import Workspace/).click();
 		await settle();
@@ -261,7 +261,7 @@ describe('BUG-2991: the create-workspace modal does not act for a session that e
 		api.workspaces.importBundle.mockReturnValue(new Promise((_res, rej) => { rejectImport = rej; }));
 		void imported;
 
-		const { container } = render(CreateWorkspaceModal, { props: {} });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: {} });
 		await attachBundle(container);
 		btn(container, /Import Workspace/).click();
 		await settle();
@@ -278,7 +278,7 @@ describe('BUG-2991: the create-workspace modal does not act for a session that e
 		// The counterfactual: the fence must not swallow real errors.
 		api.workspaces.importBundle.mockRejectedValue(new Error('boom'));
 
-		const { container } = render(CreateWorkspaceModal, { props: {} });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: {} });
 		await attachBundle(container);
 		btn(container, /Import Workspace/).click();
 		await settle();
@@ -291,7 +291,7 @@ describe('BUG-2991: the create-workspace modal does not act for a session that e
 		let rejectCreate!: (e: unknown) => void;
 		api.workspaces.create.mockReturnValue(new Promise((_res, rej) => { rejectCreate = rej; }));
 
-		const { container } = render(CreateWorkspaceModal, { props: {} });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: {} });
 		const name = container.querySelector('#ws-create-name') as HTMLInputElement;
 		await fireEvent.input(name, { target: { value: 'Other' } });
 		btn(container, /Create Workspace/).click();
@@ -307,7 +307,7 @@ describe('BUG-2991: the create-workspace modal does not act for a session that e
 
 	it('a FAILED create shows the server\'s message (TASK-2204, audit C93)', async () => {
 		api.workspaces.create.mockRejectedValue(new Error('A workspace with slug "other" already exists'));
-		const { container } = render(CreateWorkspaceModal, { props: {} });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: {} });
 		const name = container.querySelector('#ws-create-name') as HTMLInputElement;
 		await fireEvent.input(name, { target: { value: 'Other' } });
 		btn(container, /Create Workspace/).click();
@@ -320,7 +320,7 @@ describe('BUG-2991: the create-workspace modal does not act for a session that e
 		// left open by one user kept their typed name, description, chosen
 		// template and selected bundle on screen for whoever signed in next —
 		// visible to them, and submittable by them.
-		const { container } = render(CreateWorkspaceModal, { props: {} });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: {} });
 		const name = container.querySelector('#ws-create-name') as HTMLInputElement;
 		await fireEvent.input(name, { target: { value: 'A private project name' } });
 		await settle();
@@ -346,7 +346,7 @@ describe('BUG-2991: the create-workspace modal does not act for a session that e
 		const created = deferred<typeof WS>();
 		api.workspaces.create.mockReturnValue(created.promise);
 
-		const { container } = render(CreateWorkspaceModal, { props: {} });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: {} });
 		const name = container.querySelector('#ws-create-name') as HTMLInputElement;
 		await fireEvent.input(name, { target: { value: 'Other' } });
 		btn(container, /Create Workspace/).click();
@@ -382,7 +382,7 @@ describe('BUG-2991: the create-workspace modal does not act for a session that e
 			new Promise((res) => { resolveA = res; }),
 		);
 
-		const { container } = render(CreateWorkspaceModal, { props: {} });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: {} });
 		await attachBundle(container);
 		btn(container, /Import Workspace/).click();
 		await settle();
@@ -433,8 +433,8 @@ describe('BUG-2991: the create-workspace modal does not act for a session that e
 		const onWorkspaceCreated = vi.fn();
 
 		const first = render(CreateWorkspaceModal, { props: { onWorkspaceCreated } });
-		await attachBundle(first.container);
-		btn(first.container, /Import Workspace/).click();
+		await attachBundle(first.baseElement);
+		btn(first.baseElement, /Import Workspace/).click();
 		await settle();
 		expect(api.workspaces.importBundle).toHaveBeenCalledTimes(1);
 
@@ -446,7 +446,7 @@ describe('BUG-2991: the create-workspace modal does not act for a session that e
 		await settle();
 		// PRECONDITION: the new instance is really up and open, or "nothing
 		// happened" would be true of an empty page.
-		expect(second.container.querySelector('#ws-create-name')).not.toBeNull();
+		expect(second.baseElement.querySelector('#ws-create-name')).not.toBeNull();
 		expect(uiStore.createWorkspaceOpen).toBe(true);
 
 		// Now the FIRST instance's import lands.
@@ -464,7 +464,7 @@ describe('BUG-2991: the create-workspace modal does not act for a session that e
 		api.workspaces.importBundle.mockResolvedValue(WS);
 		const onWorkspaceCreated = vi.fn();
 
-		const { container } = render(CreateWorkspaceModal, { props: { onWorkspaceCreated } });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: { onWorkspaceCreated } });
 		await attachBundle(container);
 		await fireEvent.click(btn(container, /Import Workspace/));
 		await settle();

@@ -3,7 +3,7 @@
 	import { marked } from 'marked';
 	import { api, type ImportURLResponse } from '$lib/api/client';
 	import { toastStore } from '$lib/stores/toast.svelte';
-	import Modal from '$lib/components/common/Modal.svelte';
+	import AppDialog from '$lib/components/ui-adapters/AppDialog.svelte';
 
 	// Context the modal observes about the editor at the moment of
 	// insert. `wasEmpty` mirrors editor.isEmpty BEFORE we splice in
@@ -122,15 +122,12 @@
 	}
 </script>
 
-<Modal
+<AppDialog
 	open={open}
 	onclose={handleCancel}
 	labelledby="import-url-title"
 	placement="center"
 	maxWidth="720px"
-	--modal-bg="var(--bg-primary)"
-	--modal-radius="var(--radius)"
-	--modal-shadow="0 16px 48px rgba(0, 0, 0, 0.4)"
 >
 	<div class="modal-header">
 		<h2 id="import-url-title">Insert from URL</h2>
@@ -200,7 +197,7 @@
 					Insert at cursor
 				</button>
 			</div>
-</Modal>
+</AppDialog>
 
 <style>
 	.modal-header {

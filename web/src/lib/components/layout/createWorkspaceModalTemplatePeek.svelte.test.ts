@@ -71,7 +71,7 @@ afterEach(() => {
 
 describe('template peek (TASK-2254)', () => {
 	it('expanding and collapsing the list leaves Start blank chosen, and Create sends blank', async () => {
-		const { container } = render(CreateWorkspaceModal, { props: {} });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: {} });
 		await settle();
 		btn(container, /Or pick a template/).click();
 		await settle();
@@ -85,7 +85,7 @@ describe('template peek (TASK-2254)', () => {
 	});
 
 	it('a picked template stays named with the list collapsed, and × returns to blank', async () => {
-		const { container } = render(CreateWorkspaceModal, { props: {} });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: {} });
 		await settle();
 		btn(container, /Or pick a template/).click();
 		await settle();
@@ -104,7 +104,7 @@ describe('template peek (TASK-2254)', () => {
 	});
 
 	it('a picked template is what Create sends', async () => {
-		const { container } = render(CreateWorkspaceModal, { props: {} });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: {} });
 		await settle();
 		btn(container, /Or pick a template/).click();
 		await settle();

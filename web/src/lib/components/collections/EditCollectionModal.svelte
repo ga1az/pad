@@ -29,7 +29,7 @@
 	} from '$lib/utils/quick-action-preview';
 	import { toastStore } from '$lib/stores/toast.svelte';
 	import { confirmDialog } from '$lib/stores/confirmDialog.svelte';
-	import Modal from '$lib/components/common/Modal.svelte';
+	import AppDialog from '$lib/components/ui-adapters/AppDialog.svelte';
 	import type { CollectionFieldUsage } from '$lib/types';
 	import {
 		describeSchemaEditImpact,
@@ -920,7 +920,7 @@
 	}
 </script>
 
-<Modal {open} onclose={requestClose} labelledby="edit-collection-title" maxWidth="680px">
+<AppDialog {open} onclose={requestClose} labelledby="edit-collection-title" maxWidth="680px">
 	<div class="modal-header">
 		<h2 id="edit-collection-title">Edit Collection</h2>
 		<button class="close-btn" type="button" onclick={requestClose}>&#10005;</button>
@@ -1209,7 +1209,7 @@
 					{saving ? 'Saving...' : 'Save Changes'}
 				</button>
 			</div>
-</Modal>
+</AppDialog>
 
 <style>
 	/* ── Schema edit impact (TASK-2188) ───────────────────────────────────── */

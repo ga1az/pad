@@ -39,7 +39,7 @@
 	import { titleLimitError } from '$lib/items/titleLimit';
 	import ShareDialog from '$lib/components/ShareDialog.svelte';
 	import EditCollectionModal from '$lib/components/collections/EditCollectionModal.svelte';
-	import Modal from '$lib/components/common/Modal.svelte';
+	import AppDialog from '$lib/components/ui-adapters/AppDialog.svelte';
 	import { collectionStore } from '$lib/stores/collections.svelte';
 	import { uiStore } from '$lib/stores/ui.svelte';
 	import { titleStore } from '$lib/stores/title.svelte';
@@ -4824,14 +4824,12 @@
 <!-- Leave guard (TASK-1676): an in-app navigation was intercepted because a lane
      has an unsaved draft card. Backdrop/Escape dismiss maps to "Stay" (the safe,
      non-destructive default) via the shared Modal primitive (TASK-2083). -->
-<Modal
+<AppDialog
 	open={showLeaveDialog}
 	onclose={leaveStay}
 	ariaLabel="Unsaved card"
 	maxWidth="360px"
 	placement="center"
-	--modal-bg="var(--bg-primary)"
-	--modal-shadow="var(--shadow-lg)"
 >
 	{#if showLeaveDialog}
 		<div class="leave-dialog">
@@ -4849,10 +4847,10 @@
 			</div>
 		</div>
 	{/if}
-</Modal>
+</AppDialog>
 
 <style>
-	/* Surface/backdrop/Escape come from the shared <Modal> primitive (TASK-2083);
+	/* Surface/backdrop/Escape come from the shared <AppDialog> primitive (TASK-2083);
 	   this wrapper just restores the inner padding. */
 	.leave-dialog {
 		padding: var(--space-4);

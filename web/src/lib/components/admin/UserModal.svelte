@@ -16,7 +16,7 @@
 -->
 <script lang="ts">
 	import type { AdminUser } from '$lib/stores/admin.svelte';
-	import Modal from '$lib/components/common/Modal.svelte';
+	import AppDialog from '$lib/components/ui-adapters/AppDialog.svelte';
 	import UserSettingsForm from './UserSettingsForm.svelte';
 	import UserWorkspacesTab from './UserWorkspacesTab.svelte';
 	import UserOverviewTab from './UserOverviewTab.svelte';
@@ -81,7 +81,7 @@
 	// Open transition tracker — hydrate the active tab on the open=false → true
 	// transition only, not whenever initialTab or any other reactive value
 	// changes mid-open (Codex review on PR #605). Focus save/restore, Escape,
-	// and the Tab focus-trap are now handled by the native <dialog> in <Modal>.
+	// and the Tab focus-trap are now handled by the native <dialog> in <AppDialog>.
 	// `wasOpen` is a plain let (not $state) — edge-detection only — and this
 	// effect writes `activeTab` without reading it, so it can't self-invalidate
 	// (CONVE-1688).
@@ -116,15 +116,12 @@
 
 </script>
 
-<Modal
+<AppDialog
 	open={open && !!user}
 	onclose={closeModal}
 	labelledby="user-modal-title"
 	placement="center"
 	maxWidth="720px"
-	--modal-bg="var(--bg-primary)"
-	--modal-radius="var(--radius)"
-	--modal-shadow="0 8px 32px rgba(0, 0, 0, 0.4)"
 >
 	{#if user}
 		<div class="user-modal">
@@ -187,10 +184,10 @@
 			</div>
 		</div>
 	{/if}
-</Modal>
+</AppDialog>
 
 <style>
-	/* Fills the <Modal> dialog box (which owns the surface chrome / max-height).
+	/* Fills the <AppDialog> dialog box (which owns the surface chrome / max-height).
 	   Kept as a flex column so the header/tabs pin and the body scrolls. */
 	.user-modal {
 		width: 100%;

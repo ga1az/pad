@@ -276,18 +276,38 @@ export function isViewerFrontmost(root: Element): boolean {
  */
 let modalSelectorSupported: boolean | null = null;
 
-/** Every `showModal()` dialog currently open, or `[]` where `:modal` is unsupported. */
+/**
+ * The app's own modal dialogs (TASK-26): shadcn-svelte's Dialog and Alert
+ * Dialog (bits-ui), which replaced the `showModal()` <dialog> of
+ * `common/Modal`. They are not in the top layer, but they own the screen the
+ * way one did: an overlay covers the app, focus is trapped inside, and they
+ * are portaled to <body> above any viewer opened under them. So every branch
+ * below that asks "is a native modal open?" counts them too. The content
+ * element only exists while the dialog is open.
+ */
+const APP_MODAL_SELECTOR = '[data-slot="dialog-content"], [data-slot="alert-dialog-content"]';
+const APP_MODAL_LAYER_SELECTOR = `${APP_MODAL_SELECTOR}, [data-slot="dialog-overlay"], [data-slot="alert-dialog-overlay"]`;
+
+function openAppModals(): Element[] {
+	return Array.from(document.querySelectorAll(APP_MODAL_SELECTOR));
+}
+
+/**
+ * Every open modal: each `showModal()` dialog (`[]` of those where `:modal`
+ * is unsupported) plus each open app dialog.
+ */
 function openNativeModals(): Element[] {
-	if (!hasDocument() || modalSelectorSupported === false) return [];
+	if (!hasDocument()) return [];
+	if (modalSelectorSupported === false) return openAppModals();
 	try {
 		const found = Array.from(document.querySelectorAll('dialog:modal'));
 		modalSelectorSupported = true;
-		return found;
+		return [...found, ...openAppModals()];
 	} catch {
 		// Unsupported pseudo-class: answer "no native modal" rather than fall
 		// back to a selector that would be wrong.
 		modalSelectorSupported = false;
-		return [];
+		return openAppModals();
 	}
 }
 
@@ -305,6 +325,8 @@ function openNativeModals(): Element[] {
  * `<dialog>` today supports `:modal`; this is the jsdom / legacy path.)
  */
 function keepInteractiveAsDialog(el: Element): boolean {
+	// An app dialog is portaled to <body> as its own children (TASK-26).
+	if (el.matches(APP_MODAL_LAYER_SELECTOR) || el.querySelector(APP_MODAL_SELECTOR)) return true;
 	if (modalSelectorSupported === false) return el.matches('dialog[open]');
 	try {
 		const match = el.matches('dialog:modal');
@@ -450,7 +472,7 @@ export function hasForeignEscapeOwner(): boolean {
 	if (!hasDocument()) return false;
 	if (modalSelectorSupported !== false) {
 		try {
-			const nativeModal = !!document.querySelector('dialog:modal');
+			const nativeModal = !!document.querySelector('dialog:modal') || openAppModals().length > 0;
 			modalSelectorSupported = true;
 			if (nativeModal) return true;
 			return hasLiveAriaEscapeOwner();
@@ -476,7 +498,7 @@ export function hasForeignEscapeOwner(): boolean {
 	// every engine that ships `<dialog>` also ships `:modal`, so this branch is
 	// jsdom and legacy only. Fixing it costs the real-modal case above, which is
 	// the one that can actually happen.
-	if (document.querySelector('dialog[open]')) return true;
+	if (document.querySelector('dialog[open]') || openAppModals().length > 0) return true;
 	return hasLiveAriaEscapeOwner();
 }
 

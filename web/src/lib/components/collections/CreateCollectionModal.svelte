@@ -22,7 +22,7 @@
 	import { placeholderContext, type PreviewContext } from '$lib/utils/quick-action-preview';
 	import { toastStore } from '$lib/stores/toast.svelte';
 	import { confirmDialog } from '$lib/stores/confirmDialog.svelte';
-	import Modal from '$lib/components/common/Modal.svelte';
+	import AppDialog from '$lib/components/ui-adapters/AppDialog.svelte';
 
 	interface Props {
 		open: boolean;
@@ -454,7 +454,7 @@
 	}
 </script>
 
-<Modal {open} onclose={requestClose} labelledby="create-collection-title" maxWidth="520px">
+<AppDialog {open} onclose={requestClose} labelledby="create-collection-title" maxWidth="520px">
 	<div class="modal-header">
 		{#if step === 'editor'}
 			<div class="header-left">
@@ -616,7 +616,7 @@
 					</button>
 				</div>
 			{/if}
-</Modal>
+</AppDialog>
 
 <style>
 	/* -- Header ------------------------------------------------------------ */

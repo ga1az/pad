@@ -142,7 +142,7 @@ describe('ShareDialog identity fence (BUG-3105)', () => {
 
     // The committed grant reaches the DOM — the positive half that makes the
     // absence assertion in the next test mean something.
-    expect(target.textContent).toContain('someone@example.com');
+    expect(document.body.textContent).toContain('someone@example.com');
   });
 
   it('an identity change while the grant list is in flight refuses the commit', async () => {
@@ -155,7 +155,7 @@ describe('ShareDialog identity fence (BUG-3105)', () => {
     d.resolve([{ id: 'g1', user_id: 'u9', user_email: 'someone@example.com', permission: 'view' }]);
     await settle();
 
-    expect(target.textContent).not.toContain('someone@example.com');
+    expect(document.body.textContent).not.toContain('someone@example.com');
   });
 
   it('an identity change while SHARE LINKS are in flight refuses the commit (bearer token)', async () => {
@@ -169,8 +169,8 @@ describe('ShareDialog identity fence (BUG-3105)', () => {
     await settle();
 
     // The token must not reach the DOM of a dialog the next identity is reading.
-    expect(target.textContent).not.toContain('SECRET-TOKEN-VALUE');
-    expect(target.innerHTML).not.toContain('SECRET-TOKEN-VALUE');
+    expect(document.body.textContent).not.toContain('SECRET-TOKEN-VALUE');
+    expect(document.body.innerHTML).not.toContain('SECRET-TOKEN-VALUE');
   });
 
   it('CONTROL for the destructive path: an unchanged identity commits the revoke', async () => {
@@ -181,19 +181,19 @@ describe('ShareDialog identity fence (BUG-3105)', () => {
     apiMock.deleteItemGrant.mockReturnValue(d.promise);
     render();
     await settle();
-    expect(target.textContent).toContain('revokeme@example.com');
+    expect(document.body.textContent).toContain('revokeme@example.com');
 
-    const revoke = target.querySelector<HTMLButtonElement>('.revoke-btn');
+    const revoke = document.body.querySelector<HTMLButtonElement>('.revoke-btn');
     expect(revoke, 'a revoke control must be reachable for this leg to mean anything').toBeTruthy();
     revoke!.click();
     flushSync();
     // TASK-2193: the × asks first; the revoke runs from the confirm.
-    target.querySelector<HTMLButtonElement>('.revoke-confirm-yes')!.click();
+    document.body.querySelector<HTMLButtonElement>('.revoke-confirm-yes')!.click();
     flushSync();
 
     d.resolve();
     await settle();
-    expect(target.textContent).not.toContain('revokeme@example.com');
+    expect(document.body.textContent).not.toContain('revokeme@example.com');
   });
 
   it('an identity change during a REVOKE refuses the commit', async () => {
@@ -205,11 +205,11 @@ describe('ShareDialog identity fence (BUG-3105)', () => {
     render();
     await settle();
 
-    const revoke = target.querySelector<HTMLButtonElement>('.revoke-btn');
+    const revoke = document.body.querySelector<HTMLButtonElement>('.revoke-btn');
     expect(revoke, 'precondition: the revoke control is reachable').toBeTruthy();
     revoke!.click();
     flushSync();
-    target.querySelector<HTMLButtonElement>('.revoke-confirm-yes')!.click(); // TASK-2193 confirm
+    document.body.querySelector<HTMLButtonElement>('.revoke-confirm-yes')!.click(); // TASK-2193 confirm
     flushSync();
 
     // The DELETE is already out — it was issued before any await in the handler,
@@ -221,6 +221,6 @@ describe('ShareDialog identity fence (BUG-3105)', () => {
     await settle();
 
     expect(apiMock.deleteItemGrant).toHaveBeenCalled();
-    expect(target.textContent).toContain('revokeme@example.com');
+    expect(document.body.textContent).toContain('revokeme@example.com');
   });
 });

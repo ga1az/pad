@@ -20,7 +20,7 @@
 	import type { Item, Collection, RoleBoardLane, AgentRole } from '$lib/types';
 	import ItemCard from '$lib/components/collections/ItemCard.svelte';
 	import EmojiPickerButton from '$lib/components/common/EmojiPickerButton.svelte';
-	import Modal from '$lib/components/common/Modal.svelte';
+	import AppDialog from '$lib/components/ui-adapters/AppDialog.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import PageHeader from '$lib/components/common/PageHeader.svelte';
 	import EmptyState from '$lib/components/common/EmptyState.svelte';
@@ -933,14 +933,12 @@
 
 	<!-- Role edit/create modal -->
 <!-- New Item Modal -->
-<Modal
+<AppDialog
 	open={newItemOpen}
 	onclose={closeNewItem}
 	placement="center"
 	maxWidth="400px"
 	labelledby="new-item-dialog-title"
-	--modal-border="none"
-	--modal-shadow="0 16px 48px rgba(0, 0, 0, 0.3)"
 >
 	<div class="dialog-content new-item-content">
 		{#if !newItemCollectionSlug}
@@ -982,17 +980,14 @@
 			</div>
 		{/if}
 	</div>
-</Modal>
+</AppDialog>
 
-<Modal
+<AppDialog
 	open={roleDialogOpen}
 	onclose={closeModal}
 	placement="center"
 	maxWidth="520px"
 	labelledby="roles-dialog-title"
-	--modal-bg="var(--bg-primary)"
-	--modal-border="none"
-	--modal-shadow="0 20px 60px rgba(0, 0, 0, 0.3)"
 >
 	<div class="dialog-content">
 		<div class="dialog-header">
@@ -1036,7 +1031,7 @@
 			{/if}
 		</div>
 	</div>
-</Modal>
+</AppDialog>
 
 	{#if loading}
 		<div class="skeleton-board">
@@ -1228,11 +1223,11 @@
 	}
 
 	/* ── New Item Modal ──────────────────────────────────────────────── */
-	/* Surface + backdrop + centering are owned by the shared <Modal> primitive
+	/* Surface + backdrop + centering are owned by the shared <AppDialog> primitive
 	   (TASK-2023); this modal keeps only its inner content styling. */
 	.new-item-content {
 		padding: var(--space-5);
-		/* The shared <Modal> caps height (max-height: 85vh) with overflow: hidden;
+		/* The shared <AppDialog> caps height (max-height: 85vh) with overflow: hidden;
 		   scroll the picker content itself so a long collection list / short
 		   viewport can't clip the lower buttons. */
 		overflow-y: auto;
@@ -1598,7 +1593,7 @@
 	}
 
 	/* ── Roles Dialog ─────────────────────────────────── */
-	/* Surface + backdrop + centering are owned by the shared <Modal> primitive
+	/* Surface + backdrop + centering are owned by the shared <AppDialog> primitive
 	   (TASK-2023); this modal keeps only its inner content styling. */
 	.dialog-content {
 		display: flex;

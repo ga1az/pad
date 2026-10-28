@@ -16,7 +16,7 @@
 
 	import { page } from '$app/state';
 	import { openChildrenDialog } from '$lib/stores/openChildrenDialog.svelte';
-	import Modal from '$lib/components/common/Modal.svelte';
+	import AppDialog from '$lib/components/ui-adapters/AppDialog.svelte';
 	import { Button } from '$lib/components/ui/button';
 
 	// NO STALENESS COMPARISON IS MADE HERE, and that is a decision rather than an
@@ -49,7 +49,7 @@
 		openChildrenDialog.confirm();
 	}
 
-	// The native <dialog> (via <Modal>) owns Escape, the focus trap, and
+	// The native <dialog> (via <AppDialog>) owns Escape, the focus trap, and
 	// focus save/restore. We keep a window listener only for the Cmd/Ctrl+Enter
 	// shortcut that confirms the override — gated on `active` so it's inert
 	// while the dialog is closed.
@@ -76,7 +76,7 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<Modal
+<AppDialog
 	open={!!active}
 	onclose={onCancel}
 	labelledby="open-children-title"
@@ -154,7 +154,7 @@
 				</Button>
 			</div>
 	{/if}
-</Modal>
+</AppDialog>
 
 <style>
 	.modal-header {

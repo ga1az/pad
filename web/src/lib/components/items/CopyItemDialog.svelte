@@ -46,7 +46,7 @@ user hunting for an item that provably does not exist.
 <script lang="ts">
 	import { COPY_PREFLIGHT_DEBOUNCE_MS } from '$lib/items/copyPreflightTiming';
 	import { tick, untrack } from 'svelte';
-	import Modal from '$lib/components/common/Modal.svelte';
+	import AppDialog from '$lib/components/ui-adapters/AppDialog.svelte';
 	import FieldEditor from '$lib/components/fields/FieldEditor.svelte';
 	import { api, PadApiError } from '$lib/api/client';
 	import { authStore } from '$lib/stores/auth.svelte';
@@ -1082,7 +1082,7 @@ user hunting for an item that provably does not exist.
 	});
 </script>
 
-<Modal
+<AppDialog
 	{open}
 	onclose={handleDismiss}
 	labelledby={titleId}
@@ -1433,7 +1433,7 @@ user hunting for an item that provably does not exist.
 			{confirmLabel}
 		</button>
 	</div>
-</Modal>
+</AppDialog>
 
 <style>
 	.modal-header {

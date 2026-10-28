@@ -1,18 +1,20 @@
-// Runs in the jsdom vitest project (filename ends `.svelte.test.ts`) — the
-// same setup Modal.svelte.test.ts relies on polyfills showModal/close.
+// Runs in the jsdom vitest project (filename ends `.svelte.test.ts`).
 // Covers the migration off the hand-rolled backdrop div onto the shared
-// <Modal> primitive: the native dialog drives visibility, aria-labelledby
-// points at the visible heading, and the close button asks the parent to
-// flip `visible` (single source of truth) rather than closing itself.
+// dialog (AppDialog, shadcn-svelte's Dialog since TASK-26): `visible` drives
+// whether it is open, aria-labelledby points at the visible heading, and the
+// close button asks the parent to flip `visible` (single source of truth)
+// rather than closing itself. The dialog is portaled to <body>.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup } from '@testing-library/svelte';
 import { tick, flushSync } from 'svelte';
 import KeyboardShortcuts from './KeyboardShortcuts.svelte';
 
-function getDialog(): HTMLDialogElement {
-	const el = document.querySelector('dialog.modal');
-	if (!el) throw new Error('dialog.modal not found');
-	return el as HTMLDialogElement;
+const DIALOG = '[data-slot="dialog-content"]';
+const dialog = () => document.querySelector<HTMLElement>(DIALOG);
+function getDialog(): HTMLElement {
+	const el = dialog();
+	if (!el) throw new Error('dialog content not found');
+	return el;
 }
 
 afterEach(() => {
@@ -21,20 +23,20 @@ afterEach(() => {
 });
 
 describe('KeyboardShortcuts.svelte', () => {
-	it('renders through the shared Modal primitive when visible', async () => {
+	it('renders through the shared dialog when visible', async () => {
 		render(KeyboardShortcuts, { props: { visible: true, onclose: vi.fn() } });
 		await tick();
 		flushSync();
 
-		const dialog = getDialog();
-		expect(dialog.open).toBe(true);
+		const el = getDialog();
+		expect(el.getAttribute('role')).toBe('dialog');
 		// The heading provides the accessible name via aria-labelledby.
-		expect(dialog.getAttribute('aria-labelledby')).toBe('keyboard-shortcuts-title');
+		expect(el.getAttribute('aria-labelledby')).toBe('keyboard-shortcuts-title');
 		expect(document.getElementById('keyboard-shortcuts-title')?.textContent).toBe(
 			'Keyboard Shortcuts'
 		);
 		// The shortcut groups render inside the dialog.
-		const text = dialog.textContent ?? '';
+		const text = el.textContent ?? '';
 		for (const group of ['Global', 'Navigation', 'Item Detail']) {
 			expect(text).toContain(group);
 		}
@@ -45,7 +47,7 @@ describe('KeyboardShortcuts.svelte', () => {
 		await tick();
 		flushSync();
 
-		expect(getDialog().open).toBe(false);
+		expect(dialog()).toBeNull();
 		expect(document.getElementById('keyboard-shortcuts-title')).toBeNull();
 	});
 
@@ -55,12 +57,12 @@ describe('KeyboardShortcuts.svelte', () => {
 		await tick();
 		flushSync();
 
-		const btn = document.querySelector<HTMLButtonElement>('dialog.modal button[aria-label="Close"]');
+		const btn = document.querySelector<HTMLButtonElement>(`${DIALOG} button[aria-label="Close"]`);
 		expect(btn).not.toBeNull();
 		btn?.click();
 		expect(onclose).toHaveBeenCalledOnce();
 		// `visible` is the single source of truth — until the parent flips it,
 		// the dialog itself has not closed.
-		expect(getDialog().open).toBe(true);
+		expect(dialog()).not.toBeNull();
 	});
 });

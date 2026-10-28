@@ -452,10 +452,6 @@ describe('the dashboard stops a commit when the identity moves mid-flight', () =
 		// The Connect modal mints a claim code for the signed-in user; one left
 		// open across a sign-in hands the previous user's code to whoever is
 		// signed in now. The launchpad's Connect button is the way in.
-		if (typeof HTMLDialogElement.prototype.showModal !== 'function') {
-			HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
-			HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
-		}
 		await mountPage(
 			board('Setup board', { needs_onboarding: true }),
 			() => document.querySelector('.lp-connect-btn') !== null
@@ -463,12 +459,13 @@ describe('the dashboard stops a commit when the identity moves mid-flight', () =
 		const connect = document.querySelector('.lp-connect-btn') as HTMLButtonElement | null;
 		expect(connect, 'the launchpad did not render its Connect button — nothing to open').not.toBeNull();
 		connect!.click();
-		const dialog = () => document.querySelector('dialog[aria-labelledby="connect-ws-title"]') as HTMLDialogElement | null;
-		await spin(() => dialog()?.open === true, 'CONTROL: the Connect modal never opened — the assertion below measures nothing');
+		// The Connect modal is an AppDialog: its content exists only while open.
+		const dialog = () => document.querySelector('[data-slot="dialog-content"][aria-labelledby="connect-ws-title"]');
+		await spin(() => dialog() !== null, 'CONTROL: the Connect modal never opened — the assertion below measures nothing');
 
 		signInAs('u2');
 		await tick();
 		await tick();
-		expect(dialog()?.open, "the previous session's Connect modal is still open for whoever is signed in now").toBe(false);
+		expect(dialog(), "the previous session's Connect modal is still open for whoever is signed in now").toBeNull();
 	});
 });

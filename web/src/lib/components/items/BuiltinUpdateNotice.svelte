@@ -7,7 +7,7 @@
 	import { onDestroy, untrack } from 'svelte';
 	import { api } from '$lib/api/client';
 	import { authStore } from '$lib/stores/auth.svelte';
-	import Modal from '$lib/components/common/Modal.svelte';
+	import AppDialog from '$lib/components/ui-adapters/AppDialog.svelte';
 	import DiffView from '$lib/components/versions/DiffView.svelte';
 	import type { BuiltinStateResponse } from '$lib/types';
 	import { builtinFieldChanges } from '$lib/library/builtinOffers';
@@ -235,7 +235,7 @@
 	</button>
 {/if}
 
-<Modal {open} onclose={() => (open = false)} labelledby="builtin-update-title" maxWidth="960px">
+<AppDialog {open} onclose={() => (open = false)} labelledby="builtin-update-title" maxWidth="960px">
 	{#if offer?.library}
 		<div class="modal-header">
 			<h2 id="builtin-update-title">{badgeLabel}</h2>
@@ -304,7 +304,7 @@
 			{/if}
 		</div>
 	{/if}
-</Modal>
+</AppDialog>
 
 <style>
 	.builtin-badge {

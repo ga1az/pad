@@ -116,7 +116,7 @@ afterEach(() => {
 describe('BUG-3475: the import dialog shows where an import is', () => {
 	it('shows upload progress, then the finishing phase, and sends a key per attempt', async () => {
 		const imp = controlledImport();
-		const { container } = render(CreateWorkspaceModal, { props: {} });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: {} });
 		await attachBundle(container);
 		btn(container, /^Import Workspace$/).click();
 		await settle();
@@ -140,7 +140,7 @@ describe('BUG-3475: the import dialog shows where an import is', () => {
 	it('a stall the server rolled back says nothing was kept and offers to try again', async () => {
 		const imp = controlledImport();
 		api.workspaces.importStatus.mockResolvedValue({ state: 'removed' });
-		const { container } = render(CreateWorkspaceModal, { props: {} });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: {} });
 		await attachBundle(container);
 		btn(container, /^Import Workspace$/).click();
 		await settle();
@@ -164,7 +164,7 @@ describe('BUG-3475: the import dialog shows where an import is', () => {
 			workspace_name: 'Imported',
 			owner_username: 'alice'
 		});
-		const { container } = render(CreateWorkspaceModal, { props: {} });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: {} });
 		await attachBundle(container);
 		btn(container, /^Import Workspace$/).click();
 		await settle();
@@ -189,7 +189,7 @@ describe('BUG-3475: the import dialog shows where an import is', () => {
 		});
 		let tabDone!: () => void;
 		const tabOpen = vi.spyOn(tabsStore, 'open').mockImplementation(() => new Promise<void>((r) => (tabDone = r)) as never);
-		const { container } = render(CreateWorkspaceModal, { props: {} });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: {} });
 		await attachBundle(container);
 		btn(container, /^Import Workspace$/).click();
 		await settle();
@@ -211,7 +211,7 @@ describe('BUG-3475: the import dialog shows where an import is', () => {
 		vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
 		const imp = controlledImport();
 		api.workspaces.importStatus.mockResolvedValue(null);
-		const { container } = render(CreateWorkspaceModal, { props: {} });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: {} });
 		await attachBundle(container);
 		btn(container, /^Import Workspace$/).click();
 		await settle();
@@ -231,7 +231,7 @@ describe('BUG-3475: the import dialog shows where an import is', () => {
 	it('"Stop upload" aborts the upload, and the outcome is still resolved', async () => {
 		const imp = controlledImport();
 		api.workspaces.importStatus.mockResolvedValue({ state: 'removed' });
-		const { container } = render(CreateWorkspaceModal, { props: {} });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: {} });
 		await attachBundle(container);
 		btn(container, /^Import Workspace$/).click();
 		await settle();
@@ -245,7 +245,7 @@ describe('BUG-3475: the import dialog shows where an import is', () => {
 	it('closing the dialog mid-upload aborts it and does not go on asking for the outcome', async () => {
 		const imp = controlledImport();
 		api.workspaces.importStatus.mockResolvedValue({ state: 'removed' });
-		const { container } = render(CreateWorkspaceModal, { props: {} });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: {} });
 		await attachBundle(container);
 		btn(container, /^Import Workspace$/).click();
 		await settle();
@@ -260,7 +260,7 @@ describe('BUG-3475: the import dialog shows where an import is', () => {
 		const imp = controlledImport();
 		let answer!: (v: unknown) => void;
 		api.workspaces.importStatus.mockReturnValue(new Promise((r) => (answer = r)));
-		const { container } = render(CreateWorkspaceModal, { props: {} });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: {} });
 		await attachBundle(container);
 		btn(container, /^Import Workspace$/).click();
 		await settle();
@@ -286,7 +286,7 @@ describe('BUG-3475: the import dialog shows where an import is', () => {
 describe('TASK-3842: the import says which unique values it dropped', () => {
 	async function importResolvingWith(body: unknown) {
 		api.workspaces.importBundle.mockResolvedValue(body);
-		const { container } = render(CreateWorkspaceModal, { props: {} });
+		const { baseElement: container } = render(CreateWorkspaceModal, { props: {} });
 		await attachBundle(container);
 		btn(container, /^Import Workspace$/).click();
 		await vi.waitFor(() =>

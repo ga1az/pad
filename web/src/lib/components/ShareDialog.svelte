@@ -3,7 +3,7 @@
 	import { authStore } from '$lib/stores/auth.svelte';
 	import { toastStore } from '$lib/stores/toast.svelte';
 	import { copyToClipboard } from '$lib/utils/clipboard';
-	import Modal from '$lib/components/common/Modal.svelte';
+	import AppDialog from '$lib/components/ui-adapters/AppDialog.svelte';
 	import type { CollectionGrant, ItemGrant, ShareLink } from '$lib/types';
 
 	interface Props {
@@ -256,7 +256,7 @@
 	}
 </script>
 
-<Modal open={open} onclose={() => (open = false)} labelledby="share-dialog-title" maxWidth="480px">
+<AppDialog open={open} onclose={() => (open = false)} labelledby="share-dialog-title" maxWidth="480px">
 	<div class="modal-header">
 		<h2 id="share-dialog-title">Share {targetName}</h2>
 		<button class="close-btn" type="button" onclick={() => (open = false)}>&#10005;</button>
@@ -459,7 +459,7 @@
 					{/if}
 				</div>
 	</div>
-</Modal>
+</AppDialog>
 
 <style>
 	.modal-header {

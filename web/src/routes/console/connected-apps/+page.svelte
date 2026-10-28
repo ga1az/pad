@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api/client';
-	import Modal from '$lib/components/common/Modal.svelte';
+	import AppDialog from '$lib/components/ui-adapters/AppDialog.svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import PageHeader from '$lib/components/common/PageHeader.svelte';
@@ -667,15 +667,12 @@
 	{/if}
 </div>
 
-<Modal
+<AppDialog
 	open={!!confirmTarget}
 	onclose={closeConfirm}
 	labelledby="revoke-title"
 	maxWidth="420px"
 	placement="center"
-	--modal-bg="var(--bg-primary)"
-	--modal-radius="var(--radius)"
-	--modal-shadow="0 20px 60px rgba(0, 0, 0, 0.3)"
 >
 	{#if confirmTarget}
 		<div class="revoke-modal">
@@ -694,7 +691,7 @@
 			</div>
 		</div>
 	{/if}
-</Modal>
+</AppDialog>
 
 <style>
 	/* Header spacing comes from the shared <PageHeader> primitive's own
@@ -971,7 +968,7 @@
 		border: 1px solid var(--border);
 	}
 
-	/* Modal — surface/backdrop/Escape come from the shared <Modal> primitive
+	/* Modal — surface/backdrop/Escape come from the shared <AppDialog> primitive
 	   (TASK-2083); this wrapper just restores the inner padding + column layout. */
 	.revoke-modal {
 		padding: var(--space-5);

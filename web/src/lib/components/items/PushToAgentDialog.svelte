@@ -97,7 +97,7 @@ always a broadcast that went out.
 -->
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import Modal from '$lib/components/common/Modal.svelte';
+	import AppDialog from '$lib/components/ui-adapters/AppDialog.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { api, PadApiError } from '$lib/api/client';
 	import { authStore } from '$lib/stores/auth.svelte';
@@ -591,7 +591,7 @@ always a broadcast that went out.
 	}
 </script>
 
-<Modal
+<AppDialog
 	{open}
 	onclose={handleDismiss}
 	labelledby={titleId}
@@ -776,7 +776,7 @@ always a broadcast that went out.
 			{sending ? 'Sending…' : 'Push'}
 		</Button>
 	</div>
-</Modal>
+</AppDialog>
 
 <style>
 	.modal-header {

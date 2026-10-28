@@ -3,13 +3,13 @@
 	// chooses; nothing is overwritten by default (Escape and the close button
 	// KEEP the tab's edits).
 	import { pendingEditsDialog } from '$lib/stores/pendingEditsDialog.svelte';
-	import Modal from '$lib/components/common/Modal.svelte';
+	import AppDialog from '$lib/components/ui-adapters/AppDialog.svelte';
 	import { Button } from '$lib/components/ui/button';
 
 	let active = $derived(pendingEditsDialog.active);
 </script>
 
-<Modal open={!!active} onclose={() => pendingEditsDialog.keep()} labelledby="pending-edits-title" maxWidth="500px">
+<AppDialog open={!!active} onclose={() => pendingEditsDialog.keep()} labelledby="pending-edits-title" maxWidth="500px">
 	{#if active}
 		<div class="modal-header">
 			<h2 id="pending-edits-title">{active.kind === 'stale' ? 'This item changed since you opened the raw editor' : active.reason === 'set_aside' ? 'Edits from an earlier editor version' : 'Unsaved edits in an open tab'}</h2>
@@ -77,7 +77,7 @@
 			{/if}
 		</div>
 	{/if}
-</Modal>
+</AppDialog>
 
 <style>
 	.modal-header {

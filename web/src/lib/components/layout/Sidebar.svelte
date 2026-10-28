@@ -24,7 +24,7 @@
 	import NotificationPanel from '$lib/components/common/NotificationPanel.svelte';
 	import CreateCollectionModal from '$lib/components/collections/CreateCollectionModal.svelte';
 	import { isBlockedByModal } from '$lib/a11y/viewerBackdrop';
-	import Modal from '$lib/components/common/Modal.svelte';
+	import AppDialog from '$lib/components/ui-adapters/AppDialog.svelte';
 	import { coveredPage } from '$lib/stores/coveredPage.svelte';
 	import Icon from '$lib/icons/Icon.svelte';
 	import {
@@ -875,7 +875,7 @@
 	and the title's own Escape handlers pre-empt with preventDefault), the
 	backdrop press and focus return to whatever opened it.
 -->
-<Modal
+<AppDialog
 	open={!!quickAddCollection}
 	onclose={cancelQuickAdd}
 	ariaLabel="Quick add"
@@ -968,7 +968,7 @@
 			</div>
 		</div>
 	{/if}
-</Modal>
+</AppDialog>
 
 <NotificationPanel visible={notificationPanelOpen} onclose={() => { notificationPanelOpen = false; }} />
 
@@ -1252,15 +1252,15 @@
 		color: var(--text-primary);
 		text-decoration: none;
 	}
-	/* The dialog surface (background, border, radius) is Modal's. Two
+	/* The dialog surface (background, border, radius) is AppDialog's. Two
 	   overrides: the collection picker hangs below the header and must not be
 	   clipped by the dialog's overflow:hidden, and quick-add sits lower than
 	   the other modals, where its overlay used to put it. */
-	:global(dialog.modal.quick-add-dialog) {
+	:global([data-slot='dialog-content'].quick-add-dialog) {
 		overflow: visible;
 		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 	}
-	:global(dialog.modal.quick-add-dialog[data-placement='top']) {
+	:global([data-slot='dialog-content'].quick-add-dialog[data-placement='top']) {
 		margin-top: 20vh;
 	}
 	.quick-add-modal {

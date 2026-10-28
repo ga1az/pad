@@ -29,6 +29,10 @@ describe('vite.config.ts carries the Svelte compile options (TASK-3423)', () => 
 		expect(resolved, 'dynamicCompileOptions did not reach vite-plugin-svelte').toBeTypeOf('function');
 		expect(resolved!({ filename: root + 'src/lib/components/Anything.svelte' })).toEqual({ runes: true });
 		expect(resolved!({ filename: root + 'node_modules/some-lib/Thing.svelte' })).toBeUndefined();
+		// TASK-26: the shadcn-svelte libraries compile in runes mode, or one of
+		// their rune-free files would flip the whole runtime into legacy mode.
+		expect(resolved!({ filename: root + 'node_modules/bits-ui/dist/bits/checkbox/components/checkbox-input.svelte' })).toEqual({ runes: true });
+		expect(resolved!({ filename: root + 'node_modules/svelte-sonner/dist/icons/CloseIcon.svelte' })).toEqual({ runes: true });
 		expect(options!.configFile).toBe(false);
 	}, 60_000);
 });

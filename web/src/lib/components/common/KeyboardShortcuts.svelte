@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Modal from './Modal.svelte';
+	import AppDialog from '$lib/components/ui-adapters/AppDialog.svelte';
 	import CharacterShortcutsToggle from './CharacterShortcutsToggle.svelte';
 	import { characterShortcuts } from '$lib/a11y/characterShortcuts.svelte';
 	import { modKeyLabel } from '$lib/utils/platform';
@@ -70,17 +70,16 @@
 	}
 </script>
 
-<!-- The native <dialog> (via <Modal>) owns Escape, backdrop dismiss, the focus
+<!-- The dialog (via <AppDialog>) owns Escape, backdrop dismiss, the focus
      trap, and focus save/restore — the hand-rolled listeners this component
      used to carry are gone. placement/shadow overrides keep the original
      centered look (the pre-migration backdrop was flex-centered). -->
-<Modal
+<AppDialog
 	open={visible}
 	{onclose}
 	labelledby="keyboard-shortcuts-title"
 	maxWidth="500px"
 	placement="center"
-	--modal-shadow="0 8px 32px rgba(0, 0, 0, 0.3)"
 >
 	<div class="header">
 		<h2 class="title" id="keyboard-shortcuts-title">Keyboard Shortcuts</h2>
@@ -109,7 +108,7 @@
 		{/each}
 		<CharacterShortcutsToggle />
 	</div>
-</Modal>
+</AppDialog>
 
 <style>
 	.header {
@@ -143,7 +142,7 @@
 		color: var(--text-primary);
 	}
 
-	/* The Modal box is overflow:hidden flex-column; the body is the scroll area. */
+	/* The dialog box is overflow:hidden flex-column; the body is the scroll area. */
 	.body {
 		padding: var(--space-4) var(--space-5);
 		display: flex;

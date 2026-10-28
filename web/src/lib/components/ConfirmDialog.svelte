@@ -4,63 +4,42 @@
 	// OpenChildrenDialog and PendingEditsDialog. It replaces native confirm():
 	// the native dialog blocks the page, cannot be styled, and is a different
 	// pattern from every other confirmation in the app.
+	//
+	// shadcn-svelte's Alert Dialog since TASK-26. The store stays the single
+	// source of truth: Escape and a full press on the backdrop both answer
+	// "no" (as the Modal it replaced did), and the dialog closes when the
+	// store clears `active`. Cancel comes first, so it takes the initial
+	// focus and Enter-on-arrival never confirms.
 	import { confirmDialog } from '$lib/stores/confirmDialog.svelte';
-	import Modal from '$lib/components/common/Modal.svelte';
-	import { Button } from '$lib/components/ui/button';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 
 	let active = $derived(confirmDialog.active);
 </script>
 
-<Modal open={!!active} onclose={() => confirmDialog.cancel()} labelledby="confirm-dialog-title" maxWidth="440px">
-	{#if active}
-		<div class="modal-header">
-			<h2 id="confirm-dialog-title">{active.title}</h2>
-		</div>
-		<div class="modal-body">
-			<p class="message">{active.message}</p>
-		</div>
-		<div class="modal-footer">
-			<Button variant="secondary" autofocus onclick={() => confirmDialog.cancel()}>{active.cancelLabel ?? 'Cancel'}</Button>
-			<Button variant={active.danger ? 'destructive-solid' : 'default'} onclick={() => confirmDialog.confirm()}>
-				{active.confirmLabel}
-			</Button>
-		</div>
-	{/if}
-</Modal>
-
-<style>
-	.modal-header {
-		display: flex;
-		align-items: center;
-		padding: var(--space-4) var(--space-6);
-		border-bottom: 1px solid var(--border);
-	}
-	.modal-header h2 {
-		margin: 0;
-		font-size: 1.05em;
-		font-weight: 600;
-	}
-	.modal-body {
-		padding: var(--space-5) var(--space-6);
-	}
-	.message {
-		margin: 0;
-		white-space: pre-line;
-		color: var(--text-secondary);
-	}
-	.modal-footer {
-		display: flex;
-		justify-content: flex-end;
-		gap: var(--space-2);
-		padding: var(--space-4) var(--space-6);
-		border-top: 1px solid var(--border);
-	}
-	@media (max-width: 600px) {
-		.modal-header,
-		.modal-body,
-		.modal-footer {
-			padding-left: var(--space-4);
-			padding-right: var(--space-4);
+<!-- Mounted only while a question is open: see the same gate in AppDialog. -->
+{#if active}
+<AlertDialog.Root
+	bind:open={
+		() => !!active,
+		(next) => {
+			if (!next) confirmDialog.cancel();
 		}
 	}
-</style>
+>
+	<AlertDialog.Content onBackdropDismiss={() => confirmDialog.cancel()}>
+		<AlertDialog.Header>
+			<AlertDialog.Title>{active.title}</AlertDialog.Title>
+			<AlertDialog.Description>{active.message}</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel variant="secondary">{active.cancelLabel ?? 'Cancel'}</AlertDialog.Cancel>
+			<AlertDialog.Action
+				variant={active.danger ? 'destructive-solid' : 'default'}
+				onclick={() => confirmDialog.confirm()}
+			>
+				{active.confirmLabel}
+			</AlertDialog.Action>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>
+{/if}

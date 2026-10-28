@@ -82,7 +82,9 @@ function rename(value: string) {
 
 const cancel = () =>
 	[...document.querySelectorAll<HTMLButtonElement>('button.btn-cancel')].find((b) => /^\s*cancel\s*$/i.test(b.textContent ?? ''))!.click();
-const escape = () => document.querySelector('dialog')!.dispatchEvent(new Event('cancel', { cancelable: true }));
+const escape = () => document
+		.querySelector('[data-slot="dialog-content"]')!
+		.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
 
 describe('TASK-2191: the Edit Collection dialog keeps edits', () => {
 	it('an untouched form closes without asking', async () => {

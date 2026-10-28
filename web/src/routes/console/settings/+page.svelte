@@ -12,7 +12,7 @@
 	import { copyToClipboard } from '$lib/utils/clipboard';
 	import { exportAndDownloadAccountData } from '$lib/utils/artifacts';
 	import { Button } from '$lib/components/ui/button';
-	import Modal from '$lib/components/common/Modal.svelte';
+	import AppDialog from '$lib/components/ui-adapters/AppDialog.svelte';
 	import NotificationSettings from '$lib/components/settings/NotificationSettings.svelte';
 	import CharacterShortcutsToggle from '$lib/components/common/CharacterShortcutsToggle.svelte';
 	import type { User, APIToken, APITokenWithSecret, TOTPSetupResponse } from '$lib/types';
@@ -1180,15 +1180,12 @@
 	{/if}
 </div>
 
-<Modal
+<AppDialog
 	open={!!tokenToDelete}
 	onclose={closeDeleteToken}
 	labelledby="delete-token-title"
 	maxWidth="420px"
 	placement="center"
-	--modal-bg="var(--bg-primary)"
-	--modal-radius="var(--radius)"
-	--modal-shadow="0 20px 60px rgba(0, 0, 0, 0.3)"
 >
 	{#if tokenToDelete}
 		<div class="delete-token-modal">
@@ -1207,17 +1204,14 @@
 			</div>
 		</div>
 	{/if}
-</Modal>
+</AppDialog>
 
-<Modal
+<AppDialog
 	open={!!tokenToRotate}
 	onclose={closeRotateToken}
 	labelledby="rotate-token-title"
 	maxWidth="420px"
 	placement="center"
-	--modal-bg="var(--bg-primary)"
-	--modal-radius="var(--radius)"
-	--modal-shadow="0 20px 60px rgba(0, 0, 0, 0.3)"
 >
 	{#if tokenToRotate}
 		<div class="delete-token-modal">
@@ -1237,7 +1231,7 @@
 			</div>
 		</div>
 	{/if}
-</Modal>
+</AppDialog>
 
 <style>
 	.settings-page {

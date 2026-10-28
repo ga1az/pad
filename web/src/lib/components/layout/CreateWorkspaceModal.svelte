@@ -38,7 +38,7 @@
 	import MoveToCloudLink from '$lib/components/workspaces/MoveToCloudLink.svelte';
 	import type { Workspace, WorkspaceTemplate } from '$lib/types';
 	import { groupTemplatesByCategory } from '$lib/utils/templates';
-	import Modal from '$lib/components/common/Modal.svelte';
+	import AppDialog from '$lib/components/ui-adapters/AppDialog.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { ImportTransportError } from '$lib/api/importUpload';
 	import { formatBytes } from '$lib/attachments/display';
@@ -511,7 +511,7 @@
 	}
 </script>
 
-<Modal
+<AppDialog
 	open={uiStore.createWorkspaceOpen}
 	onclose={close}
 	labelledby="create-workspace-title"
@@ -734,7 +734,7 @@
 				</Button>
 			{/if}
 		</div>
-</Modal>
+</AppDialog>
 
 <style>
 	.modal-header {

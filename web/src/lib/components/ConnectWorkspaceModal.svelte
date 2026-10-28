@@ -3,7 +3,7 @@
 	import { copyToClipboard } from '$lib/utils/clipboard';
 	import { defaultInstallTab, type InstallTab } from '$lib/utils/platform';
 	import { api, PadApiError } from '$lib/api/client';
-	import Modal from '$lib/components/common/Modal.svelte';
+	import AppDialog from '$lib/components/ui-adapters/AppDialog.svelte';
 	import type { ClaimCodeResponse } from '$lib/types';
 
 	interface Props {
@@ -453,7 +453,7 @@
 	</section>
 {/snippet}
 
-<Modal open={open} onclose={() => (open = false)} labelledby="connect-ws-title" maxWidth="560px">
+<AppDialog open={open} onclose={() => (open = false)} labelledby="connect-ws-title" maxWidth="560px">
 	<div class="modal-header">
 		<h2 id="connect-ws-title">{title}</h2>
 		<button class="close-btn" type="button" onclick={() => (open = false)}>&#10005;</button>
@@ -859,7 +859,7 @@
 					{/if}
 				</div>
 	</div>
-</Modal>
+</AppDialog>
 
 <style>
 	.modal-header {

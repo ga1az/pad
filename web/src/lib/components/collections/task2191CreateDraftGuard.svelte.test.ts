@@ -59,7 +59,9 @@ function typeName(value: string) {
 }
 
 const escape = () =>
-	document.querySelector('dialog')!.dispatchEvent(new Event('cancel', { cancelable: true }));
+	document
+		.querySelector('[data-slot="dialog-content"]')!
+		.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
 const cancel = () =>
 	[...document.querySelectorAll<HTMLButtonElement>('button.btn-cancel')].find((b) => /cancel/i.test(b.textContent ?? ''))!.click();
 

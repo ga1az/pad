@@ -3,6 +3,7 @@
 	import BottomSheet from '$lib/components/common/BottomSheet.svelte';
 	import { viewport } from '$lib/stores/breakpoint.svelte';
 	import { clickOutside } from '$lib/utils/clickOutside';
+	import { DIALOG_HOST_SELECTOR } from '$lib/utils/portalAction';
 
 	interface Props {
 		value: string;
@@ -22,11 +23,12 @@
 	// (TASK-2028).
 
 	/**
-	 * Portal into the nearest <dialog> (stays in top-layer, escapes overflow
-	 * children like .dialog-body), or document.body if not inside a dialog.
+	 * Portal into the nearest dialog (a native <dialog> or an app Dialog's
+	 * content: it stays inside the focus trap and escapes overflow children
+	 * like .dialog-body), or document.body if not inside a dialog.
 	 */
 	function portal(node: HTMLElement) {
-		const dialog = triggerEl?.closest('dialog');
+		const dialog = triggerEl?.closest<HTMLElement>(DIALOG_HOST_SELECTOR);
 		const target = dialog || document.body;
 		target.appendChild(node);
 
@@ -52,7 +54,7 @@
 		// the viewport edge and doesn't need trigger-relative coordinates.
 		if (!open && !viewport.isMobile && triggerEl) {
 			const triggerRect = triggerEl.getBoundingClientRect();
-			const dialog = triggerEl.closest('dialog');
+			const dialog = triggerEl.closest<HTMLElement>(DIALOG_HOST_SELECTOR);
 			if (dialog) {
 				// dialog with transform creates a containing block —
 				// position: absolute is relative to it, so offset accordingly

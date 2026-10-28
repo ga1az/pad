@@ -112,15 +112,15 @@ describe('TASK-2193: revoking from the share dialog asks first', () => {
     ]);
     render();
     await settle();
-    target.querySelector<HTMLButtonElement>('.revoke-btn')!.click();
+    document.body.querySelector<HTMLButtonElement>('.revoke-btn')!.click();
     flushSync();
     expect(apiMock.deleteItemGrant).not.toHaveBeenCalled();
-    const confirm = target.querySelector('.revoke-confirm');
+    const confirm = document.body.querySelector('.revoke-confirm');
     expect(confirm?.textContent).toMatch(/Revoke .+ access\?/);
-    target.querySelector<HTMLButtonElement>('.revoke-confirm-no')!.click();
+    document.body.querySelector<HTMLButtonElement>('.revoke-confirm-no')!.click();
     flushSync();
-    expect(target.querySelector('.revoke-confirm')).toBeNull();
-    expect(target.querySelector('.revoke-btn')).toBeTruthy();
+    expect(document.body.querySelector('.revoke-confirm')).toBeNull();
+    expect(document.body.querySelector('.revoke-btn')).toBeTruthy();
     expect(apiMock.deleteItemGrant).not.toHaveBeenCalled();
   });
 
@@ -130,12 +130,12 @@ describe('TASK-2193: revoking from the share dialog asks first', () => {
     ]);
     render();
     await settle();
-    target.querySelector<HTMLButtonElement>('.revoke-btn')!.click();
+    document.body.querySelector<HTMLButtonElement>('.revoke-btn')!.click();
     flushSync();
-    target.querySelector<HTMLButtonElement>('.revoke-confirm-yes')!.click();
+    document.body.querySelector<HTMLButtonElement>('.revoke-confirm-yes')!.click();
     await settle();
     expect(apiMock.deleteItemGrant).toHaveBeenCalledTimes(1);
-    expect(target.textContent).not.toContain('revokeme@example.com');
+    expect(document.body.textContent).not.toContain('revokeme@example.com');
   });
 
   it('the share-link × says the link cannot be recreated, and its confirm revokes it', async () => {
@@ -145,13 +145,13 @@ describe('TASK-2193: revoking from the share dialog asks first', () => {
     apiMock.deleteShareLink.mockResolvedValue(undefined);
     render();
     await settle();
-    const linkRevoke = target.querySelector<HTMLButtonElement>('.revoke-btn[title="Revoke share link"]');
+    const linkRevoke = document.body.querySelector<HTMLButtonElement>('.revoke-btn[title="Revoke share link"]');
     expect(linkRevoke, 'precondition: the link row renders its revoke control').toBeTruthy();
     linkRevoke!.click();
     flushSync();
     expect(apiMock.deleteShareLink).not.toHaveBeenCalled();
-    expect(target.querySelector('.revoke-confirm')?.textContent).toMatch(/can.t be recreated/);
-    target.querySelector<HTMLButtonElement>('.revoke-confirm-yes')!.click();
+    expect(document.body.querySelector('.revoke-confirm')?.textContent).toMatch(/can.t be recreated/);
+    document.body.querySelector<HTMLButtonElement>('.revoke-confirm-yes')!.click();
     await settle();
     expect(apiMock.deleteShareLink).toHaveBeenCalledTimes(1);
   });
