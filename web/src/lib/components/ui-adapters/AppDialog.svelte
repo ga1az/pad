@@ -17,8 +17,9 @@
     dragged out of the content does not close it. `closeOnBackdrop={false}`
     turns it off (a dialog mid-submit).
   - Everything mounts only while open, so consumers keep their fresh-on-open
-    reset. Focus is trapped while open and returns, on close, to what had it
-    when the dialog opened (bits-ui's FocusScope).
+    reset. Focus is trapped while open, starts on the content's [autofocus]
+    element when there is one (as showModal() did) and returns, on close, to
+    what had it when the dialog opened (bits-ui's FocusScope).
   - Consumers own their header/body/footer markup; the surface (padding 0,
     a flex column that clips, 85vh cap) is theirs to fill. `labelledby` names
     the heading inside it, or `ariaLabel` when there is none.
@@ -64,6 +65,19 @@
 		class: klass = '',
 		children
 	}: Props = $props();
+
+	let contentEl = $state<HTMLElement | null>(null);
+
+	// showModal() focused a dialog's [autofocus] element; bits-ui's FocusScope
+	// focuses the first tabbable one instead (often the header's close button).
+	// So a consumer that marked a control (a Cancel before a destructive
+	// action, the field to type in) gets it focused, as before.
+	function onOpenAutoFocus(e: Event) {
+		const target = contentEl?.querySelector<HTMLElement>('[autofocus]:not(:disabled)');
+		if (!target) return;
+		e.preventDefault();
+		target.focus();
+	}
 </script>
 
 <!--
@@ -83,6 +97,8 @@
 	}
 >
 	<Dialog.Content
+		bind:ref={contentEl}
+		{onOpenAutoFocus}
 		showCloseButton={false}
 		interactOutsideBehavior="ignore"
 		onBackdropDismiss={closeOnBackdrop ? onclose : undefined}
