@@ -18,7 +18,9 @@
 
 	The popover's keys: typing filters the rows, ↑/↓ move the highlight, Enter
 	picks, Esc closes and refocuses the chip. While the search is empty a digit
-	picks that row (the gray number on its right). The search is ours
+	picks that row (the gray number on its right; the numbers are hidden once
+	there is text, because a digit then types, and a digit past the last row types
+	too). The search is ours
 	(`shouldFilter={false}`), because the digits and the numbering follow the
 	rows that are showing.
 
@@ -80,6 +82,11 @@
 			highlighted = optionList.includes(value) ? value : (optionList[0] ?? '');
 		}
 		open = !open;
+		// A mouse press on a card's chip does not focus it (the board's drag
+		// layer swallows the mousedown), so closing by the chip puts focus back
+		// on it here. AnchoredPopover does the same when the press outlasts
+		// bits-ui's 10ms judgement.
+		if (!open) triggerEl?.focus();
 	}
 
 	function choose(status: string) {
@@ -101,8 +108,9 @@
 	function onSearchKeydown(e: KeyboardEvent, close: (refocus?: boolean) => void) {
 		if (query !== '' || e.metaKey || e.ctrlKey || e.altKey || !/^[1-9]$/.test(e.key)) return;
 		const option = visible[Number(e.key) - 1];
-		e.preventDefault();
+		// A digit past the last row is not a shortcut: it types.
 		if (!option) return;
+		e.preventDefault();
 		close(true);
 		choose(option);
 	}
@@ -192,7 +200,9 @@
 								{#if option === value}
 									<HugeiconsIcon icon={Tick02Icon} strokeWidth={2} class="text-muted-foreground" />
 								{/if}
-								{#if i < 9}
+								<!-- The numbers are the digit shortcuts, which only work while the
+								     search is empty: with text in it a digit types. -->
+								{#if i < 9 && query === ''}
 									<Command.Shortcut class="ml-1 w-3 text-center">{i + 1}</Command.Shortcut>
 								{/if}
 							</Command.Item>

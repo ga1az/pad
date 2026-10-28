@@ -22,7 +22,7 @@
 	{...restProps}
 >
 	{#if heading}
-		<CommandPrimitive.GroupHeading class="text-muted-foreground px-2 pt-2 pb-1 text-xs font-medium">
+		<CommandPrimitive.GroupHeading class="text-[color-mix(in_srgb,var(--ui-popover-foreground)_66%,var(--ui-popover))] px-2 pt-2 pb-1 text-xs font-medium">
 			{heading}
 		</CommandPrimitive.GroupHeading>
 	{/if}

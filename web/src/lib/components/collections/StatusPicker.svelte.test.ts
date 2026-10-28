@@ -124,14 +124,36 @@ describe('StatusPicker', () => {
 			expect(statusRows()).toHaveLength(0);
 		});
 
-		it('numbers the rows that are showing, and a digit typed into a search filters instead', async () => {
+		it('shows the digit hints only while the search is empty, and a digit typed into a search types', async () => {
 			const { screen, onselect } = renderPicker('open');
 			await openStatusPicker(screen.container);
+			const hints = () =>
+				statusRows().map((r) => r.querySelector('[data-slot="command-shortcut"]')?.textContent ?? null);
+			expect(hints()).toEqual(['1', '2', '3']);
 			await fireEvent.input(searchInput(), { target: { value: 'd' } });
 			await tick();
-			expect(statusRows().map((r) => r.querySelector('[data-slot="command-shortcut"]')?.textContent)).toEqual(['1']);
-			await fireEvent.keyDown(searchInput(), { key: '1' });
+			expect(statusRows().map(rowLabel)).toEqual(['Done']);
+			expect(hints(), 'no numbers while filtering').toEqual([null]);
+			// Not prevented: the browser types the digit into the field.
+			expect(await fireEvent.keyDown(searchInput(), { key: '1' })).toBe(true);
 			expect(onselect).not.toHaveBeenCalled();
+			expect(statusRows()).toHaveLength(1);
+			// Clearing the search brings them back.
+			await fireEvent.input(searchInput(), { target: { value: '' } });
+			await tick();
+			expect(hints()).toEqual(['1', '2', '3']);
+		});
+
+		it('a digit past the last row is not a shortcut: it types, and nothing closes', async () => {
+			const { screen, onselect } = renderPicker('open');
+			await openStatusPicker(screen.container);
+			await tick();
+			expect(await fireEvent.keyDown(searchInput(), { key: '9' })).toBe(true);
+			expect(onselect).not.toHaveBeenCalled();
+			expect(statusRows()).toHaveLength(OPTIONS.length);
+			// And the shortcut itself IS taken (prevented): control for the above.
+			expect(await fireEvent.keyDown(searchInput(), { key: '2' })).toBe(false);
+			expect(onselect).toHaveBeenCalledWith('in_progress');
 		});
 
 		it('Escape closes without writing and refocuses the chip', async () => {
@@ -151,6 +173,117 @@ describe('StatusPicker', () => {
 			const rows = await openStatusPicker(screen.container);
 			expect(rows.filter((r) => r.getAttribute('aria-checked') === 'true')).toHaveLength(0);
 			expect(statusChipIn(screen.container).textContent?.trim()).toBe('Legacy State');
+		});
+	});
+
+	// Where focus ends up after each way of closing (TASK-30 review): Escape,
+	// a pick and a press on the chip return it to the chip; an outside press
+	// leaves it on whatever was pressed. bits-ui's focus trap used to pull an
+	// outside focus back into the panel before the dismissal ran, so the press
+	// ended with focus on <body>.
+	describe('focus after closing (desktop popover)', () => {
+		const searchInput = () => document.body.querySelector<HTMLInputElement>('[data-slot="command-input"]')!;
+		// A real press: down and up at coordinates outside the panel (jsdom
+		// lays nothing out), then the click. The browser focuses on mousedown,
+		// and bits-ui judges a mouse press 10ms after it goes down.
+		async function press(el: HTMLElement, focus = true) {
+			const at = { bubbles: true, button: 0, pointerType: 'mouse', clientX: 500, clientY: 500 };
+			el.dispatchEvent(new PointerEvent('pointerdown', at));
+			if (focus) el.focus();
+			await new Promise((r) => setTimeout(r, 40));
+			el.dispatchEvent(new PointerEvent('pointerup', at));
+			el.click();
+		}
+		async function settle() {
+			for (let i = 0; i < 3; i++) await tick();
+		}
+
+		it('Escape returns focus to the chip', async () => {
+			const { screen } = renderPicker();
+			await openStatusPicker(screen.container);
+			await settle();
+			expect(document.activeElement).toBe(searchInput());
+			await fireEvent.keyDown(searchInput(), { key: 'Escape' });
+			await settle();
+			expect(statusRows()).toHaveLength(0);
+			expect(document.activeElement).toBe(statusChipIn(screen.container));
+		});
+
+		it('Escape with focus outside the panel closes it and returns focus to the chip', async () => {
+			const { screen } = renderPicker();
+			const field = document.body.appendChild(document.createElement('input'));
+			await openStatusPicker(screen.container);
+			await settle();
+			field.focus();
+			field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+			await settle();
+			expect(statusRows()).toHaveLength(0);
+			expect(document.activeElement).toBe(statusChipIn(screen.container));
+			field.remove();
+		});
+
+		it('a pick returns focus to the chip', async () => {
+			const { screen, onselect } = renderPicker('open');
+			const rows = await openStatusPicker(screen.container);
+			await settle();
+			await fireEvent.click(rows[2]);
+			await settle();
+			expect(onselect).toHaveBeenCalledWith('done');
+			expect(document.activeElement).toBe(statusChipIn(screen.container));
+		});
+
+		it('a press on the chip closes it, with focus on the chip', async () => {
+			const { screen } = renderPicker();
+			await openStatusPicker(screen.container);
+			await settle();
+			await press(statusChipIn(screen.container), false);
+			await settle();
+			expect(statusRows()).toHaveLength(0);
+			expect(document.activeElement).toBe(statusChipIn(screen.container));
+		});
+
+		it('an outside press on a text input closes it and leaves focus ON that input', async () => {
+			const { screen } = renderPicker();
+			const field = document.body.appendChild(document.createElement('input'));
+			await openStatusPicker(screen.container);
+			await settle();
+			await press(field);
+			await settle();
+			expect(statusRows()).toHaveLength(0);
+			expect(document.activeElement).toBe(field);
+			field.remove();
+		});
+
+		it('an outside press on another chip leaves focus on that chip', async () => {
+			const { screen } = renderPicker();
+			const other = document.body.appendChild(document.createElement('button'));
+			await openStatusPicker(screen.container);
+			await settle();
+			await press(other);
+			await settle();
+			expect(statusRows()).toHaveLength(0);
+			expect(document.activeElement).toBe(other);
+			other.remove();
+		});
+
+		it('an outside press on plain page background closes it without pulling focus back', async () => {
+			const { screen } = renderPicker();
+			await openStatusPicker(screen.container);
+			await settle();
+			await press(document.body, false);
+			await settle();
+			expect(statusRows()).toHaveLength(0);
+			expect(document.activeElement).not.toBe(searchInput());
+		});
+
+		it('Tab closes it and continues from the chip', async () => {
+			const { screen } = renderPicker();
+			await openStatusPicker(screen.container);
+			await settle();
+			await fireEvent.keyDown(searchInput(), { key: 'Tab' });
+			await settle();
+			expect(statusRows()).toHaveLength(0);
+			expect(document.activeElement).toBe(statusChipIn(screen.container));
 		});
 	});
 });
