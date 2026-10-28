@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { modKeyLabel } from '$lib/utils/platform';
 	import '../app.css';
+	// After app.css on purpose: see the header of ui.css (TASK-25).
+	import '../ui.css';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -71,6 +73,10 @@
 		|| page.url.pathname.startsWith('/auth/cli/')
 	);
 	let isSharePage = $derived(page.url.pathname.startsWith('/s/'));
+	// The shadcn-svelte token and component preview (TASK-25): static, no data,
+	// so it renders bare and needs no sign-in, like a share page. The leading
+	// underscore keeps it out of the username namespace.
+	let isUiPreviewPage = $derived(page.url.pathname === '/_ui-preview');
 	let isConsolePage = $derived(page.url.pathname.startsWith('/console'));
 	// Exactly /messages or below it: /messagesfoo is not the chat inbox.
 	let isMessagesPage = $derived(
@@ -209,7 +215,7 @@
 		}
 
 		// Share pages bypass auth entirely
-		if (isSharePage) {
+		if (isSharePage || isUiPreviewPage) {
 			authReady = true;
 			return;
 		}
@@ -267,6 +273,7 @@
 			(authStore.authenticated || authLoadFailed) &&
 			!isAuthPage &&
 			!isSharePage &&
+			!isUiPreviewPage &&
 			!workspacesRequested &&
 			!workspaceStore.loading
 		) {
@@ -389,7 +396,7 @@
 
 {#if !authReady}
 	<!-- Auth check in progress — blank screen to avoid flash -->
-{:else if isAuthPage || isSharePage}
+{:else if isAuthPage || isSharePage || isUiPreviewPage}
 	{@render children()}
 {:else if isConsolePage || isMessagesPage}
 	<!--

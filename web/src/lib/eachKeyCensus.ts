@@ -23,6 +23,11 @@ export const EACH_KEY_REASONS = {
 export type EachKeyReason = keyof typeof EACH_KEY_REASONS;
 
 export const EACH_KEY_CENSUS: Record<string, { reason: EachKeyReason; note: string }> = {
+	"routes/_ui-preview/+page.svelte :: each list as s (s.token)": { reason: 'static-literal', note: "`surfaces`, `texts` or `statuses`, three literals whose token names are distinct within each list (TASK-25)" },
+	"routes/_ui-preview/+page.svelte :: each statuses as s (s.token)": { reason: 'static-literal', note: "five distinct status tokens" },
+	"routes/_ui-preview/+page.svelte :: each themes as t (t)": { reason: 'static-literal', note: "dark, light, system" },
+	"routes/_ui-preview/+page.svelte :: each sizes as size (size)": { reason: 'static-literal', note: "three distinct Button sizes" },
+	"routes/_ui-preview/+page.svelte :: each variants as variant (variant)": { reason: 'static-literal', note: "six distinct Button variants" },
 	"routes/messages/+page.svelte :: each chatInbox.roster as entry (entry.key)": { reason: 'object-or-map-keys', note: "chatInbox.roster is built by iterating the `presences` Map (rollupPresence), keyed by agent name | Map keys cannot repeat." },
 	"routes/messages/[n]/+page.svelte :: each thread.messages as m, i (m.seq)": { reason: 'object-or-map-keys', note: "`thread.messages` is `ChatWindow.messages`, rebuilt by `mergeBySeq` from a `Map` keyed by `seq` (chat/model.ts) | Map keys cannot repeat; seq is also unique per conversation on the server." },
 	"lib/components/BacklinksPanel.svelte :: each group.rows as bl, blIdx (rowKey(bl, blIdx))": { reason: 'position-or-counter', note: "rowKey ends with the row's index" },

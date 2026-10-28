@@ -1,0 +1,290 @@
+/* ============================================================================
+   shadcn-svelte + Tailwind v4 base (SPEC-24 / TASK-25).
+
+   This file sits NEXT TO app.css, not inside it: the root layout imports
+   app.css first and this file second, so Tailwind never re-processes the
+   legacy stylesheet and a utility wins a specificity tie against it.
+
+   What is deliberately NOT here yet:
+   - Preflight. Tailwind's reset restyles headings, lists, buttons, borders
+     and margins, and ~200 components still rely on the browser defaults that
+     app.css leaves in place. TASK-32 (cleanup) turns it on once the old
+     styles are gone.
+   - Theme variables in :root. `theme(inline)` writes Tailwind's own scale
+     (spacing, text sizes, radii, shadows) into each utility instead of
+     emitting `--text-sm`, `--radius-md`, `--shadow-sm`, `--font-sans` ...
+     app.css defines some of those names and components read others with a
+     fallback (`var(--radius-md)`, `var(--text-xs, 0.75rem)`), so emitting
+     them would change existing styles.
+
+   The utilities are UNLAYERED on purpose. app.css's `* { padding: 0 }` and
+   `button { background: none; border: none }` are unlayered too, and an
+   unlayered rule beats every layered one whatever its specificity, so
+   `@layer utilities` would make `px-2` or `bg-primary` lose to them.
+
+   Only the shadcn components (and the preview page) are scanned. A legacy
+   component that happens to use a class like `hidden` or `truncate` must not
+   pick up a Tailwind rule for it (the preview page avoids `grid` for that
+   reason: two legacy pages use it as a class name). Add a `@source` line as
+   each later SPEC-24 task moves a directory onto Tailwind.
+   ============================================================================ */
+
+@import "tailwindcss/theme.css" layer(theme) theme(inline);
+@import "tailwindcss/utilities.css" source(none);
+@import "tw-animate-css";
+
+@source "./lib/components/ui/**/*.{svelte,ts}";
+@source "./routes/_ui-preview/**/*.svelte";
+
+/* `dark:` follows the app's own theme switch (see app.css "Light mode" and
+   the comment atop lib/components/editor/mermaidTheme.ts). There is no
+   `.dark` class: <html data-theme> decides, and with no attribute the OS
+   preference does, dark unless it says light. So dark is
+   data-theme="dark", or no data-theme="light" while the OS is not light.
+   `:where()` adds no specificity, like Tailwind's stock media-query variant. */
+@custom-variant dark {
+	&:where([data-theme="dark"], [data-theme="dark"] *) {
+		@slot;
+	}
+	@media not all and (prefers-color-scheme: light) {
+		&:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+			@slot;
+		}
+	}
+}
+
+/* Source tokens. Every name carries the `--ui-` prefix: app.css already owns
+   `--border` and `--radius`, and components read `--accent`, `--chart-1..4`,
+   `--font-sans` and `--sidebar-width` with legacy meanings or fallbacks.
+   Components reach these through the Tailwind mapping below (`bg-primary`,
+   `border-border`, `rounded-md`), or as `var(--ui-*)` in an arbitrary value.
+
+   DARK (the default) is the Linear palette from DOC-33, measured from Linear
+   screenshots and converted to oklch. The grays keep the slight cool tint
+   they were measured with (chroma <= 0.008); indigo is the only brand hue. */
+:root {
+	--ui-radius: 8px;
+
+	--ui-sidebar: oklch(0.215 0.006 285.9); /* #19191c app frame + sidebar */
+	--ui-background: oklch(0.244 0.006 271.2); /* #1f2023 main content panel */
+	--ui-foreground: oklch(0.925 0.001 286.4); /* #e6e6e7 primary text */
+	--ui-muted: oklch(0.236 0.006 286); /* #1e1e21 kanban column */
+	--ui-muted-foreground: oklch(0.667 0.006 274.9); /* #939498 secondary text */
+	--ui-subtle-foreground: oklch(0.482 0.006 274.9); /* #5d5e62 tertiary text, dim icons */
+	--ui-card: oklch(0.281 0.006 271.2); /* #28292c card */
+	--ui-card-foreground: oklch(0.925 0.001 286.4);
+	--ui-popover: oklch(0.306 0.007 274.7); /* #2e2f33, a step above the card */
+	--ui-popover-foreground: oklch(0.925 0.001 286.4);
+	--ui-primary: oklch(0.567 0.159 275.2); /* #5e6ad2 brand indigo */
+	--ui-primary-foreground: oklch(1 0 0);
+	--ui-secondary: oklch(0.284 0.005 248); /* #282a2c list group header */
+	--ui-secondary-foreground: oklch(0.925 0.001 286.4);
+	--ui-accent: oklch(0.412 0.006 258.3); /* #494b4e active pill tab */
+	--ui-accent-foreground: oklch(0.925 0.001 286.4);
+	--ui-tab: oklch(0.289 0.006 271.2); /* #2a2b2e inactive pill tab */
+	--ui-destructive: oklch(0.704 0.191 22.216); /* shadcn neutral dark */
+	--ui-border: oklch(0.298 0.004 286.2); /* #2d2d2f card border */
+	--ui-input: oklch(0.298 0.004 286.2);
+	--ui-ring: oklch(0.567 0.159 275.2);
+	--ui-chart-1: oklch(0.87 0 0);
+	--ui-chart-2: oklch(0.556 0 0);
+	--ui-chart-3: oklch(0.439 0 0);
+	--ui-chart-4: oklch(0.371 0 0);
+	--ui-chart-5: oklch(0.269 0 0);
+	--ui-sidebar-foreground: oklch(0.925 0.001 286.4);
+	--ui-sidebar-primary: oklch(0.567 0.159 275.2);
+	--ui-sidebar-primary-foreground: oklch(1 0 0);
+	--ui-sidebar-accent: oklch(0.325 0.008 264.5); /* #323438 active sidebar item */
+	--ui-sidebar-accent-foreground: oklch(0.925 0.001 286.4);
+	--ui-sidebar-border: oklch(0.298 0.004 286.2);
+	--ui-sidebar-ring: oklch(0.567 0.159 275.2);
+
+	/* Item status colors, the same in both themes. */
+	--ui-status-backlog: oklch(0.715 0.008 260.7); /* #a0a3a8 backlog / todo */
+	--ui-status-progress: oklch(0.792 0.162 90.2); /* #e3b502 in progress */
+	--ui-status-review: oklch(0.626 0.171 146.8); /* #26a243 in review */
+	--ui-status-done: oklch(0.567 0.159 275.2); /* #5e6ad2 done */
+	--ui-status-cancelled: oklch(0.698 0.029 255.1); /* #929fb0 cancelled */
+}
+
+/* LIGHT is the stock shadcn-svelte `neutral` light theme, untuned (radius
+   stays 8px in both). The two blocks below must stay identical: the first is
+   an explicit choice, the second an OS preference the user has not
+   overridden with data-theme="dark". uiTokens.test.ts checks they match. */
+[data-theme="light"] {
+	--ui-background: oklch(1 0 0);
+	--ui-foreground: oklch(0.145 0 0);
+	--ui-muted: oklch(0.97 0 0);
+	--ui-muted-foreground: oklch(0.556 0 0);
+	--ui-subtle-foreground: oklch(0.708 0 0);
+	--ui-card: oklch(1 0 0);
+	--ui-card-foreground: oklch(0.145 0 0);
+	--ui-popover: oklch(1 0 0);
+	--ui-popover-foreground: oklch(0.145 0 0);
+	--ui-primary: oklch(0.205 0 0);
+	--ui-primary-foreground: oklch(0.985 0 0);
+	--ui-secondary: oklch(0.97 0 0);
+	--ui-secondary-foreground: oklch(0.205 0 0);
+	--ui-accent: oklch(0.97 0 0);
+	--ui-accent-foreground: oklch(0.205 0 0);
+	--ui-tab: oklch(0.97 0 0);
+	--ui-destructive: oklch(0.577 0.245 27.325);
+	--ui-border: oklch(0.922 0 0);
+	--ui-input: oklch(0.922 0 0);
+	--ui-ring: oklch(0.708 0 0);
+	--ui-chart-1: oklch(0.87 0 0);
+	--ui-chart-2: oklch(0.556 0 0);
+	--ui-chart-3: oklch(0.439 0 0);
+	--ui-chart-4: oklch(0.371 0 0);
+	--ui-chart-5: oklch(0.269 0 0);
+	--ui-sidebar: oklch(0.985 0 0);
+	--ui-sidebar-foreground: oklch(0.145 0 0);
+	--ui-sidebar-primary: oklch(0.205 0 0);
+	--ui-sidebar-primary-foreground: oklch(0.985 0 0);
+	--ui-sidebar-accent: oklch(0.97 0 0);
+	--ui-sidebar-accent-foreground: oklch(0.205 0 0);
+	--ui-sidebar-border: oklch(0.922 0 0);
+	--ui-sidebar-ring: oklch(0.708 0 0);
+}
+
+@media (prefers-color-scheme: light) {
+	:root:not([data-theme="dark"]) {
+		--ui-background: oklch(1 0 0);
+		--ui-foreground: oklch(0.145 0 0);
+		--ui-muted: oklch(0.97 0 0);
+		--ui-muted-foreground: oklch(0.556 0 0);
+		--ui-subtle-foreground: oklch(0.708 0 0);
+		--ui-card: oklch(1 0 0);
+		--ui-card-foreground: oklch(0.145 0 0);
+		--ui-popover: oklch(1 0 0);
+		--ui-popover-foreground: oklch(0.145 0 0);
+		--ui-primary: oklch(0.205 0 0);
+		--ui-primary-foreground: oklch(0.985 0 0);
+		--ui-secondary: oklch(0.97 0 0);
+		--ui-secondary-foreground: oklch(0.205 0 0);
+		--ui-accent: oklch(0.97 0 0);
+		--ui-accent-foreground: oklch(0.205 0 0);
+		--ui-tab: oklch(0.97 0 0);
+		--ui-destructive: oklch(0.577 0.245 27.325);
+		--ui-border: oklch(0.922 0 0);
+		--ui-input: oklch(0.922 0 0);
+		--ui-ring: oklch(0.708 0 0);
+		--ui-chart-1: oklch(0.87 0 0);
+		--ui-chart-2: oklch(0.556 0 0);
+		--ui-chart-3: oklch(0.439 0 0);
+		--ui-chart-4: oklch(0.371 0 0);
+		--ui-chart-5: oklch(0.269 0 0);
+		--ui-sidebar: oklch(0.985 0 0);
+		--ui-sidebar-foreground: oklch(0.145 0 0);
+		--ui-sidebar-primary: oklch(0.205 0 0);
+		--ui-sidebar-primary-foreground: oklch(0.985 0 0);
+		--ui-sidebar-accent: oklch(0.97 0 0);
+		--ui-sidebar-accent-foreground: oklch(0.205 0 0);
+		--ui-sidebar-border: oklch(0.922 0 0);
+		--ui-sidebar-ring: oklch(0.708 0 0);
+	}
+}
+
+/* The names Tailwind utilities use. `inline` resolves each one inside the
+   utility, so none of these become :root variables either. */
+@theme inline {
+	/* Tailwind's sizes are in rem, and app.css sets the root font size to
+	   14px, so every one of them would come out at 87.5%: a shadcn `h-7`
+	   button 24.5px tall, `text-xs` 10.5px. These are the stock Tailwind
+	   values at a 16px rem, written in px. Line heights are ratios and stay.
+	   An arbitrary rem value (`text-[0.625rem]`) still scales with the 14px
+	   root. */
+	--spacing: 4px;
+	--text-xs: 12px;
+	--text-sm: 14px;
+	--text-base: 16px;
+	--text-lg: 18px;
+	--text-xl: 20px;
+	--text-2xl: 24px;
+	--text-3xl: 30px;
+	--text-4xl: 36px;
+	--text-5xl: 48px;
+	--text-6xl: 60px;
+	--text-7xl: 72px;
+	--text-8xl: 96px;
+	--text-9xl: 128px;
+	--container-3xs: 256px;
+	--container-2xs: 288px;
+	--container-xs: 320px;
+	--container-sm: 384px;
+	--container-md: 448px;
+	--container-lg: 512px;
+	--container-xl: 576px;
+	--container-2xl: 672px;
+	--container-3xl: 768px;
+	--container-4xl: 896px;
+	--container-5xl: 1024px;
+	--container-6xl: 1152px;
+	--container-7xl: 1280px;
+
+	--radius-xs: 2px;
+	--radius-sm: calc(var(--ui-radius) - 4px);
+	--radius-md: calc(var(--ui-radius) - 2px);
+	--radius-lg: var(--ui-radius);
+	--radius-xl: calc(var(--ui-radius) + 4px);
+	--radius-2xl: calc(var(--ui-radius) + 8px);
+	--radius-3xl: calc(var(--ui-radius) + 12px);
+	--radius-4xl: calc(var(--ui-radius) + 16px);
+
+	--color-background: var(--ui-background);
+	--color-foreground: var(--ui-foreground);
+	--color-muted: var(--ui-muted);
+	--color-muted-foreground: var(--ui-muted-foreground);
+	--color-subtle-foreground: var(--ui-subtle-foreground);
+	--color-card: var(--ui-card);
+	--color-card-foreground: var(--ui-card-foreground);
+	--color-popover: var(--ui-popover);
+	--color-popover-foreground: var(--ui-popover-foreground);
+	--color-primary: var(--ui-primary);
+	--color-primary-foreground: var(--ui-primary-foreground);
+	--color-secondary: var(--ui-secondary);
+	--color-secondary-foreground: var(--ui-secondary-foreground);
+	--color-accent: var(--ui-accent);
+	--color-accent-foreground: var(--ui-accent-foreground);
+	--color-tab: var(--ui-tab);
+	--color-destructive: var(--ui-destructive);
+	--color-border: var(--ui-border);
+	--color-input: var(--ui-input);
+	--color-ring: var(--ui-ring);
+	--color-chart-1: var(--ui-chart-1);
+	--color-chart-2: var(--ui-chart-2);
+	--color-chart-3: var(--ui-chart-3);
+	--color-chart-4: var(--ui-chart-4);
+	--color-chart-5: var(--ui-chart-5);
+	--color-sidebar: var(--ui-sidebar);
+	--color-sidebar-foreground: var(--ui-sidebar-foreground);
+	--color-sidebar-primary: var(--ui-sidebar-primary);
+	--color-sidebar-primary-foreground: var(--ui-sidebar-primary-foreground);
+	--color-sidebar-accent: var(--ui-sidebar-accent);
+	--color-sidebar-accent-foreground: var(--ui-sidebar-accent-foreground);
+	--color-sidebar-border: var(--ui-sidebar-border);
+	--color-sidebar-ring: var(--ui-sidebar-ring);
+	--color-status-backlog: var(--ui-status-backlog);
+	--color-status-progress: var(--ui-status-progress);
+	--color-status-review: var(--ui-status-review);
+	--color-status-done: var(--ui-status-done);
+	--color-status-cancelled: var(--ui-status-cancelled);
+
+	/* Inter for the UI, for the tasks that adopt it: `font-inter`. The app"s
+	   own font (--font-ui) is unchanged, and no Inter files ship yet, so the
+	   fallback is that same stack. */
+	--font-inter: "Inter", var(--font-ui);
+	--font-inter--font-feature-settings: "cv01", "ss03";
+}
+
+/* The two Preflight rules the shadcn components need, scoped to them
+   (every one sets data-slot) and kept at element specificity, so app.css's
+   `a { color }` / `a:hover { underline }` lose by source order and any
+   utility still wins. Removed with the rest of this scaffolding in TASK-32. */
+a:where([data-slot]) {
+	color: inherit;
+	text-decoration: inherit;
+}
+a:where([data-slot]):hover {
+	text-decoration: inherit;
+}

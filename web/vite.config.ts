@@ -1,5 +1,6 @@
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
+import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, type Plugin } from 'vite';
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
@@ -27,6 +28,7 @@ function buildSource(): Plugin {
 export default defineConfig({
 	plugins: [
 		buildSource(),
+		tailwindcss(),
 		// The SvelteKit and Svelte config, here rather than in svelte.config.js
 		// (TASK-3423; SvelteKit 3 refuses that file). Kit's own keys (adapter)
 		// stay with kit; the rest, dynamicCompileOptions, is forwarded to
