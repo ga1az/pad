@@ -9209,6 +9209,8 @@
 	.field-row-text .field-label {
 		width: auto;
 		line-height: 24px;
+		/* app.css's auth-form `.field-label` pulls it 8px into what follows. */
+		margin-bottom: 0;
 	}
 
 	/* Stacked (the docked pane, a narrow page): the properties are a compact

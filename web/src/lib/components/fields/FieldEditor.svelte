@@ -913,8 +913,15 @@ handlers — onchange is never called.
 		]),
 	);
 
-	/** The rows `PropertyPicker` shows: the value, and the name it reads as. */
-	let pickerOptions = $derived(optionList.map((o) => ({ value: o, label: formatLabel(o) })));
+	/** The rows `PropertyPicker` shows: the value, and the name it reads as. A
+	 *  stored value the options do not list (a renamed or removed option) is a
+	 *  row too, checked, as a multi_select's is: the list says what the item has. */
+	let pickerOptions = $derived(
+		uniqueStrings([
+			...optionList,
+			...(typeof value === 'string' && value && !optionList.includes(value) ? [value] : [])
+		]).map((o) => ({ value: o, label: formatLabel(o) }))
+	);
 	let multiPickerOptions = $derived(multiChoices.map((o) => ({ value: o, label: formatLabel(o) })));
 
 	function toggleMultiOption(opt: string) {
@@ -1325,7 +1332,9 @@ handlers — onchange is never called.
 	function fitTextHeight(el: HTMLTextAreaElement, _text: string) {
 		const fit = () => {
 			el.style.height = 'auto';
-			if (el.scrollHeight > 0) el.style.height = el.scrollHeight + 'px';
+			// scrollHeight is the content and padding; the box is border-box, so its
+			// border goes on top, or the text is scrolled by the border's width.
+			if (el.scrollHeight > 0) el.style.height = el.scrollHeight + (el.offsetHeight - el.clientHeight) + 'px';
 		};
 		fit();
 		// A change of WIDTH rewraps the text (the page going between its two
@@ -2762,6 +2771,9 @@ handlers — onchange is never called.
 		.fe-property .field-input,
 		.fe-property .number-input {
 			font-size: 16px;
+		}
+		.fe-property .number-input {
+			min-height: 44px;
 		}
 		.fe-property .number-btn {
 			width: 44px;

@@ -69,13 +69,18 @@ const state = vi.hoisted(() => ({
 	assigned: undefined as undefined | { id: string; name: string },
 	agentsFail: false,
 	update: [] as Record<string, unknown>[],
+	canEdit: true,
+	roles: [] as { id: string; name: string }[],
+	roleId: undefined as undefined | string,
+	copied: [] as string[],
 }));
 
 const SCHEMA = {
 	fields: [
 		{ key: 'status', label: 'Status', type: 'select', options: ['open', 'done'], terminal_options: ['done'] },
 		{ key: 'priority', label: 'Priority', type: 'select', options: ['low', 'high'] },
-		{ key: 'area', label: 'Area', type: 'select', options: ['web', 'api'] }
+		{ key: 'area', label: 'Area', type: 'select', options: ['web', 'api'] },
+		{ key: 'how', label: 'How to verify', type: 'text' }
 	]
 };
 const coll = { id: 'c-tasks', slug: 'tasks', name: 'Tasks', prefix: 'TASK', schema: JSON.stringify(SCHEMA), settings: '{}' };
@@ -85,6 +90,7 @@ function item(slug: string) {
 		fields: JSON.stringify({ status: 'open', priority: 'high' }), tags: '[]', content: '', seq: 1,
 		created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', created_by: 'user',
 		...(state.assigned ? { assigned_user_id: state.assigned.id, assigned_user_name: state.assigned.name } : {}),
+		...(state.roleId ? { agent_role_id: state.roleId } : {}),
 	};
 }
 
@@ -114,7 +120,7 @@ vi.mock('$lib/api/client', () => ({
 				return { agents };
 			}),
 		},
-		agentRoles: { list: vi.fn(async () => []) },
+		agentRoles: { list: vi.fn(async () => state.roles) },
 		tags: { list: vi.fn(async () => []) },
 	},
 	PadApiError: class PadApiError extends Error { code = ''; },
@@ -137,7 +143,13 @@ vi.mock('$lib/stores/localIndex.svelte', async () => {
 	};
 });
 vi.mock('$lib/stores/workspace.svelte', () => ({
-	workspaceStore: { canEditItem: () => true, get isOwner() { return true; }, setCurrent: vi.fn(async () => {}) },
+	workspaceStore: { canEditItem: () => state.canEdit, get isOwner() { return true; }, setCurrent: vi.fn(async () => {}) },
+}));
+vi.mock('$lib/utils/clipboard', () => ({
+	copyToClipboard: vi.fn(async (t: string) => {
+		state.copied.push(t);
+		return true;
+	}),
 }));
 vi.mock('$lib/stores/auth.svelte', () => ({
 	authStore: {
@@ -173,6 +185,11 @@ beforeEach(() => {
 	state.assigned = undefined;
 	state.agentsFail = false;
 	state.update = [];
+	state.canEdit = true;
+	state.roles = [];
+	state.roleId = undefined;
+	state.copied = [];
+	(globalThis as { __stubProps?: unknown[] }).__stubProps = [];
 	vp.isMobile = false;
 });
 afterEach(() => cleanup());
@@ -310,5 +327,79 @@ describe('the toolbar and the breadcrumb', () => {
 		expect(q(r, '.meta-actions button[title="Copy link"]')).not.toBeNull();
 		// The ref is named once: the pane header has it.
 		expect(q(r, '.meta-info .item-ref')).toBeNull();
+	});
+});
+
+describe('the properties column', () => {
+	it('a text field\'s label goes above its value; other rows keep label beside value', async () => {
+		const r = await mountPage();
+		const rowOf = (label: string) => [...r.container.querySelectorAll<HTMLElement>('.item-aside .field-row')].find((x) => x.querySelector('.field-label')?.textContent === label)!;
+		expect(rowOf('How to verify').classList.contains('field-row-text')).toBe(true);
+		expect(rowOf('Area').classList.contains('field-row-text')).toBe(false);
+		expect(rowOf('Status').classList.contains('field-row-text')).toBe(false);
+	});
+
+	it('the Labels link to the tag page, under the workspace\'s own path', async () => {
+		const r = await mountPage();
+		const stub = ((globalThis as { __stubProps?: Record<string, unknown>[] }).__stubProps ?? []).find((p) => typeof p.hrefFor === 'function');
+		expect(stub, 'TagInput was given no hrefFor').toBeDefined();
+		expect((stub!.hrefFor as (t: string) => string)('ux/ui')).toBe('/u/ws/tags/ux%2Fui');
+		expect(r.container.querySelector('.field-row-labels')).not.toBeNull();
+	});
+
+	it('a role that is not in the list reads "Unknown role", never its id', async () => {
+		state.roles = [{ id: 'r1', name: 'Reviewer' }];
+		state.roleId = 'r-gone-3f9a';
+		const r = await mountPage();
+		const trigger = await waitFor(() => {
+			const t = r.container.querySelector<HTMLButtonElement>('.item-aside button[aria-label^="Agent role"]');
+			expect(t).not.toBeNull();
+			return t!;
+		});
+		expect(trigger.getAttribute('aria-label')).toBe('Agent role: Unknown role');
+		expect(r.container.textContent).not.toContain('r-gone-3f9a');
+	});
+
+	it('read-only (a viewer, an archived item, a guest): text, no picker or trigger', async () => {
+		state.canEdit = false;
+		state.roles = [{ id: 'r1', name: 'Reviewer' }];
+		state.roleId = 'r-gone-3f9a';
+		const r = await mountPage();
+		await waitFor(() => expect(r.container.querySelector('.item-aside .assignment-readonly')).not.toBeNull());
+		const aside = q(r, '.item-aside')!;
+		// No status/priority picker, no assignee or role trigger: every value is text.
+		expect(aside.querySelector('button.picker-row, button.prop-trigger')).toBeNull();
+		expect(aside.querySelector('button')).toBeNull();
+		const texts = [...aside.querySelectorAll('.assignment-readonly')].map((x) => x.textContent?.replace(/\s+/g, ' ').trim());
+		expect(texts).toEqual(['Unassigned', 'Unknown role']);
+		// The tag input and each field are told they are read-only.
+		const props = (globalThis as { __stubProps?: Record<string, unknown>[] }).__stubProps ?? [];
+		const fieldProps = props.filter((p) => p.appearance === 'property');
+		expect(fieldProps.length).toBeGreaterThan(0);
+		expect(fieldProps.every((p) => p.readonly === true)).toBe(true);
+		expect(props.find((p) => typeof p.hrefFor === 'function')!.readonly).toBe(true);
+	});
+});
+
+describe('the toolbar', () => {
+	it('the star keeps one label and says its state in aria-pressed alone', async () => {
+		const r = await mountPage();
+		const star = q(r, 'button.star-btn')!;
+		expect(star.getAttribute('aria-label')).toBe('Star');
+		expect(star.getAttribute('title')).toBe('Star');
+		expect(star.getAttribute('aria-pressed')).toBe('false');
+		// Not "Unstar": a pressed toggle is named once and keeps its name.
+		expect(r.container.querySelector('button[title="Unstar"]')).toBeNull();
+	});
+
+	it('the ⋯ menu carries "Copy as Markdown", the Summary\'s copy, when the item has filled fields', async () => {
+		const r = await mountPage();
+		await fireEvent.click(q(r, 'button.pane-more-btn')!);
+		await tick();
+		const item = [...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]')].find((x) => x.textContent?.includes('Copy as Markdown'));
+		expect(item, 'no Copy as Markdown in the menu').toBeDefined();
+		await fireEvent.click(item!);
+		await waitFor(() => expect(state.copied).toHaveLength(1));
+		expect(state.copied[0]).toBe('## TASK-1 Item i1\n\n**Status:** Open\n**Priority:** High\n');
 	});
 });

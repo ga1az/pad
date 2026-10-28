@@ -201,10 +201,24 @@ describe('assignee picker lists the joined agents (TASK-20)', () => {
 		state.assigned = { id: 'u-bot-1', name: 'Builder' };
 		const { trigger } = await mountPicker();
 		await waitFor(() => expect(trigger.getAttribute('aria-label')).toBe('Assigned to: Builder (agent)'));
-		// The agent's glyph, where the person's initial would be.
-		expect(trigger.querySelector('.avatar')).not.toBeNull();
+		// The agent's glyph, where the person's initial would be: an icon, no letter,
+		// and not the dashed "nobody" icon an unassigned item shows.
+		const avatar = trigger.querySelector('.avatar')!;
+		expect(avatar.querySelector('svg')).not.toBeNull();
+		expect(avatar.textContent?.trim()).toBe('');
+		expect(avatar.classList.contains('avatar-empty')).toBe(false);
 		await open(trigger);
 		expect(rows().filter((r) => r.getAttribute('aria-checked') === 'true').map(label)).toEqual(['Builder (agent)']);
+	});
+
+	it('shows a person by their initial, with no glyph (the glyph is the agent\'s)', async () => {
+		state.assigned = { id: 'u1', name: 'Dave' };
+		const { trigger } = await mountPicker();
+		await waitFor(() => expect(trigger.getAttribute('aria-label')).toBe('Assigned to: Dave'));
+		const avatar = trigger.querySelector('.avatar')!;
+		expect(avatar.textContent?.trim()).toBe('D');
+		expect(avatar.querySelector('svg')).toBeNull();
+		expect(avatar.classList.contains('avatar-empty')).toBe(false);
 	});
 
 	it('keeps an assignee no group holds (a revoked agent), named from the item', async () => {
