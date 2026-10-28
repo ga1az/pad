@@ -52,7 +52,26 @@ func (s *Server) handleCreateAgentJoinLink(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	link.URL = s.agentJoinURL(r, link.Code)
+	name := ""
+	if ws, err := s.store.GetWorkspaceByID(workspaceID); err == nil && ws != nil {
+		name = ws.Name
+	}
+	link.InviteMessage = agentInviteMessage(name, link.URL)
 	writeJSON(w, http.StatusCreated, link)
+}
+
+// agentInviteMessage is what an owner pastes into an agent's session
+// (TASK-23): one line saying what the link is and what to do, then the link,
+// the shape Radio's channel invitation has. English, like the document behind
+// the link, since any provider's agent reads it.
+func agentInviteMessage(workspaceName, url string) string {
+	name := strings.ReplaceAll(oneLine(workspaceName), `"`, `'`)
+	lead := "Join my Pad workspace"
+	if name != "" {
+		lead += ` "` + name + `"`
+	}
+	return lead + ". Read the API instructions at the link below and use them to join, " +
+		"then work on the tasks assigned to you and report back on each task.\n\n" + url
 }
 
 // agentJoinURL is the link an owner hands an agent.

@@ -75,9 +75,11 @@
 	async function copyMinted() {
 		if (!minted) return;
 		const asked = authStore.identityEpoch;
-		const ok = await copyToClipboard(minted.url);
+		// The invitation with the link (TASK-23), as an agent's session needs it.
+		const ok = await copyToClipboard(minted.invite_message || minted.url);
 		if (authStore.identityEpoch !== asked) return;
-		toastStore.show(ok ? 'Link copied' : 'Failed to copy link', ok ? 'success' : 'error');
+		const what = minted.invite_message ? 'Invitation' : 'Link';
+		toastStore.show(ok ? `${what} copied` : 'Failed to copy link', ok ? 'success' : 'error');
 	}
 
 	function linkName(link: AgentJoinLink): string {

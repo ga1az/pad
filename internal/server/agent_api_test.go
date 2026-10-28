@@ -210,3 +210,22 @@ func TestAgentSecretsAreRedactedFromLogs(t *testing.T) {
 		t.Fatalf("redaction took a harmless parameter too: %q", got)
 	}
 }
+
+// TASK-23: the create answer carries the text to paste into an agent's
+// session, the invitation and then the link, as Radio's channel invite.
+func TestAgentJoinLinkInviteMessage(t *testing.T) {
+	t.Parallel()
+	e := setupAgentEnv(t)
+	rr := doRequestWithBearer(e.srv, "POST", "/api/v1/workspaces/"+e.ws.Slug+"/agent-links", e.sessTok, nil)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("create link = %d %s", rr.Code, rr.Body.String())
+	}
+	m := jsonMap(t, rr.Body.Bytes())
+	msg, _ := m["invite_message"].(string)
+	if !strings.HasPrefix(msg, `Join my Pad workspace "Agents WS". Read the API instructions at the link below`) {
+		t.Fatalf("invite_message = %q", msg)
+	}
+	if !strings.HasSuffix(msg, "\n\n"+m["url"].(string)) {
+		t.Fatalf("invite_message does not end with the link: %q", msg)
+	}
+}

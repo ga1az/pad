@@ -92,6 +92,18 @@ describe('AgentsTab (TASK-20)', () => {
 		expect(listAgentsMock).toHaveBeenCalledWith('ws-a', { all: true });
 	});
 
+	it('copies the invitation message with the link, not the bare URL (TASK-23)', async () => {
+		const invite = 'Join my Pad workspace "WS". Read the API instructions at the link below and use them to join, then work on the tasks assigned to you and report back on each task.\n\nhttps://pad.example/api/agent/v1/join?code=padjoin_y';
+		createLinkMock.mockResolvedValue({ ...link({ id: 'l8', agent_count: 0 }), code: 'padjoin_y', url: 'https://pad.example/api/agent/v1/join?code=padjoin_y', invite_message: invite });
+		render(AgentsTab, { wsSlug: 'ws-a' });
+		await screen.findAllByTestId('agent-link-row');
+		await fireEvent.click(screen.getByRole('button', { name: /Create link/ }));
+		await screen.findByTestId('agent-link-minted');
+		await fireEvent.click(screen.getByRole('button', { name: /Copy/ }));
+		await waitFor(() => expect(copyMock).toHaveBeenCalledWith(invite));
+		expect(toastMock).toHaveBeenCalledWith('Invitation copied', 'success');
+	});
+
 	it('shows a minted link once, with a copy button, and forgets it on Done', async () => {
 		createLinkMock.mockResolvedValue({ ...link({ id: 'l9', label: 'Night shift', agent_count: 0 }), code: 'padjoin_x', url: 'https://pad.example/api/agent/v1/join?code=padjoin_x' });
 		render(AgentsTab, { wsSlug: 'ws-a' });

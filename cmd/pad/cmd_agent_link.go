@@ -50,10 +50,13 @@ func agentLinkCreateCmd() *cobra.Command {
 			}
 			green := color.New(color.FgGreen)
 			dim := color.New(color.Faint)
-			fmt.Printf("%s Join link created (expires %s)\n\n", green.Sprint("✓"), link.ExpiresAt.Local().Format(time.RFC1123))
-			fmt.Println(link.URL)
+			fmt.Printf("%s Join link created (expires %s). Paste this into an agent's session:\n\n", green.Sprint("✓"), link.ExpiresAt.Local().Format(time.RFC1123))
+			msg := link.InviteMessage
+			if msg == "" { // a server from before TASK-23
+				msg = link.URL
+			}
+			fmt.Println(msg)
 			fmt.Println()
-			fmt.Println(dim.Sprint("Paste it into an agent session: \"Join this Pad workspace: <link>\"."))
 			fmt.Println(dim.Sprint("It is shown only now; revoke it with: pad agent link revoke " + link.ID))
 			return nil
 		},

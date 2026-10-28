@@ -18,10 +18,13 @@ type AgentJoinLink struct {
 }
 
 // AgentJoinLinkWithCode is the create response: the only time the code is shown.
+// InviteMessage is the text to paste into an agent's session: what the link is
+// and what to do with it, then the link (TASK-23). Web and CLI copy it as-is.
 type AgentJoinLinkWithCode struct {
 	AgentJoinLink
-	Code string `json:"code"`
-	URL  string `json:"url"`
+	Code          string `json:"code"`
+	URL           string `json:"url"`
+	InviteMessage string `json:"invite_message"`
 }
 
 // WorkspaceAgent is an agent that registered through a join link. It acts as

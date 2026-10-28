@@ -3396,6 +3396,8 @@ export interface AgentJoinLink {
 export interface AgentJoinLinkWithCode extends AgentJoinLink {
 	code: string;
 	url: string;
+	/** What to paste into an agent's session: the invitation, then the link (TASK-23). */
+	invite_message?: string;
 }
 
 /**
