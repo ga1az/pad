@@ -487,7 +487,7 @@
 	 * excluded so sticky positioning isn't fought by paint skipping).
 	 *
 	 *   - content-visibility: auto — engine skips work when off-screen
-	 *   - contain-intrinsic-size: auto 36px — placeholder height for
+	 *   - contain-intrinsic-size: auto 38px — placeholder height for
 	 *     unrendered rows; the `auto` keyword caches measured heights
 	 *     so rows with progress bars or wrapped titles keep their real
 	 *     size on re-entry
@@ -569,9 +569,13 @@
 	}
 
 	/* The Title column is a COLUMN flexbox (.col-title), where align-items is
-	   horizontal: bottom-align its header label with justify-content, or Title
-	   sits one line above a two-line neighbour. */
+	   horizontal and justify-content vertical. `.table-header .table-cell`
+	   above (0,2,0) sets align-items: flex-end, which beats `.col-title`
+	   (0,1,0) and pushed the label to the cell's right edge. Restate
+	   flex-start here, and bottom-align the label with justify-content, or
+	   Title sits one line above a two-line neighbour. */
 	.table-header .col-title {
+		align-items: flex-start;
 		justify-content: flex-end;
 	}
 

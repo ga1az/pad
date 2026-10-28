@@ -87,6 +87,18 @@ test('BUG-2837: long table header labels do not overlap, wrap on one baseline, a
 		// (c) at 1280px.
 		expect(await overlaps(page), 'header labels overlap at 1280px').toEqual([]);
 
+		// TASK-31 (review): the Title column is a COLUMN flexbox, where
+		// align-items is horizontal. `.table-header .table-cell { align-items:
+		// flex-end }` out-ranked `.col-title { align-items: flex-start }` and
+		// pushed the "Title" label to the cell's right edge, off the left edge
+		// of the titles under it. The header label and the first title link
+		// start at the same x.
+		const titleXs = await page.evaluate(() => ({
+			head: document.querySelector<HTMLElement>('.table-header .col-title .sort-btn')!.getBoundingClientRect().left,
+			body: document.querySelector<HTMLElement>('.table-row:not(.table-header) .col-title .title-link')!.getBoundingClientRect().left,
+		}));
+		expect(Math.abs(titleXs.head - titleXs.body), `Title header at x=${titleXs.head}, titles at x=${titleXs.body}`).toBeLessThanOrEqual(1);
+
 		// The full label stays available while the cell shows a clamped one.
 		await expect(longCell.locator('button')).toHaveAttribute('title', LABELS[1]);
 
