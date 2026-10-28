@@ -243,6 +243,50 @@ describe('the tabs row (TASK-29)', () => {
 	});
 });
 
+describe('a saved view stays pressed only while its filters are applied (TASK-29)', () => {
+	beforeEach(() => { vi.clearAllMocks(); });
+
+	const filterBarProps = (): Props | undefined => {
+		const all = (globalThis as { __stubProps?: Props[] }).__stubProps ?? [];
+		return [...all].reverse().find((p) => 'onFilterChange' in p);
+	};
+
+	it('a filter chip x releases the pill', async () => {
+		const { container } = await mountPage();
+		await fireEvent.click(container.querySelectorAll<HTMLButtonElement>('.view-tab')[1]!);
+		await tick();
+		expect(tabs(container).map((t) => t[1])).toEqual(['false', 'true', 'false']);
+		// Close the panel: the closed-panel summary shows the view's filter as a chip.
+		await fireEvent.click(filterButton());
+		await tick();
+		await fireEvent.click(screen.getByRole('button', { name: 'Remove filter status: open' }));
+		await tick();
+		expect(tabs(container).map((t) => t[1])).toEqual(['true', 'false', 'false']);
+	});
+
+	it('an edit of the filters from the filter bar releases the pill', async () => {
+		const { container } = await mountPage();
+		await fireEvent.click(container.querySelectorAll<HTMLButtonElement>('.view-tab')[1]!);
+		await tick();
+		(filterBarProps()!.onFilterChange as (f: Record<string, string>) => void)({ status: 'done' });
+		await tick();
+		expect(tabs(container).map((t) => t[1])).toEqual(['true', 'false', 'false']);
+	});
+
+	it('a tag filter edit releases it too, and a search does not', async () => {
+		const { container } = await mountPage();
+		await fireEvent.click(container.querySelectorAll<HTMLButtonElement>('.view-tab')[1]!);
+		await tick();
+		(filterBarProps()!.onSearchChange as (q: string) => void)('row');
+		await tick();
+		// A search is not part of a view's config.
+		expect(tabs(container).map((t) => t[1])).toEqual(['false', 'true', 'false']);
+		(filterBarProps()!.onTagFilterChange as (t: string[]) => void)(['backend']);
+		await tick();
+		expect(tabs(container).map((t) => t[1])).toEqual(['true', 'false', 'false']);
+	});
+});
+
 describe('the list view carries the board\'s draft wiring (BUG-3043, TASK-29)', () => {
 	beforeEach(() => { vi.clearAllMocks(); });
 

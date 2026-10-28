@@ -980,6 +980,13 @@
 		color: var(--ui-foreground);
 		background: color-mix(in oklch, var(--ui-foreground) 6%, transparent);
 	}
+	/* app.css strips button outlines; put a ring back for the keyboard. */
+	.group-menu-btn:focus-visible,
+	.group-add-btn:focus-visible,
+	.archive-group-btn:focus-visible {
+		outline: 2px solid var(--ui-ring);
+		outline-offset: 1px;
+	}
 
 	@media (min-width: 769px) {
 		.group-menu-btn {
@@ -1055,6 +1062,13 @@
 		color: var(--ui-foreground);
 		font-weight: 500;
 		font-size: 13px;
+	}
+
+	/* Each sticky header is its own stacking context (z-index 2), so the ⋯ menu
+	   inside it (z 20) is trapped there and the NEXT group's header, later in
+	   the DOM, paints over it. The open group's header goes above its siblings. */
+	.item-group.menu-open .group-header {
+		z-index: 30;
 	}
 
 	.group-toggle {
@@ -1363,6 +1377,14 @@
 		cursor: grabbing;
 	}
 
+	/* k / ArrowUp scroll the focused CARD into view with block: 'nearest', which
+	   leaves it flush with the top edge, under the 36px sticky group header.
+	   The margin (header + the 2px gap) keeps it clear. Phone width has no
+	   sticky header (below). */
+	.list-row :global(.item-card) {
+		scroll-margin-top: 38px;
+	}
+
 	/* A row the caller may only view does not drag (BUG-3259). */
 	.list-row.drag-locked,
 	.list-row.drag-locked:active {
@@ -1415,6 +1437,7 @@
 			border-bottom: none;
 		}
 		.list-row :global(.item-card) {
+			scroll-margin-top: 0;
 			border: none;
 			border-radius: 0;
 			background: transparent;

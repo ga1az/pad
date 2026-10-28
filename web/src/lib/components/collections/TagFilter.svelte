@@ -109,4 +109,9 @@
 	.tag-clear:hover {
 		color: var(--ui-foreground);
 	}
+	.tag-chip:focus-visible,
+	.tag-clear:focus-visible {
+		outline: 2px solid var(--ui-ring);
+		outline-offset: 1px;
+	}
 </style>
