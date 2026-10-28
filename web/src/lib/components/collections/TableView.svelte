@@ -13,6 +13,9 @@
 	import { canonicalValueColor, formatFieldLabel as formatLabel } from '$lib/utils/fieldColors';
 	import { Badge } from '$lib/components/ui/badge';
 	import StatusPicker from './StatusPicker.svelte';
+	import StatusIcon from '$lib/components/status/StatusIcon.svelte';
+	import PriorityIcon from '$lib/components/status/PriorityIcon.svelte';
+	import { priorityLevel, statusCategory } from '$lib/components/status/statusCategory';
 	import EmptyState from '../common/EmptyState.svelte';
 	import ItemActionsMenu from './ItemActionsMenu.svelte';
 
@@ -360,12 +363,30 @@
 						{#if isRelationType(field.type)}
 							{@render relationCell(field, fields[field.key])}
 						{:else if field.key === 'status' && field.options?.length && onStatusChange && workspaceStore.canEditItem(item) && (fields[field.key] == null || typeof fields[field.key] === 'string')}
-							<!-- BUG-3157: a picker, never a one-tap cycle — see StatusPicker. -->
-							<StatusPicker
-								value={fields[field.key] ?? ''}
-								options={field.options}
-								onselect={(next) => onStatusChange(item, next)}
-							/>
+							<!-- BUG-3157: a picker, never a one-tap cycle — see StatusPicker.
+							     Linear's status cell: the icon is the trigger, the name sits
+							     beside it (the trigger already names itself for a screen reader). -->
+							<span class="cell-status">
+								<StatusPicker
+									appearance="icon"
+									value={fields[field.key] ?? ''}
+									options={field.options}
+									{field}
+									onselect={(next) => onStatusChange(item, next)}
+								/>
+								<span class="cell-status-label" aria-hidden="true">{formatLabel(fields[field.key] ?? '')}</span>
+							</span>
+						{:else if field.key === 'status' && field.options?.length && typeof fields[field.key] === 'string' && fields[field.key]}
+							<!-- Read-only status: the same icon and name, no picker. -->
+							<span class="cell-status">
+								<StatusIcon category={statusCategory(fields[field.key], field)} />
+								<span class="cell-status-label">{formatLabel(fields[field.key])}</span>
+							</span>
+						{:else if field.key === 'priority' && field.options?.length && typeof fields[field.key] === 'string' && fields[field.key]}
+							<span class="cell-status">
+								<PriorityIcon level={priorityLevel(fields[field.key])} />
+								<span class="cell-status-label">{formatLabel(fields[field.key])}</span>
+							</span>
 						{:else if field.options && typeof fields[field.key] === 'string' && fields[field.key]}
 							{@const chipColor = canonicalValueColor(fields[field.key])}
 							{#if chipColor}
@@ -434,7 +455,7 @@
 		/* grid-template-columns is set inline via style:grid-template-columns
 		   because the column count depends on the collection schema. */
 		width: 100%;
-		font-size: 0.88em;
+		font-size: 13px;
 	}
 
 	/*
@@ -450,15 +471,15 @@
 		display: grid;
 		grid-template-columns: inherit;
 		grid-column: 1 / -1;
-		border-bottom: 1px solid var(--border-subtle, var(--border));
+		border-bottom: 1px solid var(--ui-border);
 	}
 
 	.table-row.table-header {
 		position: sticky;
 		top: 0;
-		background: var(--bg-primary);
+		background: var(--ui-background);
 		z-index: 1;
-		border-bottom: 2px solid var(--border);
+		border-bottom: 1px solid var(--ui-border);
 	}
 
 	/*
@@ -477,11 +498,11 @@
 	 */
 	.table-row:not(.table-header) {
 		content-visibility: auto;
-		contain-intrinsic-size: auto 36px;
+		contain-intrinsic-size: auto 38px;
 	}
 
 	.table-row:not(.table-header):hover {
-		background: var(--bg-hover);
+		background: color-mix(in oklab, var(--ui-background), var(--ui-foreground) 4%);
 	}
 
 	/* Highlight the row whose detail pane is open (PLAN-2105 / TASK-2112).
@@ -489,12 +510,14 @@
 	   selected ring (PLAN-2290 Phase 3). E2E asserts the .focused CLASS, not
 	   these styles — keep the class name stable. */
 	.table-row:not(.table-header).focused {
-		background: color-mix(in srgb, var(--accent-primary, var(--accent-blue)) 7%, transparent);
-		box-shadow: inset 2px 0 0 var(--accent-primary, var(--accent-blue));
+		background: color-mix(in srgb, var(--ui-primary) 10%, transparent);
+		box-shadow: inset 2px 0 0 var(--ui-primary);
 	}
 
+	/* Linear density: 38px rows (36 at least), 12px side padding. */
 	.table-cell {
-		padding: var(--space-2) var(--space-3);
+		padding: 6px var(--space-3);
+		min-height: 38px;
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
@@ -508,9 +531,10 @@
 	   and two-line labels share a baseline; the row takes the tallest label's
 	   height, and the sticky header's own background still covers the rows. */
 	.table-header .table-cell {
-		font-weight: 600;
-		font-size: 0.85em;
-		color: var(--text-secondary);
+		min-height: 32px;
+		font-weight: 500;
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
 		align-items: flex-end;
 	}
 
@@ -519,7 +543,7 @@
 		border: none;
 		color: inherit;
 		font: inherit;
-		font-weight: 600;
+		font-weight: 500;
 		cursor: pointer;
 		padding: 0;
 		text-align: left;
@@ -552,7 +576,7 @@
 	}
 
 	.sort-btn:hover {
-		color: var(--accent-blue);
+		color: var(--ui-foreground);
 	}
 
 	/* .col-ref and .col-updated widths come from grid-template-columns;
@@ -561,30 +585,45 @@
 
 	.ref {
 		font-family: var(--font-mono);
-		font-size: 0.85em;
-		color: var(--text-muted);
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
 	}
 
 	.title-link {
-		color: var(--text-primary);
+		color: var(--ui-foreground);
 		text-decoration: none;
 		font-weight: 500;
 	}
 
 	.title-link:hover {
-		color: var(--accent-blue);
+		color: var(--ui-foreground);
+		text-decoration: underline;
 	}
 
 	.cell-value {
-		color: var(--text-secondary);
-		font-size: 0.9em;
+		color: var(--ui-muted-foreground);
+		font-size: 13px;
+	}
+
+	/* The status/priority cell: icon, then the name in gray (Linear). */
+	.cell-status {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		min-width: 0;
+	}
+	.cell-status-label {
+		color: var(--ui-muted-foreground);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	/* A value whose shape does not match its declared type (BUG-3052 unit 2):
 	   raw stored text, set apart so it does not read as a well-typed value. */
 	.cell-mismatch {
 		font-family: var(--font-mono);
-		text-decoration: underline dotted var(--text-muted);
+		text-decoration: underline dotted var(--ui-muted-foreground);
 		cursor: help;
 	}
 
@@ -593,7 +632,7 @@
 	   long title cannot change the row's height. */
 	.cell-relations {
 		display: flex;
-		align-items: baseline;
+		align-items: center;
 		gap: var(--space-1);
 		min-width: 0;
 		overflow: hidden;
@@ -601,20 +640,22 @@
 
 	.cell-relation {
 		display: inline-flex;
-		align-items: baseline;
+		align-items: center;
 		gap: var(--space-1);
 		min-width: 0;
-		padding: 1px var(--space-2);
-		border-radius: var(--radius-sm);
-		background: var(--bg-hover);
-		color: var(--text-primary);
-		font-size: 0.85em;
+		height: 20px;
+		padding: 0 8px;
+		border-radius: 999px;
+		border: 1px solid var(--ui-border);
+		background: transparent;
+		color: var(--ui-foreground);
+		font-size: 12px;
 		white-space: nowrap;
 	}
 
 	.cell-relation-ref {
 		flex-shrink: 0;
-		color: var(--text-muted);
+		color: var(--ui-muted-foreground);
 		font-family: var(--font-mono);
 		font-size: 0.94em;
 	}
@@ -627,7 +668,7 @@
 
 	.cell-relation.is-deleted,
 	.cell-relation.is-unresolved {
-		color: var(--text-muted);
+		color: var(--ui-muted-foreground);
 	}
 
 	.cell-relation-note {
@@ -640,8 +681,8 @@
 	   picker trigger (BUG-3157). */
 
 	.cell-date {
-		font-size: 0.8em;
-		color: var(--text-muted);
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
 		white-space: nowrap;
 	}
 
@@ -656,7 +697,7 @@
 	.cell-progress-bar {
 		flex: 1;
 		height: 3px;
-		background: var(--bg-tertiary);
+		background: var(--ui-secondary);
 		border-radius: 2px;
 		max-width: 60px;
 	}
@@ -669,7 +710,7 @@
 
 	.cell-progress-text {
 		font-size: 0.7em;
-		color: var(--text-muted);
+		color: var(--ui-muted-foreground);
 	}
 
 	.col-actions {
