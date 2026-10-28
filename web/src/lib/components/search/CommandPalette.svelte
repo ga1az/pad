@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { Search01Icon } from '@hugeicons/core-free-icons';
 	import Icon from '$lib/icons/Icon.svelte';
 	import { untrack, tick } from 'svelte';
 	import { goto } from '$app/navigation';
@@ -988,6 +987,58 @@
 <svelte:window onkeydown={handleWindowKeydown} />
 
 {#if uiStore.searchOpen}
+	<!--
+		One result row (TASK-30 reordered it to Linear's: icon, title, the
+		row's tags, and the ref in gray on the right). The same row serves the
+		grouped list, the flat list and "Matches in content"; `idx` is the row's
+		place in the keyboard order (flatResults).
+	-->
+	{#snippet resultRow(r: AugmentedSearchResult, idx: number)}
+		{@const meta = renderResultCard(r, idx)}
+		<button
+			class="result"
+			class:selected={idx === selectedIdx}
+			role="option"
+			id="cp-opt-{idx}"
+			aria-selected={idx === selectedIdx}
+			tabindex="-1"
+			onclick={() => selectResult(r)}
+		>
+			<div class="result-main">
+				<span class="result-icon"><Icon icon={r.item.collection_icon || '📦'} /></span>
+				<span class="result-title">{r.item.title}</span>
+				{#if meta.priority}
+					{@const dot = priorityDot(meta.priority)}
+					{#if dot}
+						<span class="result-priority" title={meta.priority}
+							><span class="priority-dot" style:background={dot}></span></span
+						>
+					{/if}
+				{/if}
+				{#if meta.status}
+					<span
+						class="result-status"
+						style="background: color-mix(in srgb, {statusColor(meta.status)} 15%, transparent); color: color-mix(in srgb, {statusColor(meta.status)} 55%, var(--text-primary));"
+					>
+						{meta.status.replace(/_/g, ' ')}
+					</span>
+				{/if}
+				{#if r.item.updated_at}
+					<span class="result-date">{relativeTime(r.item.updated_at)}</span>
+				{/if}
+				{#if meta.ref}
+					<span class="result-ref">{meta.ref}</span>
+				{/if}
+			</div>
+			{#if r.snippet}
+				<div class="result-snippet">
+					{#if isBodyStale(r.item)}<StaleBodyDot />{/if}
+					{stripHtml(r.snippet)}
+				</div>
+			{/if}
+		</button>
+	{/snippet}
+
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div class="overlay" use:backdropDismiss={{ onDismiss: () => uiStore.closeSearch() }}>
@@ -1048,13 +1099,12 @@
 				{#if loading}
 					<span class="search-spinner"></span>
 				{/if}
-				<kbd class="search-hint">esc</kbd>
 				<!--
 					Mobile-only close button (TASK-1124). On mobile the palette
 					is a full-screen takeover so there's no overlay area to
 					tap-to-dismiss, and the `esc` hint is useless without a
-					keyboard. CSS hides this on desktop and hides .search-hint
-					on mobile so each surface gets the right affordance.
+					keyboard. CSS hides this on desktop, where the footer's
+					`esc close` hint serves.
 				-->
 				<button
 					class="mobile-close"
@@ -1191,109 +1241,19 @@
 						{#each Object.entries(groupedResults) as [slug, group] (slug)}
 							<div class="result-group" role="group" aria-label={group.name}>
 								<div class="group-header" aria-hidden="true">
-									<span class="group-icon"><Icon icon={group.icon} /></span>
 									<span class="group-name">{group.name}</span>
 									<span class="group-count">{group.results.length}</span>
 								</div>
 								{#each group.results as r (r.item.id || r.item.slug)}
 									{@const idx = flatResults.indexOf(r)}
-									{@const meta = renderResultCard(r, idx)}
-									<button
-										class="result"
-										class:selected={idx === selectedIdx}
-										role="option"
-										id="cp-opt-{idx}"
-										aria-selected={idx === selectedIdx}
-										tabindex="-1"
-										onclick={() => selectResult(r)}
-									>
-										<div class="result-main">
-											<span class="result-icon"
-												><Icon icon={r.item.collection_icon || '📦'} /></span
-											>
-											{#if meta.ref}
-												<span class="result-ref">{meta.ref}</span>
-											{/if}
-											<span class="result-title">{r.item.title}</span>
-											{#if meta.priority}
-												{@const dot = priorityDot(meta.priority)}
-												{#if dot}
-													<span class="result-priority" title={meta.priority}
-														><span class="priority-dot" style:background={dot}></span></span
-													>
-												{/if}
-											{/if}
-											{#if meta.status}
-												<span
-													class="result-status"
-													style="background: color-mix(in srgb, {statusColor(meta.status)} 15%, transparent); color: color-mix(in srgb, {statusColor(meta.status)} 55%, var(--text-primary));"
-												>
-													{meta.status.replace(/_/g, ' ')}
-												</span>
-											{/if}
-											{#if r.item.updated_at}
-												<span class="result-date"
-													>{relativeTime(r.item.updated_at)}</span
-												>
-											{/if}
-										</div>
-										{#if r.snippet}
-											<div class="result-snippet">
-												{#if isBodyStale(r.item)}<StaleBodyDot />{/if}
-												{stripHtml(r.snippet)}
-											</div>
-										{/if}
-									</button>
+									{@render resultRow(r, idx)}
 								{/each}
 							</div>
 						{/each}
 					{:else}
 						<!-- Flat list (filtered by collection or no grouping) -->
 						{#each results as r, i (r.item.id || r.item.slug)}
-							{@const meta = renderResultCard(r, i)}
-							<button
-								class="result"
-								class:selected={i === selectedIdx}
-								role="option"
-								id="cp-opt-{i}"
-								aria-selected={i === selectedIdx}
-								tabindex="-1"
-								onclick={() => selectResult(r)}
-							>
-								<div class="result-main">
-									<span class="result-icon"
-										><Icon icon={r.item.collection_icon || '📦'} /></span
-									>
-									{#if meta.ref}
-										<span class="result-ref">{meta.ref}</span>
-									{/if}
-									<span class="result-title">{r.item.title}</span>
-									{#if meta.priority}
-										{@const dot = priorityDot(meta.priority)}
-										{#if dot}
-											<span class="result-priority" title={meta.priority}
-												><span class="priority-dot" style:background={dot}></span></span
-											>
-										{/if}
-									{/if}
-									{#if meta.status}
-										<span
-											class="result-status"
-											style="background: color-mix(in srgb, {statusColor(meta.status)} 15%, transparent); color: color-mix(in srgb, {statusColor(meta.status)} 55%, var(--text-primary));"
-										>
-											{meta.status.replace(/_/g, ' ')}
-										</span>
-									{/if}
-									{#if r.item.updated_at}
-										<span class="result-date"
-											>{relativeTime(r.item.updated_at)}</span
-										>
-									{/if}
-								</div>
-								{#if r.snippet}
-									<div class="result-snippet">{#if isBodyStale(r.item)}<StaleBodyDot />{/if}{stripHtml(r.snippet)}</div>
-								{/if}
-							</button>
+							{@render resultRow(r, i)}
 						{/each}
 					{/if}
 					</div>
@@ -1340,8 +1300,7 @@
 					{#if contentLoading || contentResults.length > 0}
 						<div class="result-group content-group" role="listbox" id={CONTENT_LISTBOX_ID} aria-label="Matches in content">
 							<div class="group-header" aria-hidden="true">
-								<span class="group-icon"><Icon icon={Search01Icon} /></span>
-								<span class="group-name">Matches in content</span>
+									<span class="group-name">Matches in content</span>
 								{#if searchAllWorkspaces}
 									<!--
 										The local list above can span every ready workspace,
@@ -1359,44 +1318,7 @@
 							</div>
 							{#each contentResults as r, i (r.item.id || r.item.slug)}
 								{@const idx = results.length + i}
-								{@const meta = renderResultCard(r, idx)}
-								<button
-									class="result"
-									class:selected={idx === selectedIdx}
-									role="option"
-									id="cp-opt-{idx}"
-									aria-selected={idx === selectedIdx}
-									tabindex="-1"
-									onclick={() => selectResult(r)}
-								>
-									<div class="result-main">
-										<span class="result-icon"><Icon icon={r.item.collection_icon || '📦'} /></span>
-										{#if meta.ref}
-											<span class="result-ref">{meta.ref}</span>
-										{/if}
-										<span class="result-title">{r.item.title}</span>
-										{#if meta.priority}
-											{@const dot = priorityDot(meta.priority)}
-											{#if dot}
-												<span class="result-priority" title={meta.priority}><span class="priority-dot" style:background={dot}></span></span>
-											{/if}
-										{/if}
-										{#if meta.status}
-											<span
-												class="result-status"
-												style="background: color-mix(in srgb, {statusColor(meta.status)} 15%, transparent); color: color-mix(in srgb, {statusColor(meta.status)} 55%, var(--text-primary));"
-											>
-												{meta.status.replace(/_/g, ' ')}
-											</span>
-										{/if}
-										{#if r.item.updated_at}
-											<span class="result-date">{relativeTime(r.item.updated_at)}</span>
-										{/if}
-									</div>
-									{#if r.snippet}
-										<div class="result-snippet">{#if isBodyStale(r.item)}<StaleBodyDot />{/if}{stripHtml(r.snippet)}</div>
-									{/if}
-								</button>
+								{@render resultRow(r, idx)}
 							{/each}
 						</div>
 					{/if}
@@ -1460,11 +1382,25 @@
 					</div>
 				{/if}
 			{/if}
+
+			<!-- Linear's footer: the keys, in gray. Decorative; the combobox and the
+			     live region carry the same information for assistive tech. -->
+			<div class="cp-footer" aria-hidden="true">
+				<span class="cp-hint"><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+				<span class="cp-hint"><kbd>↵</kbd> open</span>
+				<span class="cp-hint"><kbd>esc</kbd> close</span>
+			</div>
 		</div>
 	</div>
 {/if}
 
 <style>
+	/*
+		SPEC-24 / TASK-30: Linear's Cmd+K. The surface, the hairline and the
+		grays are the shadcn tokens (--ui-*), the same as the Command pieces in
+		$lib/components/ui/command; the palette keeps its own state machine,
+		focus handling and ARIA, so only the look moved.
+	*/
 	.overlay {
 		position: fixed;
 		inset: 0;
@@ -1472,7 +1408,7 @@
 		z-index: 50;
 		display: flex;
 		justify-content: center;
-		padding-top: 12vh;
+		padding-top: 14vh;
 	}
 	.palette:focus {
 		outline: none;
@@ -1480,10 +1416,11 @@
 	.palette {
 		width: 100%;
 		max-width: 640px;
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
-		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+		background: var(--ui-popover);
+		color: var(--ui-popover-foreground);
+		border: 1px solid var(--ui-border);
+		border-radius: 12px;
+		box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
 		overflow: hidden;
 		max-height: 65vh;
 		display: flex;
@@ -1496,31 +1433,43 @@
 	.search-row {
 		display: flex;
 		align-items: center;
-		gap: var(--space-3);
-		padding: 0 var(--space-4);
-		border-bottom: 1px solid var(--border);
+		gap: 12px;
+		height: 52px;
+		padding: 0 16px;
+		border-bottom: 1px solid var(--ui-border);
 		flex-shrink: 0;
 	}
 	.search-icon {
-		color: var(--text-muted);
+		color: var(--ui-muted-foreground);
 		flex-shrink: 0;
 	}
+	/* The big borderless field. app.css gives inputs a box and a focus
+	   ring; the row is the field here, so both go. */
 	.search-input {
 		flex: 1;
-		padding: var(--space-4) 0;
+		min-width: 0;
+		height: 100%;
+		padding: 0;
 		background: transparent;
+		color: var(--ui-foreground);
 		border: none;
-		font-size: 1.1em;
+		box-shadow: none;
+		outline: none;
+		font-size: 16px;
 		border-radius: 0;
+	}
+	.search-input::placeholder {
+		color: var(--ui-muted-foreground);
 	}
 	.search-input:focus {
 		border: none;
+		box-shadow: none;
 	}
 	.search-spinner {
 		width: 16px;
 		height: 16px;
-		border: 2px solid var(--border);
-		border-top-color: var(--text-muted);
+		border: 2px solid var(--ui-border);
+		border-top-color: var(--ui-muted-foreground);
 		border-radius: 50%;
 		animation: spin 0.6s linear infinite;
 		flex-shrink: 0;
@@ -1530,23 +1479,13 @@
 			transform: rotate(360deg);
 		}
 	}
-	.search-hint {
-		font-size: 0.7em;
-		color: var(--text-muted);
-		background: var(--bg-tertiary);
-		border: 1px solid var(--border);
-		padding: 1px 6px;
-		border-radius: 3px;
-		font-family: var(--font-mono);
-		flex-shrink: 0;
-	}
-
 	/* "All workspaces" scope toggle (TASK-1365) */
 	.scope-row {
 		display: flex;
 		align-items: center;
-		padding: var(--space-1) var(--space-3);
-		border-bottom: 1px solid var(--border);
+		gap: 4px;
+		padding: 6px 12px;
+		border-bottom: 1px solid var(--ui-border);
 		flex-shrink: 0;
 	}
 	.scope-toggle {
@@ -1554,22 +1493,21 @@
 		align-items: center;
 		gap: var(--space-2);
 		padding: 2px 8px;
-		border-radius: var(--radius);
-		font-size: 0.75em;
-		color: var(--text-muted);
+		border-radius: 6px;
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
 		background: none;
-		border: 1px solid transparent;
+		border: none;
 		cursor: pointer;
-		transition: all 0.15s ease;
+		transition: background 0.15s ease, color 0.15s ease;
 	}
 	.scope-toggle:hover {
-		background: var(--bg-hover);
-		color: var(--text-secondary);
+		background: color-mix(in srgb, var(--ui-foreground) 5%, transparent);
+		color: var(--ui-foreground);
 	}
 	.scope-toggle.active {
-		color: var(--accent-blue);
-		border-color: color-mix(in srgb, var(--accent-blue) 30%, transparent);
-		background: color-mix(in srgb, var(--accent-blue) 10%, transparent);
+		color: var(--ui-foreground);
+		background: color-mix(in srgb, var(--ui-foreground) 8%, transparent);
 	}
 	.scope-dot {
 		width: 8px;
@@ -1588,8 +1526,8 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
-		padding: var(--space-2) var(--space-3);
-		border-bottom: 1px solid var(--border);
+		padding: 6px 12px;
+		border-bottom: 1px solid var(--ui-border);
 		flex-shrink: 0;
 		flex-wrap: wrap;
 	}
@@ -1605,20 +1543,21 @@
 		gap: 4px;
 		padding: 2px 8px;
 		border-radius: 999px;
-		font-size: 0.75em;
-		background: var(--bg-tertiary);
-		border: 1px solid var(--border);
-		color: var(--text-secondary);
+		font-size: 12px;
+		background: transparent;
+		border: 1px solid var(--ui-border);
+		color: var(--ui-muted-foreground);
 		cursor: pointer;
-		transition: all 0.15s ease;
+		transition: background 0.15s ease, color 0.15s ease;
 	}
 	.filter-chip:hover {
-		background: var(--bg-hover);
+		background: color-mix(in srgb, var(--ui-foreground) 5%, transparent);
+		color: var(--ui-foreground);
 	}
 	.filter-chip.active {
-		background: color-mix(in srgb, var(--accent-blue) 20%, transparent);
-		border-color: var(--accent-blue);
-		color: var(--accent-blue);
+		background: color-mix(in srgb, var(--ui-foreground) 8%, transparent);
+		border-color: color-mix(in srgb, var(--ui-foreground) 25%, transparent);
+		color: var(--ui-foreground);
 	}
 	.chip-icon {
 		font-size: 1em;
@@ -1627,7 +1566,7 @@
 		text-transform: capitalize;
 	}
 	.chip-count {
-		color: var(--text-muted);
+		color: var(--ui-muted-foreground);
 		font-size: 0.9em;
 	}
 	.chip-dot {
@@ -1637,52 +1576,47 @@
 		flex-shrink: 0;
 	}
 	.clear-filters {
-		font-size: 0.72em;
-		color: var(--text-muted);
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
 		background: none;
 		border: none;
 		cursor: pointer;
 		padding: 2px 6px;
-		border-radius: var(--radius);
+		border-radius: 6px;
 		flex-shrink: 0;
 	}
 	.clear-filters:hover {
-		color: var(--text-primary);
-		background: var(--bg-hover);
+		color: var(--ui-foreground);
+		background: color-mix(in srgb, var(--ui-foreground) 5%, transparent);
 	}
 
 	/* Result count */
 	.result-count {
-		padding: var(--space-1) var(--space-4);
-		font-size: 0.75em;
-		color: var(--text-muted);
-		border-bottom: 1px solid var(--border);
+		padding: 4px 16px;
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
+		border-bottom: 1px solid var(--ui-border);
 		flex-shrink: 0;
 	}
 
 	/* Results */
 	.results {
 		overflow-y: auto;
-		padding: var(--space-2);
+		padding: 4px;
 	}
 
 	/* Group headers */
 	.result-group {
-		margin-bottom: var(--space-2);
+		margin-bottom: 4px;
 	}
 	.group-header {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
-		padding: var(--space-2) var(--space-3);
-		font-size: 0.75em;
-		color: var(--text-muted);
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		font-weight: 600;
-	}
-	.group-icon {
-		font-size: 1.1em;
+		padding: 8px 8px 4px;
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
+		font-weight: 500;
 	}
 	.group-name {
 		flex: 1;
@@ -1696,43 +1630,45 @@
 		the supplementary server-FTS hits apart from the local results above.
 	*/
 	.content-group {
-		border-top: 1px solid var(--border);
-		margin-top: var(--space-2);
-		padding-top: var(--space-1);
+		border-top: 1px solid var(--ui-border);
+		margin-top: 4px;
+		padding-top: 4px;
 	}
 	.content-spinner {
 		width: 12px;
 		height: 12px;
-		border: 2px solid var(--border);
-		border-top-color: var(--text-muted);
+		border: 2px solid var(--ui-border);
+		border-top-color: var(--ui-muted-foreground);
 		border-radius: 50%;
 		animation: spin 0.6s linear infinite;
 		flex-shrink: 0;
 	}
 	.content-scope {
-		font-size: 0.9em;
+		font-size: 12px;
 		font-weight: 400;
-		color: var(--text-muted);
-		text-transform: none;
-		letter-spacing: 0;
+		color: var(--ui-muted-foreground);
 	}
 
 	/* Result cards */
 	.result {
 		display: block;
 		width: 100%;
+		min-height: 36px;
 		text-align: left;
-		padding: var(--space-2) var(--space-3);
-		border-radius: var(--radius);
+		padding: 6px 8px;
+		border-radius: 6px;
+		font-size: 13px;
+		color: var(--ui-foreground);
 	}
 	.result:hover,
 	.result.selected {
-		background: var(--bg-hover);
+		background: color-mix(in srgb, var(--ui-foreground) 5%, transparent);
 	}
 	.result-main {
 		display: flex;
 		align-items: center;
-		gap: var(--space-2);
+		gap: 8px;
+		min-height: 24px;
 	}
 	.result-icon {
 		font-size: 1em;
@@ -1740,13 +1676,14 @@
 	}
 	.result-ref {
 		font-family: var(--font-mono);
-		font-size: 0.75em;
-		color: var(--text-muted);
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
 		flex-shrink: 0;
 	}
 	.result-title {
-		font-weight: 500;
+		font-weight: 400;
 		flex: 1;
+		min-width: 0;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -1763,21 +1700,21 @@
 		border-radius: 50%;
 	}
 	.result-status {
-		font-size: 0.7em;
-		padding: 2px 8px;
+		font-size: 11px;
+		padding: 1px 8px;
 		border-radius: 999px;
 		flex-shrink: 0;
 		text-transform: capitalize;
 	}
 	.result-date {
-		font-size: 0.7em;
-		color: var(--text-muted);
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
 		flex-shrink: 0;
 		white-space: nowrap;
 	}
 	.result-snippet {
-		font-size: 0.85em;
-		color: var(--text-muted);
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
 		margin-top: 2px;
 		margin-left: 24px;
 		overflow: hidden;
@@ -1791,16 +1728,16 @@
 	}
 	.search-retry-btn {
 		padding: var(--space-1) var(--space-3);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		background: var(--bg-tertiary);
-		color: var(--text-primary);
+		border: none;
+		border-radius: 6px;
+		background: color-mix(in srgb, var(--ui-foreground) 8%, transparent);
+		color: var(--ui-foreground);
 		cursor: pointer;
 	}
 	.search-failed-line {
 		padding: var(--space-1) var(--space-3);
-		font-size: 0.85em;
-		color: var(--text-muted);
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
 	}
 	.search-retry-link {
 		border: 0;
@@ -1813,9 +1750,9 @@
 
 	/* TASK-3604: what the result list covers */
 	.coverage-line {
-		padding: var(--space-2) var(--space-4);
-		font-size: 0.8em;
-		color: var(--text-muted);
+		padding: 8px 12px;
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
 	}
 
 	/* Load more */
@@ -1824,17 +1761,18 @@
 		text-align: center;
 	}
 	.load-more-btn {
-		font-size: 0.8em;
-		color: var(--text-secondary);
-		background: var(--bg-tertiary);
-		border: 1px solid var(--border);
-		padding: var(--space-2) var(--space-4);
-		border-radius: var(--radius);
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
+		background: none;
+		border: none;
+		padding: 6px 12px;
+		border-radius: 6px;
 		cursor: pointer;
 		width: 100%;
 	}
 	.load-more-btn:hover:not(:disabled) {
-		background: var(--bg-hover);
+		color: var(--ui-foreground);
+		background: color-mix(in srgb, var(--ui-foreground) 5%, transparent);
 	}
 	.load-more-btn:disabled {
 		opacity: 0.6;
@@ -1843,9 +1781,10 @@
 
 	/* No results / tips */
 	.no-results {
-		padding: var(--space-4);
+		padding: 24px 16px;
 		text-align: center;
-		color: var(--text-muted);
+		font-size: 13px;
+		color: var(--ui-muted-foreground);
 	}
 	.search-tips {
 		padding: var(--space-4);
@@ -1855,71 +1794,68 @@
 		gap: var(--space-1);
 	}
 	.tip-label {
-		font-size: 0.8em;
-		color: var(--text-muted);
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
 	}
 	.tip-example {
-		font-size: 0.85em;
-		color: var(--text-secondary);
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
 	}
 	.tip-code {
 		font-family: var(--font-mono);
 		font-size: 0.9em;
-		background: var(--bg-tertiary);
-		border: 1px solid var(--border);
-		border-radius: 3px;
+		background: color-mix(in srgb, var(--ui-foreground) 8%, transparent);
+		border-radius: 4px;
 		padding: 1px 5px;
-		color: var(--text-primary);
+		color: var(--ui-foreground);
 	}
 
 	/* Recent searches */
 	.recent-searches {
-		padding: var(--space-2);
+		padding: 4px;
 	}
 	.recent-header {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: var(--space-1) var(--space-3);
-		margin-bottom: var(--space-1);
+		padding: 8px 8px 4px;
 	}
 	.recent-label {
-		font-size: 0.75em;
-		color: var(--text-muted);
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		font-weight: 600;
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
+		font-weight: 500;
 	}
 	.clear-recent {
-		font-size: 0.72em;
-		color: var(--text-muted);
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
 		background: none;
 		border: none;
 		cursor: pointer;
 		padding: 2px 6px;
-		border-radius: var(--radius);
+		border-radius: 6px;
 	}
 	.clear-recent:hover {
-		color: var(--text-primary);
-		background: var(--bg-hover);
+		color: var(--ui-foreground);
+		background: color-mix(in srgb, var(--ui-foreground) 5%, transparent);
 	}
 	.recent-item {
 		display: flex;
 		align-items: center;
-		gap: var(--space-2);
+		gap: 8px;
 		width: 100%;
+		min-height: 36px;
 		text-align: left;
-		padding: var(--space-2) var(--space-3);
-		border-radius: var(--radius);
-		font-size: 0.9em;
-		color: var(--text-secondary);
+		padding: 6px 8px;
+		border-radius: 6px;
+		font-size: 13px;
+		color: var(--ui-foreground);
 	}
 	.recent-item:hover,
 	.recent-item.selected {
-		background: var(--bg-hover);
+		background: color-mix(in srgb, var(--ui-foreground) 5%, transparent);
 	}
 	.recent-icon {
-		color: var(--text-muted);
+		color: var(--ui-muted-foreground);
 		flex-shrink: 0;
 	}
 	.recent-text {
@@ -1941,8 +1877,8 @@
 		justify-content: center;
 		width: 32px;
 		height: 32px;
-		border-radius: var(--radius-sm);
-		color: var(--text-secondary);
+		border-radius: 6px;
+		color: var(--ui-muted-foreground);
 		background: none;
 		border: none;
 		cursor: pointer;
@@ -1951,8 +1887,8 @@
 		transition: color 0.15s, background 0.15s;
 	}
 	.mobile-close:hover {
-		color: var(--text-primary);
-		background: var(--bg-hover);
+		color: var(--ui-foreground);
+		background: color-mix(in srgb, var(--ui-foreground) 5%, transparent);
 	}
 
 	/*
@@ -2040,11 +1976,8 @@
 			border-radius: 999px;
 			background: var(--border);
 		}
-		.search-input {
-			/* iOS Safari skips its focus-zoom only when font-size ≥ 16px. */
-			font-size: 16px;
-		}
-		.search-hint {
+		/* No keyboard on a phone: the footer's key hints would be noise. */
+		.cp-footer {
 			display: none;
 		}
 		/* Dismiss via grab-handle swipe + tap-outside now — no X (matches sheets). */
@@ -2057,6 +1990,33 @@
 			overscroll-behavior: contain;
 			-webkit-overflow-scrolling: touch;
 		}
+	}
+	/* Linear's footer row: the keys, gray 12px, a hairline above. Desktop only. */
+	.cp-footer {
+		display: flex;
+		align-items: center;
+		gap: 16px;
+		height: 36px;
+		padding: 0 16px;
+		border-top: 1px solid var(--ui-border);
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
+		flex-shrink: 0;
+	}
+	.cp-hint {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+	}
+	.cp-hint kbd {
+		font-family: inherit;
+		font-size: 12px;
+		min-width: 18px;
+		padding: 0 4px;
+		text-align: center;
+		line-height: 18px;
+		border-radius: 4px;
+		background: color-mix(in srgb, var(--ui-foreground) 8%, transparent);
 	}
 	.sr-only {
 		position: absolute;
