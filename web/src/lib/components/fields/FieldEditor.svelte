@@ -2659,19 +2659,24 @@ handlers — onchange is never called.
 		border-color: var(--ui-ring);
 		background: transparent;
 	}
+	/* The steppers take no room until the value is pointed at or focused. */
 	.fe-property .number-btn {
-		width: 22px;
+		width: 0;
 		min-height: 26px;
+		overflow: hidden;
 		opacity: 0;
 		transition: opacity 0.12s, color 0.1s, background 0.1s;
 	}
 	.fe-property .number-wrapper:hover .number-btn,
 	.fe-property .number-wrapper:focus-within .number-btn {
+		width: 22px;
 		opacity: 1;
 	}
 	.fe-property .number-input {
 		flex: none;
-		width: 6ch;
+		width: auto;
+		min-width: 2ch;
+		field-sizing: content;
 		padding: 4px 6px;
 		font-size: 13px;
 		text-align: left;

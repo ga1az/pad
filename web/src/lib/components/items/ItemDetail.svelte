@@ -6864,7 +6864,8 @@
 		<!-- Meta info: the ref, then who and when (the tags are the Labels
 		     section of the properties column). -->
 		<div class="meta-info">
-			{#if formatItemRef(item)}
+			{#if formatItemRef(item) && !embedded}
+				<!-- The docked pane's header already names the ref. -->
 				<span class="item-ref">{formatItemRef(item)}</span>
 				<span class="meta-sep">·</span>
 			{/if}

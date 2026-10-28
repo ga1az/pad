@@ -33,7 +33,6 @@
 	import * as Command from '$lib/components/ui/command';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import { Tick02Icon } from '@hugeicons/core-free-icons';
-	import { portal } from '$lib/utils/portalAction';
 	import { viewport } from '$lib/stores/breakpoint.svelte';
 
 	interface Props {
@@ -132,8 +131,10 @@
 
 	{#if open}
 		{#if viewport.isMobile}
-			<div class="prop-picker-host" use:portal>
-				<ResponsiveMenu
+			<!-- In place, not portaled: the sheet is fixed to the viewport either
+			     way (e2e/task-2209 measures that), and a property row has no
+			     link or drag zone around it to escape. -->
+			<ResponsiveMenu
 					{open}
 					onclose={() => (open = false)}
 					trigger={triggerEl ?? undefined}
@@ -153,8 +154,7 @@
 							{option.label}
 						</ResponsiveMenuItem>
 					{/each}
-				</ResponsiveMenu>
-			</div>
+			</ResponsiveMenu>
 		{:else}
 			<AnchoredPopover {open} onclose={() => (open = false)} trigger={triggerEl} width={240} ariaLabel={label}>
 				{#snippet children({ close })}

@@ -154,3 +154,27 @@ describe('StatusPicker', () => {
 		});
 	});
 });
+
+// TASK-31: the property row's value, the item page's own look of the picker.
+describe('StatusPicker appearance="row"', () => {
+	it('shows the icon and the name as a text action, and opens the same picker', async () => {
+		const onselect = vi.fn();
+		const screen = render(StatusPicker, { props: { value: 'in_progress', options: OPTIONS, onselect, appearance: 'row' } });
+		const chip = screen.container.querySelector<HTMLElement>('button.picker-row')!;
+		expect(chip.textContent?.trim()).toBe('In Progress');
+		expect(chip.querySelector('svg')).not.toBeNull();
+		expect(chip.getAttribute('aria-label')).toBe('Status: In Progress');
+		expect(chip.getAttribute('aria-haspopup')).toBe('dialog');
+		await fireEvent.click(chip);
+		await tick();
+		expect(statusRows().map(rowLabel)).toEqual(['Open', 'In Progress', 'Done']);
+		expect(onselect).not.toHaveBeenCalled();
+	});
+
+	it('an unset priority says "Set priority" in gray', () => {
+		const screen = render(StatusPicker, { props: { kind: 'priority', value: '', options: ['low', 'high'], onselect: vi.fn(), appearance: 'row' } });
+		const chip = screen.container.querySelector<HTMLElement>('button.picker-row')!;
+		expect(chip.textContent?.trim()).toBe('Set priority');
+		expect(chip.querySelector('.picker-row-empty')).not.toBeNull();
+	});
+});

@@ -4,37 +4,26 @@ import type { APIRequestContext } from '@playwright/test';
 import type { SuiteFixture } from './fixtures';
 
 /**
- * Item action bar (`.meta-actions`) layout invariants.
+ * Item toolbar (`.meta-actions`) layout invariants.
  *
- * This band was reverted out of PLAN-2326's `.tab-strip` merge and then given
- * two properties by hand: it stays ONE row at every container width, and every
- * labelled control shares one width and height (the ⋯ overflow trigger is the
- * deliberate exception — it sizes to its glyph).
+ * SPEC-24 / TASK-31 made the toolbar Linear's: round 28px icon buttons at the
+ * top right of the page. It keeps the two properties the old band had, that it
+ * stays ONE row at every container width and that every control has one height
+ * (the count pills, "1/3" and the mention count, are wider than a circle but
+ * as tall; the seeded item here has none), and its sheet property now belongs
+ * to the page grid.
  *
- * The reason this file exists rather than a unit test is the sheet assertion.
- * `.meta-actions` carries `container-type: inline-size` so the narrow-width
- * padding rule can key off the BAND's width — the band lives in a docked pane
- * whose width is user-dragged and decoupled from the viewport, so a media query
- * cannot see it. Both menus in the band render a non-portaled `position: fixed`
- * BottomSheet on mobile, INSIDE that container.
- *
- * That is safe, but only narrowly: `container-type: inline-size` applies style
- * and inline-size containment and NOT layout containment
- * (css-conditional-5 §container-type). Layout containment is what makes an
- * element a containing block for fixed-position descendants, so the sheet keeps
- * resolving against the viewport. Add `contain: layout` to this band — or a
- * transform/filter, which establish a containing block by a different route —
- * and the sheet collapses into a ~342x34 strip instead.
- *
- * Hence a test rather than a comment: the invariant depends on the band NOT
- * acquiring a property that a future styling change could plausibly add, and
- * the failure mode is an unusable mobile sheet rather than anything visible on
- * desktop. Mutation-tested by adding `contain: layout` to `.meta-actions`,
- * which fails this spec on overlay width.
- *
- * (PLAN-2326's DR-3 asserts `container-type: inline-size` implies
- * `contain: layout style inline-size`. It does not. A Codex review reached the
- * opposite conclusion from the same wrong premise. Measure, don't infer.)
+ * The page grid is `.item-layout`, a query container (`container-type:
+ * inline-size`) the two columns and the properties' compact block answer to.
+ * Both menus in the toolbar render a non-portaled `position: fixed`
+ * BottomSheet on mobile, INSIDE that container. That is safe, but only
+ * narrowly: `container-type: inline-size` applies style and inline-size
+ * containment and NOT layout containment (css-conditional-5 §container-type).
+ * Layout containment is what makes an element a containing block for
+ * fixed-position descendants, so the sheet keeps resolving against the
+ * viewport. Add `contain: layout` to `.item-layout` (or a transform/filter,
+ * which establish a containing block by a different route) and the sheet
+ * collapses into a strip instead. Hence a test rather than a comment.
  *
  * jsdom computes no layout, so none of this is unit-testable.
  */
@@ -86,14 +75,14 @@ async function bandControls(page: import('@playwright/test').Page) {
 	});
 }
 
-test('action bar: labelled controls share one width and height; ⋯ is exempt', async ({
+test('toolbar: every control is a 28px round button, in one row', async ({
 	page,
 	fixture,
 	request,
 }, testInfo) => {
 	test.skip(
 		testInfo.project.name !== 'desktop-chromium',
-		'uniform-sizing assertion is about the wide-container case',
+		'the sizing assertion is about the desktop page',
 	);
 	test.setTimeout(30_000);
 
@@ -104,30 +93,20 @@ test('action bar: labelled controls share one width and height; ⋯ is exempt', 
 	await expect(page.locator('.meta-actions')).toBeVisible();
 
 	const { wrapped, controls } = await bandControls(page);
-	expect(controls.length, 'band should render at least the star and ⋯ controls').toBeGreaterThan(1);
-	expect(wrapped, 'band must never wrap to a second row').toBe(false);
+	expect(controls.length, 'the toolbar should render copy link, copy ref, star and ⋯').toBeGreaterThan(3);
+	expect(wrapped, 'the toolbar must never wrap to a second row').toBe(false);
+	expect(controls.some((c) => c.isMore), 'the ⋯ menu trigger should be present').toBe(true);
 
-	const labelled = controls.filter((c) => !c.isMore);
-	const more = controls.find((c) => c.isMore);
-	expect(more, 'the ⋯ overflow trigger should be present').toBeTruthy();
-
-	// One height for every control, ⋯ included.
+	// One height, 28px, and (no count pills on this item) one width: circles.
 	const heights = [...new Set(controls.map((c) => c.h))];
-	expect(heights, `all controls share one height, got ${heights.join(',')}`).toHaveLength(1);
+	expect(heights, `all controls are 28px tall, got ${heights.join(',')}`).toEqual([28]);
+	const widths = [...new Set(controls.map((c) => c.w))];
+	expect(widths, `all controls are 28px wide, got ${widths.join(',')}`).toEqual([28]);
 
-	// One width for the labelled controls. Guarded to the wide case: a label
-	// wider than the 70px basis (e.g. a 3-digit child count) legitimately grows
-	// past it rather than truncating, and this seeded item has no such badge.
-	const widths = [...new Set(labelled.map((c) => c.w))];
-	expect(widths, `labelled controls share one width, got ${widths.join(',')}`).toHaveLength(1);
-
-	// The ⋯ is the deliberate exception: a control, not a labelled value.
-	expect(more!.w, '⋯ sizes to its glyph rather than the uniform width').toBeLessThan(widths[0]);
-
-	expect(controls.some((c) => c.clipped), 'no control may clip its label').toBe(false);
+	expect(controls.some((c) => c.clipped), 'no control may clip its content').toBe(false);
 });
 
-test('action bar: the mobile bottom sheet is not trapped by the band container', async ({
+test('toolbar: the mobile bottom sheet is not trapped by the page grid container', async ({
 	page,
 	fixture,
 	request,
@@ -145,17 +124,18 @@ test('action bar: the mobile bottom sheet is not trapped by the band container',
 
 	const band = page.locator('.meta-actions');
 	await expect(band).toBeVisible();
-	// Establish the premise: the band really is a query container, and really is
-	// much smaller than the viewport. Without this, a passing assertion below
-	// could just mean the container-type was dropped.
+	// Establish the premise: the page grid really is a query container, and the
+	// toolbar really is much smaller than the viewport. Without this, a passing
+	// assertion below could just mean the container-type was dropped.
+	const layout = page.locator('.item-layout');
 	await expect
-		.poll(() => band.evaluate((el) => getComputedStyle(el).containerType))
+		.poll(() => layout.evaluate((el) => getComputedStyle(el).containerType))
 		.toBe('inline-size');
 	const bandBox = (await band.boundingBox())!;
 	const vp = page.viewportSize()!;
 	expect(bandBox.height).toBeLessThan(vp.height / 4);
 
-	// Both menus in the band get their own pass. They share the Menu +
+	// Both menus in the toolbar get their own pass. They share the Menu +
 	// BottomSheet path today, but they are separate wrappers with separate
 	// styling (.menu-anchor vs .quick-actions-menu), so asserting one does not
 	// establish the other.
@@ -180,8 +160,8 @@ test('action bar: the mobile bottom sheet is not trapped by the band container',
 		// portaling to <body>, delete this test rather than letting it pass
 		// vacuously).
 		expect(
-			await overlay.evaluate((el) => !!el.closest('.meta-actions')),
-			`${trigger.label}: sheet is rendered inside .meta-actions — if this fails, BottomSheet now portals and this test is moot`,
+			await overlay.evaluate((el) => !!el.closest('.item-layout')),
+			`${trigger.label}: sheet is rendered inside .item-layout — if this fails, BottomSheet now portals and this test is moot`,
 		).toBe(true);
 
 		// The actual invariant: despite living inside the query container, the
@@ -191,7 +171,7 @@ test('action bar: the mobile bottom sheet is not trapped by the band container',
 		expect(Math.round(box.height), `${trigger.label}: overlay spans the viewport height`).toBe(vp.height);
 		expect(
 			Math.round(box.y),
-			`${trigger.label}: overlay starts at the top of the viewport, not at the band`,
+			`${trigger.label}: overlay starts at the top of the viewport, not at the toolbar`,
 		).toBe(0);
 
 		// And the sheet itself is a usable size, not a collapsed strip.
