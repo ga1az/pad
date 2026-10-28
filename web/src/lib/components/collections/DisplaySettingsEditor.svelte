@@ -55,11 +55,14 @@
 
 	<div class="setting-item">
 		<label class="setting-label" for="ds-layout">Item layout</label>
-		<NativeSelect id="ds-layout" bind:value={layout}>
+		<NativeSelect id="ds-layout" bind:value={layout} aria-describedby="ds-layout-hint">
 			<option value="balanced">Balanced</option>
 			<option value="fields-primary">Fields primary</option>
 			<option value="content-primary">Content primary</option>
 		</NativeSelect>
+		<p class="setting-hint" id="ds-layout-hint">
+			Applies to the docked pane and narrow windows; wide pages use Linear's two-column layout.
+		</p>
 	</div>
 
 	{#if selectFieldKeys.length > 0}

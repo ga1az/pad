@@ -2628,6 +2628,12 @@ handlers — onchange is never called.
 	.fe-property .date-clear:focus-visible {
 		opacity: 1;
 	}
+	/* Touch has no hover: a set date's clear control is always there. */
+	@media (hover: none) {
+		.fe-property .date-clear {
+			opacity: 1;
+		}
+	}
 	/* Inline inputs: text until pointed at, then a quiet fill, then a ring. */
 	.fe-property .field-input {
 		margin-left: -6px;
@@ -2657,7 +2663,8 @@ handlers — onchange is never called.
 		right: 6px;
 	}
 	.fe-property .number-wrapper {
-		width: auto;
+		position: relative;
+		width: calc(100% + 6px);
 		margin-left: -6px;
 		background: transparent;
 		border-radius: 6px;
@@ -2671,18 +2678,29 @@ handlers — onchange is never called.
 		border-color: var(--ui-ring);
 		background: transparent;
 	}
-	/* The steppers take no room until the value is pointed at or focused. */
+	/* The steppers sit over the right end of the row and take no room, so the
+	   digits do not move when the value is pointed at: a click aimed at them
+	   can never land on "−" that appeared under the pointer. Until the value
+	   is pointed at or focused they are invisible and inert. */
 	.fe-property .number-btn {
-		width: 0;
-		min-height: 26px;
-		overflow: hidden;
+		position: absolute;
+		top: 50%;
+		right: 0;
+		width: 22px;
+		min-height: 22px;
+		height: 22px;
+		transform: translateY(-50%);
 		opacity: 0;
+		pointer-events: none;
 		transition: opacity 0.12s, color 0.1s, background 0.1s;
+	}
+	.fe-property .number-btn:first-child {
+		right: 22px;
 	}
 	.fe-property .number-wrapper:hover .number-btn,
 	.fe-property .number-wrapper:focus-within .number-btn {
-		width: 22px;
 		opacity: 1;
+		pointer-events: auto;
 	}
 	.fe-property .number-input {
 		flex: none;
@@ -2692,6 +2710,14 @@ handlers — onchange is never called.
 		padding: 4px 6px;
 		font-size: 13px;
 		text-align: left;
+	}
+	/* No `field-sizing` (Firefox before 2025): a fixed, sensible width instead of
+	   the browser's default size, and never wider than the row. */
+	@supports not (field-sizing: content) {
+		.fe-property .number-input {
+			width: 8ch;
+			max-width: 100%;
+		}
 	}
 	.fe-property .number-suffix {
 		padding-right: 6px;

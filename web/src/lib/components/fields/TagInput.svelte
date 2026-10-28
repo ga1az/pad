@@ -12,9 +12,13 @@
 		onchange: (tags: string[]) => void;
 		suggestions?: string[];
 		readonly?: boolean;
+		/** The tag's page. A chip's name is a link to it when this answers one
+		 *  (the item page's labels, as its header tags were); remove stays a
+		 *  separate button. */
+		hrefFor?: (tag: string) => string | null | undefined;
 	}
 
-	let { tags, onchange, suggestions = [], readonly = false }: Props = $props();
+	let { tags, onchange, suggestions = [], readonly = false, hrefFor }: Props = $props();
 
 	let inputValue = $state('');
 	let showSuggestions = $state(false);
@@ -81,6 +85,15 @@
 	let activeIndex = $derived(activeTag === null ? -1 : filteredSuggestions.indexOf(activeTag));
 </script>
 
+{#snippet tagName(tag: string)}
+	{@const href = hrefFor?.(tag)}
+	{#if href}
+		<a class="tag-link" {href}>{tag}</a>
+	{:else}
+		{tag}
+	{/if}
+{/snippet}
+
 {#if readonly}
 	<div class="tag-chips">
 		{#if tags.length === 0}
@@ -89,7 +102,7 @@
 			<!-- Key by index: the write path doesn't enforce per-item tag
 			     uniqueness, so a value key would collide on ["ux","ux"]. -->
 			{#each tags as tag, i (i)}
-				<span class="tag-chip readonly">{tag}</span>
+				<span class="tag-chip readonly">{@render tagName(tag)}</span>
 			{/each}
 		{/if}
 	</div>
@@ -98,7 +111,7 @@
 		<div class="tag-chips">
 			{#each tags as tag, i (i)}
 				<span class="tag-chip">
-					{tag}
+					{@render tagName(tag)}
 					<button
 						type="button"
 						class="tag-remove"
@@ -179,6 +192,18 @@
 	.tag-chip.readonly {
 		color: var(--text-secondary);
 	}
+	.tag-link {
+		color: inherit;
+		text-decoration: none;
+	}
+	.tag-link:hover {
+		text-decoration: underline;
+	}
+	.tag-link:focus-visible {
+		outline: 2px solid var(--ui-ring);
+		outline-offset: 2px;
+		border-radius: 4px;
+	}
 	.tag-remove {
 		display: inline-flex;
 		align-items: center;
@@ -215,11 +240,10 @@
 		font-size: var(--text-xs, 0.75rem);
 		color: var(--text-tertiary, var(--text-secondary));
 	}
+	/* In the flow, under the chips: the properties column scrolls on its own, and
+	   an absolutely positioned list would be clipped by that scroll box. */
 	.tag-suggestions {
-		position: absolute;
-		top: calc(100% + 2px);
-		left: 0;
-		z-index: 20;
+		margin-top: 2px;
 		min-width: 10rem;
 		max-width: 100%;
 		display: flex;

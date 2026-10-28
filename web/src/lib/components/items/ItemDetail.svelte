@@ -7359,6 +7359,7 @@
 							suggestions={tagSuggestions}
 							onchange={updateTags}
 							readonly={!canEdit}
+							hrefFor={username ? (t) => `/${username}/${wsSlug}/tags/${encodeURIComponent(t)}` : undefined}
 						/>
 					</div>
 				</div>
@@ -9794,6 +9795,9 @@
 	.meta-actions :global(.tool-btn),
 	.meta-actions :global(.quick-actions-menu > .trigger-btn) {
 		position: relative;
+		/* A flex item shrinks by default: eight buttons in a 312px pane would
+		   squash the circles into ovals. They keep their size. */
+		flex: none;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
