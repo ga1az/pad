@@ -61,7 +61,10 @@ test('BUG-3160: an open timeline shows a change the debounce merge folded into a
 		await page.goto(`/${fixture.adminUsername}/${fixture.workspaceSlug}/${coll.slug}/${item.slug}`);
 		await page.getByRole('tab', { name: /History/ }).or(page.getByRole('button', { name: /History/ })).first().click();
 		// PRECONDITION: the timeline is loaded and shows the row as it stood.
-		await expect(page.getByText(first).first()).toBeVisible();
+		// Scoped to the History panel: the Summary on the Details tab shows the
+		// same field value, hidden while History is open.
+		const history = page.getByRole('tabpanel', { name: 'History' });
+		await expect(history.getByText(first).first()).toBeVisible();
 
 		// The second update, same actor and source, inside the 5-minute window:
 		// the server MERGES it into the row above rather than adding a row.
@@ -77,7 +80,7 @@ test('BUG-3160: an open timeline shows a change the debounce merge folded into a
 		expect(rows, 'the server did not record the second change').toContain(second);
 
 		await expect(
-			page.getByText(second).first(),
+			history.getByText(second).first(),
 			'the open timeline never showed the merged change (it needs a reload)',
 		).toBeVisible({ timeout: 15_000 });
 	} finally {

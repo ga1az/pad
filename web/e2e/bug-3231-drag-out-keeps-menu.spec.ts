@@ -34,7 +34,7 @@ test.describe('BUG-3231: a drag started inside a menu and released outside does 
 		await browserLogin(page);
 	});
 
-	test('field select dropdown (FieldEditor)', async ({ page, fixture, request }) => {
+	test('field picker popover (item page status)', async ({ page, fixture, request }) => {
 		const stamp = Date.now();
 		const resp = await request.post(`/api/v1/workspaces/${fixture.workspaceSlug}/collections/tasks/items`, {
 			headers: authJson(fixture),
@@ -44,10 +44,12 @@ test.describe('BUG-3231: a drag started inside a menu and released outside does 
 		const { slug } = (await resp.json()) as { slug: string };
 		await page.goto(`/${fixture.adminUsername}/${fixture.workspaceSlug}/tasks/${slug}`);
 
-		const trigger = page.locator('.select-trigger', { hasText: 'Open' }).first();
+		// The item page's status is the status picker's row (TASK-31): a
+		// Popover + Command, which closes on the press, not on a drag's click.
+		const trigger = page.locator('.item-aside button.picker-row', { hasText: 'Open' }).first();
 		await expect(trigger).toBeVisible({ timeout: 15_000 });
 		await trigger.click();
-		const list = page.locator('.select-dropdown[role="listbox"]');
+		const list = page.locator('[data-slot="popover-content"]');
 		await expect(list).toBeVisible();
 
 		await dragOut(page, list.getByRole('option').first());

@@ -51,10 +51,12 @@ test.describe('multi_select editor on the item page (IDEA-3223)', () => {
 
 			await browserLogin(page);
 			await page.goto(`/${fixture.adminUsername}/${fixture.workspaceSlug}/${coll.slug}/${slug}`);
-			const trigger = page.locator('.select-trigger', { hasText: 'Alpha' });
+			// The value is a text action that opens a Popover + Command (TASK-31).
+			const trigger = page.locator('.item-aside button.select-trigger', { hasText: 'Alpha' });
 			await expect(trigger).toBeVisible();
 			await trigger.click();
-			const list = page.locator('[role="listbox"][aria-multiselectable="true"]');
+			const list = page.locator('[data-slot="popover-content"]');
+			await expect(list).toBeVisible();
 			await list.getByRole('option', { name: /Beta/ }).click();
 			await expect.poll(() => storedLabels(fixture, request, slug)).toEqual(['alpha', 'beta']);
 			await list.getByRole('option', { name: /Alpha/ }).click();
