@@ -207,6 +207,10 @@ const POPULATION: string[] = [
 	// TASK-22: no requests; its one await is the clipboard write, after which it
 	// only shows a toast.
 	'lib/components/items/ItemFieldSummary.svelte',
+	// TASK-31: no requests; its one await is the clipboard write, after which it
+	// only flips its OWN "Copied" flag or shows a toast. ItemDetail remounts it
+	// per item.
+	'lib/components/items/ItemLinkCopyButton.svelte',
 ];
 
 /**

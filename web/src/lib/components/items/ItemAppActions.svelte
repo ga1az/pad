@@ -121,14 +121,17 @@
 		gap: var(--space-1);
 		min-width: 0;
 	}
-	/* ItemDetail's .action-btn is scoped to it: the look is repeated here. */
+	/* A labelled link-out in the item toolbar: a text action (Linear's ghost
+	   button), not a boxed one, so it sits quietly beside the round icons. */
 	.app-action-btn {
-		padding: var(--space-1) var(--space-3);
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		color: var(--text-secondary);
-		font-size: 0.85em;
+		height: 28px;
+		padding: 0 8px;
+		background: transparent;
+		border: 1px solid transparent;
+		border-radius: 6px;
+		color: var(--ui-muted-foreground);
+		font-size: 13px;
+		font-weight: 500;
 		cursor: pointer;
 		max-width: 16rem;
 		overflow: hidden;
@@ -136,8 +139,8 @@
 		white-space: nowrap;
 	}
 	.app-action-btn:hover:not(:disabled) {
-		background: var(--bg-tertiary);
-		color: var(--text-primary);
+		background: color-mix(in oklab, var(--ui-foreground) 4%, transparent);
+		color: var(--ui-foreground);
 	}
 	.app-action-btn:disabled {
 		opacity: 0.6;

@@ -1,8 +1,9 @@
 <script lang="ts">
 	import Icon from '$lib/icons/Icon.svelte';
-	import { Attachment01Icon, Delete02Icon, Globe02Icon, HierarchySquare01Icon, MultiplicationSignIcon, Tick02Icon, Tree06Icon } from '@hugeicons/core-free-icons';
+	import { Attachment01Icon, Copy01Icon, Delete02Icon, Globe02Icon, HierarchySquare01Icon, MoreHorizontalIcon, MultiplicationSignIcon, StarIcon, Tick02Icon, Tree06Icon } from '@hugeicons/core-free-icons';
 	import { viaAppTitle } from '$lib/utils/viaApp';
 	import ItemAppActions from './ItemAppActions.svelte';
+	import ItemLinkCopyButton from './ItemLinkCopyButton.svelte';
 	import { LINK_DIRECTIONS, linkDirection, linkEnds, linkSentence } from '$lib/items/linkDirections';
 	import { safeString, safeText } from '$lib/fields/fieldShape';
 	import { page, navigating } from '$app/state';
@@ -6566,10 +6567,15 @@
 
 	<div class="item-page">
 		<!-- Breadcrumb — route-owner chrome. Hidden when embedded in the
-		     collection pane (the pane header replaces it — PLAN-2105). This
-		     is the one place "renders identically" legitimately does not
-		     apply: chrome is a route-owner concern; the content body is not. -->
+		     collection pane (the pane header replaces it — PLAN-2105), and on
+		     desktop, where the content panel's header already shows
+		     workspace › collection › REF (SPEC-24 / TASK-31). That header is
+		     the desktop frame; the mobile chrome has no breadcrumb of its own,
+		     so the mobile page keeps this one. This is the one place
+		     "renders identically" legitimately does not apply: chrome is a
+		     route-owner concern; the content body is not. -->
 		{#if !embedded}
+			{#if viewport.isMobile}
 			<div class="sticky-header">
 				<nav class="breadcrumb">
 					<a href="/{username}/{wsSlug}">Home</a>
@@ -6586,19 +6592,10 @@
 						<span class="sep">/</span>
 					{/if}
 					<span class="current">{formatItemRef(item) || item.title}</span>
-					{#if formatItemRef(item)}
-						<button class="copy-ref-btn" onclick={handleCopyRef} title="Copy item ID">
-							{#if copied}
-								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-								<span class="copied-tooltip">Copied!</span>
-							{:else}
-								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-							{/if}
-						</button>
-					{/if}
 					<SaveSyncStatus {saveStatus} collabState={collabProvider?.state ?? null} />
 				</nav>
 			</div>
+			{/if}
 		{:else}
 			<!-- Pane chrome (PLAN-2105 / TASK-2113). Replaces the full-page
 			     breadcrumb (hidden above) inside the narrow docked pane: expand
@@ -6761,11 +6758,17 @@
 			</div>
 		{/if}
 
+		<!-- The page is a grid (SPEC-24 / TASK-31, Linear's issue page): the
+		     head (title + meta) and the main column (tabs, body, comments) on
+		     the left, the properties on the right. `.item-layout` is the
+		     container the grid answers to, so the docked pane (narrow whatever
+		     the screen) stacks them: head, properties, main. The DOM order is
+		     the reading order in both. -->
+		<div class="item-layout">
+		<div class="item-grid layout-{layout}">
+		<div class="item-head">
 		<!-- Title -->
 		<div class="title-row">
-			{#if formatItemRef(item)}
-				<span class="item-ref">{formatItemRef(item)}</span>
-			{/if}
 			{#if editingTitle}
 				<div class="title-edit">
 				<textarea
@@ -6854,16 +6857,13 @@
 			{/if}
 		</div>
 
-		{#if tags.length > 0}
-			<div class="header-tags">
-				{#each tags as tag, i (i)}
-					<a class="header-tag" href={`/${username}/${wsSlug}/tags/${encodeURIComponent(tag)}`}>{tag}</a>
-				{/each}
-			</div>
-		{/if}
-
-		<!-- Meta info -->
+		<!-- Meta info: the ref, then who and when (the tags are the Labels
+		     section of the properties column). -->
 		<div class="meta-info">
+			{#if formatItemRef(item)}
+				<span class="item-ref">{formatItemRef(item)}</span>
+				<span class="meta-sep">·</span>
+			{/if}
 			{#if item.created_by === 'agent' && item.via_app_name}
 				<!-- TASK-3980: an app's bot wrote this; name the app, not the
 				     generic "agent" that created_by stores. -->
@@ -6895,6 +6895,9 @@
 					<span class="collab-state-dot" aria-hidden="true"></span>
 					<span class="collab-state-label">{collabStateLabel(collabProvider.state)}</span>
 				</span>
+			{/if}
+			{#if !embedded && !viewport.isMobile}
+				<SaveSyncStatus {saveStatus} collabState={collabProvider?.state ?? null} />
 			{/if}
 		</div>
 
@@ -6950,19 +6953,37 @@
 		{#if visibility.seenVisible}
 			<DecisionChips {wsSlug} itemRef={item.slug} itemId={item.id} />
 		{/if}
+		</div><!-- /item-head -->
 
-		<!-- Actions -->
+		<!-- Actions: round icon buttons at the top right of the page (Linear's
+		     toolbar). The grid puts this row first, whatever its DOM position. -->
 		<div class="meta-actions">
 			<!-- Star is a per-user, itemId-keyed REST toggle available to viewers too,
 			     and cannot collide across sides — so it is NOT frozen while peeking
 			     (BUG-2263). No canEdit or peeking gate. -->
+			{#key item.id}
+				<ItemLinkCopyButton path={fullPageUrl} />
+			{/key}
+			{#if !embedded && formatItemRef(item)}
+				<!-- The docked pane's header carries its own copy button. -->
+				<button
+					type="button"
+					class="tool-btn copy-ref-btn"
+					onclick={handleCopyRef}
+					title="Copy item ID"
+					aria-label="Copy item ID"
+				>
+					{#if copied}<Icon icon={Tick02Icon} /><span class="copied-tooltip">Copied!</span>{:else}<Icon icon={Copy01Icon} />{/if}
+				</button>
+			{/if}
 			<button
-				class="action-btn star-btn"
+				class="tool-btn star-btn"
 				class:starred={starredStore.isStarred(item.id)}
 				onclick={() => { if (!item) return; starredStore.toggle(wsSlug, item.slug, item.id); }}
 				title={starredStore.isStarred(item.id) ? 'Unstar' : 'Star'}
+				aria-pressed={starredStore.isStarred(item.id)}
 			>
-				{starredStore.isStarred(item.id) ? '★' : '☆'}
+				<Icon icon={StarIcon} />
 			</button>
 			<!-- Installed apps' item actions (SPEC-6 U9d over U11): a link out
 			     per action, read-only here, so visible on the peeking side too.
@@ -7053,7 +7074,7 @@
 					section header renders — so badge and section always agree.
 				-->
 				<button
-					class="action-btn"
+					class="tool-btn tool-btn-count"
 					title="{childTotal} child item{childTotal === 1 ? '' : 's'}, {childDone} done"
 					aria-label="Jump to Children — {childDone} of {childTotal} done"
 					onclick={() => jumpToSection('relationships', 'item-children')}
@@ -7073,7 +7094,7 @@
 					sync without a separate API call.
 				-->
 				<button
-					class="action-btn"
+					class="tool-btn tool-btn-count"
 					title="Mentioned in {backlinksCount} other item{backlinksCount === 1 ? '' : 's'}"
 					onclick={() => jumpToSection('relationships', 'item-backlinks')}
 				>
@@ -7086,7 +7107,7 @@
 			     menu on a peeking side activates it like any other control. -->
 			<div class="menu-anchor">
 				<button
-					class="action-btn pane-more-btn"
+					class="tool-btn pane-more-btn"
 					bind:this={paneMenuTrigger}
 					aria-haspopup="menu"
 					aria-expanded={paneMenuOpen}
@@ -7097,7 +7118,7 @@
 						paneMenuView = 'root';
 						paneMenuOpen = !paneMenuOpen;
 					}}
-				>⋯</button>
+				><Icon icon={MoreHorizontalIcon} /></button>
 				<!-- mode=portal (BUG-2610): anchored panels clip against the
 				     pane's overflow-y:auto scroll container in split view —
 				     see QuickActionsMenu's matching note. -->
@@ -7225,94 +7246,13 @@
 			</div>
 		</div>
 
-		<!-- Pane tabs (PLAN-2290 Phase 4). Panels below are CSS-hidden, never
-		     unmounted — see the PaneTab block in the script. -->
-		<div
-			class="pane-tabs"
-			role="tablist"
-			aria-label="Item sections"
-			tabindex={-1}
-			onkeydown={(e) => {
-				if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-				const tabs = Array.from(
-					(e.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('[role="tab"]')
-				);
-				const idx = tabs.indexOf(document.activeElement as HTMLElement);
-				if (idx === -1) return;
-				e.preventDefault();
-				const next = e.key === 'ArrowRight'
-					? (idx + 1) % tabs.length
-					: (idx - 1 + tabs.length) % tabs.length;
-				// Automatic activation: panels are display-toggles (always
-				// mounted), so activating on arrow-focus is free and keeps the
-				// roving tabindex consistent (tabindex derives from activeTab).
-				activeTab = PANE_TABS[next].id;
-				tabs[next].focus();
-			}}
-		>
-			{#each PANE_TABS as t (t.id)}
-				<!-- pointerdown + click both activate (idempotent): pointerdown wins
-				     the race against the focus-follows activation cascade — on a
-				     peeking master the pointerdown-triggered re-render can swallow
-				     the subsequent click on slow machines (CI caught it; same
-				     same-click detach class as BUG-2281). click remains for
-				     keyboard (Enter/Space). -->
-				<button
-					class="pane-tab"
-					class:on={activeTab === t.id}
-					role="tab"
-					aria-selected={activeTab === t.id}
-					aria-controls={`pane-panel-${t.id}-${uid}`}
-					tabindex={activeTab === t.id ? 0 : -1}
-					onpointerdown={(e) => {
-						// Mouse only: touch pointerdown fires on scroll-start, and a
-						// drag beginning on a tab must not switch panels (Codex).
-						// Mobile has no peeking master, so the click-swallow race
-						// this guards against doesn't exist there.
-						if (e.pointerType === 'mouse') activeTab = t.id;
-					}}
-					onclick={() => (activeTab = t.id)}
-				>
-					{t.label}{#if t.id === 'history' && historyRows.length > 0}<span class="tab-count"
-							>{historyRows.length}</span
-						>{/if}
-				</button>
-			{/each}
-		</div>
-
-		<div class="tab-panel" class:tab-hidden={activeTab !== 'details'} role="tabpanel" id="pane-panel-details-{uid}" aria-label="Details">
-		{#if codeContext}
-			<div class="code-context-section">
-				<h3 class="section-title">Code Context</h3>
-				<div class="code-context-card">
-					<div class="code-context-meta">
-						<span class="code-provider">{formatFieldDisplay(codeContext.provider)}</span>
-						{#if codeContext.repo}
-							<span class="code-chip">{codeContext.repo}</span>
-						{/if}
-						{#if codeContext.branch}
-							<span class="code-chip">{codeContext.branch}</span>
-						{/if}
-					</div>
-					{#if codeContext.pull_request}
-						<div class="code-pr-row">
-							<a href={codeContext.pull_request.url} class="code-pr-link" target="_blank" rel="noreferrer">
-								PR #{codeContext.pull_request.number}: {codeContext.pull_request.title}
-							</a>
-							<span class="code-pr-state">{formatFieldDisplay(codeContext.pull_request.state)}</span>
-						</div>
-						{#if codeContext.pull_request.updated_at}
-							<div class="code-pr-updated">
-								Updated {relativeTime(codeContext.pull_request.updated_at)}
-							</div>
-						{/if}
-					{/if}
-				</div>
-			</div>
-		{/if}
-
-		<!-- Layout wrapper -->
-		<div class="item-body layout-{layout}">
+		<!-- Properties: the right column (Linear's). Outside the tab panels, so it
+		     stays while the tabs change. {#key itemSlug}: structural containment
+		     (PLAN-2105 / TASK-2112) — FieldEditor debounces and the assignment
+		     pickers remount on every item switch so a stale field continuation is
+		     discarded. The collab Editor lives in the main column, OUTSIDE any
+		     key, and never remounts. -->
+		<div class="item-aside">
 			<!-- Fields — {#key itemSlug}: structural containment (PLAN-2105 /
 			     TASK-2112). The fields sidebar (FieldEditor debounces, assignment
 			     selects) remounts on every item switch so a stale field
@@ -7322,7 +7262,6 @@
 			     the instant the ref changes. -->
 			{#key itemSlug}
 			<div class="fields-panel">
-				<ItemFieldSummary rows={fieldSummaryRows} heading={`${item ? (formatItemRef(item) ?? '') : ''} ${item?.title ?? ''}`.trim()} />
 				<div class="fields-header">Properties</div>
 				{#each schema.fields as field (field.key)}
 					{#if field.computed}
@@ -7475,7 +7414,104 @@
 				{/if}
 			</div>
 			{/key}
+		</div>
 
+		<div class="item-main">
+
+		<!-- Pane tabs (PLAN-2290 Phase 4). Panels below are CSS-hidden, never
+		     unmounted — see the PaneTab block in the script. -->
+		<div
+			class="pane-tabs"
+			role="tablist"
+			aria-label="Item sections"
+			tabindex={-1}
+			onkeydown={(e) => {
+				if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+				const tabs = Array.from(
+					(e.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('[role="tab"]')
+				);
+				const idx = tabs.indexOf(document.activeElement as HTMLElement);
+				if (idx === -1) return;
+				e.preventDefault();
+				const next = e.key === 'ArrowRight'
+					? (idx + 1) % tabs.length
+					: (idx - 1 + tabs.length) % tabs.length;
+				// Automatic activation: panels are display-toggles (always
+				// mounted), so activating on arrow-focus is free and keeps the
+				// roving tabindex consistent (tabindex derives from activeTab).
+				activeTab = PANE_TABS[next].id;
+				tabs[next].focus();
+			}}
+		>
+			{#each PANE_TABS as t (t.id)}
+				<!-- pointerdown + click both activate (idempotent): pointerdown wins
+				     the race against the focus-follows activation cascade — on a
+				     peeking master the pointerdown-triggered re-render can swallow
+				     the subsequent click on slow machines (CI caught it; same
+				     same-click detach class as BUG-2281). click remains for
+				     keyboard (Enter/Space). -->
+				<button
+					class="pane-tab"
+					class:on={activeTab === t.id}
+					role="tab"
+					aria-selected={activeTab === t.id}
+					aria-controls={`pane-panel-${t.id}-${uid}`}
+					tabindex={activeTab === t.id ? 0 : -1}
+					onpointerdown={(e) => {
+						// Mouse only: touch pointerdown fires on scroll-start, and a
+						// drag beginning on a tab must not switch panels (Codex).
+						// Mobile has no peeking master, so the click-swallow race
+						// this guards against doesn't exist there.
+						if (e.pointerType === 'mouse') activeTab = t.id;
+					}}
+					onclick={() => (activeTab = t.id)}
+				>
+					{t.label}{#if t.id === 'history' && historyRows.length > 0}<span class="tab-count"
+							>{historyRows.length}</span
+						>{/if}
+				</button>
+			{/each}
+		</div>
+
+		<div class="tab-panel" class:tab-hidden={activeTab !== 'details'} role="tabpanel" id="pane-panel-details-{uid}" aria-label="Details">
+		{#if codeContext}
+			<div class="code-context-section">
+				<h3 class="section-title">Code Context</h3>
+				<div class="code-context-card">
+					<div class="code-context-meta">
+						<span class="code-provider">{formatFieldDisplay(codeContext.provider)}</span>
+						{#if codeContext.repo}
+							<span class="code-chip">{codeContext.repo}</span>
+						{/if}
+						{#if codeContext.branch}
+							<span class="code-chip">{codeContext.branch}</span>
+						{/if}
+					</div>
+					{#if codeContext.pull_request}
+						<div class="code-pr-row">
+							<a href={codeContext.pull_request.url} class="code-pr-link" target="_blank" rel="noreferrer">
+								PR #{codeContext.pull_request.number}: {codeContext.pull_request.title}
+							</a>
+							<span class="code-pr-state">{formatFieldDisplay(codeContext.pull_request.state)}</span>
+						</div>
+						{#if codeContext.pull_request.updated_at}
+							<div class="code-pr-updated">
+								Updated {relativeTime(codeContext.pull_request.updated_at)}
+							</div>
+						{/if}
+					{/if}
+				</div>
+			</div>
+		{/if}
+
+		<!-- Layout wrapper -->
+		<!-- The Summary: every filled field as full wrapped text, Copy for handing
+		     the item to an agent (TASK-22). Keyed like the properties it mirrors. -->
+		{#key itemSlug}
+			<ItemFieldSummary rows={fieldSummaryRows} heading={`${item ? (formatItemRef(item) ?? '') : ''} ${item?.title ?? ''}`.trim()} />
+		{/key}
+
+		<div class="item-body">
 			<!-- Attachment strip (PLAN-2382 / TASK-2383) — deliberately OUTSIDE
 			     the {#key itemSlug} above, so it owns its own generation fence
 			     for the A→B switch rather than remounting. Renders nothing when
@@ -8228,6 +8264,10 @@
 		</div><!-- /tab-panel History -->
 		{/key}
 
+		</div><!-- /item-main -->
+		</div><!-- /item-grid -->
+		</div><!-- /item-layout -->
+
 	</div>
 
 	{#if item}
@@ -8551,14 +8591,14 @@
 	.pane-tabs {
 		display: flex;
 		gap: 2px;
-		border-bottom: 1px solid var(--border-subtle);
-		margin: var(--space-4) 0 var(--space-4);
+		border-bottom: 1px solid var(--ui-border);
+		margin: var(--space-2) 0 var(--space-5);
 	}
 
 	.pane-tab {
-		padding: 7px 11px 9px;
-		font-size: 0.92em;
-		font-weight: 550;
+		padding: 6px 8px 8px;
+		font-size: 13px;
+		font-weight: 500;
 		color: var(--text-muted);
 		background: none;
 		border: none;
@@ -8575,7 +8615,7 @@
 
 	.pane-tab.on {
 		color: var(--text-primary);
-		border-bottom-color: var(--accent-primary, var(--accent-blue));
+		border-bottom-color: var(--accent-primary-strong);
 	}
 
 	.tab-count {
@@ -8602,9 +8642,59 @@
 	}
 
 	.item-page {
-		max-width: var(--content-max-width);
+		max-width: 1120px;
 		margin: 0 auto;
-		padding: var(--space-6) var(--space-6) var(--space-10);
+		padding: var(--space-4) var(--space-6) var(--space-10);
+	}
+
+	/* The page grid (SPEC-24 / TASK-31). `.item-layout` is the container the
+	   grid answers to, so the docked pane (narrow on a 1440px screen) stacks it
+	   whatever the viewport. Only `container-type`: `contain`, `transform` or
+	   `filter` would trap the mobile BottomSheet's `position: fixed`
+	   (e2e/task-2209-balanced-fields-pane.spec.ts pins that). */
+	.item-layout {
+		container-type: inline-size;
+		container-name: item-layout;
+	}
+	/* Stacked (narrow): toolbar, head, properties as a compact block, main. */
+	.item-grid {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		grid-template-areas: 'toolbar' 'head' 'aside' 'main';
+		max-width: 760px;
+		margin: 0 auto;
+	}
+	.item-head {
+		grid-area: head;
+		min-width: 0;
+	}
+	.item-aside {
+		grid-area: aside;
+		min-width: 0;
+		margin-bottom: var(--space-6);
+	}
+	.item-main {
+		grid-area: main;
+		min-width: 0;
+	}
+	/* Two columns: a reading column (720px at most) and Linear's 272px
+	   properties column. The properties run beside the head AND the main
+	   column, so they start level with the title. */
+	@container item-layout (min-width: 860px) {
+		.item-grid {
+			max-width: 1040px;
+			grid-template-columns: minmax(0, 720px) 272px;
+			grid-template-areas:
+				'toolbar toolbar'
+				'head aside'
+				'main aside';
+			grid-template-rows: auto auto 1fr;
+			column-gap: 48px;
+			justify-content: center;
+		}
+		.item-aside {
+			margin-bottom: 0;
+		}
 	}
 
 	.sticky-header {
@@ -8787,7 +8877,7 @@
 	}
 
 	/* Title */
-	.title-row { margin-bottom: var(--space-2); display: flex; align-items: baseline; gap: var(--space-2); }
+	.title-row { margin: var(--space-2) 0 var(--space-2); display: flex; align-items: baseline; gap: var(--space-2); }
 	.header-tags {
 		display: flex;
 		flex-wrap: wrap;
@@ -8811,24 +8901,22 @@
 		color: var(--text-primary);
 		border-color: var(--text-tertiary, var(--text-secondary));
 	}
+	/* The ref reads as the first word of the meta line (Linear), not a pill. */
 	.item-ref {
-		font-family: var(--font-mono);
-		font-size: 0.85em;
-		color: var(--text-muted);
-		background: var(--bg-tertiary);
-		padding: 2px 8px;
-		border-radius: var(--radius-sm);
+		color: var(--text-secondary);
 		white-space: nowrap;
 		flex-shrink: 0;
 	}
 	.title {
 		display: block;
-		font-size: 1.6em;
-		font-weight: 700;
+		font-size: 24px;
+		font-weight: 600;
+		line-height: 1.25;
+		letter-spacing: -0.012em;
 		cursor: text;
-		border-radius: var(--radius);
-		padding: 2px 4px;
-		margin: -2px -4px;
+		border-radius: 6px;
+		padding: 2px 6px;
+		margin: -2px -6px;
 		text-align: left;
 		width: 100%;
 		color: var(--text-primary);
@@ -8844,7 +8932,7 @@
 	.title-readonly {
 		cursor: default;
 		margin: 0;
-		font-weight: 700;
+		font-weight: 600;
 	}
 	.title-readonly:hover {
 		background: none;
@@ -8887,13 +8975,13 @@
 		border: 0;
 	}
 	.title-input {
-		font-size: 1.6em;
-		font-weight: 700;
+		font-size: 24px;
+		font-weight: 600;
 		width: 100%;
 		background: var(--bg-secondary);
 		border: 1px solid var(--accent-blue);
-		border-radius: var(--radius);
-		padding: 2px 4px;
+		border-radius: 6px;
+		padding: 2px 6px;
 		color: var(--text-primary);
 		resize: none;
 		overflow: hidden;
@@ -8937,9 +9025,9 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
-		font-size: 0.8em;
+		font-size: 12.5px;
 		color: var(--text-muted);
-		margin-bottom: var(--space-2);
+		margin-bottom: var(--space-4);
 		flex-wrap: wrap;
 	}
 	.meta-via-app {
@@ -8990,106 +9078,89 @@
 		background: var(--accent-red);
 	}
 
-	/* Layout variants */
+	/* Body: the attachments, then the editor. */
 	.item-body {
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-6);
 	}
 
-	/* TASK-2209: the balanced grid answers to the BODY's width, not the
-	   viewport's. The docked pane is ~400px on a 1440px screen, so a
-	   viewport query kept two columns there and the right one ran off
-	   screen. Only `container-type` here: `contain`, `transform` or `filter`
-	   would trap the mobile BottomSheet's `position: fixed`. */
-	.item-body.layout-balanced {
-		container-type: inline-size;
-		container-name: item-body-balanced;
-	}
-	.layout-balanced .fields-panel {
-		display: grid;
-		/* `minmax(0, …)`: a bare `1fr` has an `auto` minimum, so a select's or
-		   the tag input's min-content widened the grid past its panel. */
-		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-		gap: 0 var(--space-6);
-		padding-bottom: var(--space-4);
-		border-bottom: 1px solid var(--border);
-	}
-	/* After the base rule on purpose: a container query adds no specificity,
-	   so source order decides. */
-	@container item-body-balanced (max-width: 559.98px) {
-		.layout-balanced .fields-panel {
-			grid-template-columns: minmax(0, 1fr);
-		}
-	}
-	.layout-balanced .fields-header {
-		grid-column: 1 / -1;
-	}
-	.layout-balanced .field-row:last-child {
-		border-bottom: none;
-	}
-
-	.layout-fields-primary .fields-panel {
-		order: -1;
-	}
-
-	/* Content-primary: fields as compact horizontal row */
-	.layout-content-primary .fields-panel {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-2);
-		padding-bottom: var(--space-4);
-		border-bottom: 1px solid var(--border);
-	}
-	.layout-content-primary .fields-header {
-		display: none;
-	}
-	.layout-content-primary .field-row {
-		flex-direction: row;
-		align-items: center;
-		gap: var(--space-2);
-		padding: 0;
-		border: none;
-	}
-	.layout-content-primary .field-label {
-		font-size: 0.75em;
-		white-space: nowrap;
-	}
-	/* Fields panel */
+	/* ── Properties (SPEC-24 / TASK-31) ───────────────────────────────────
+	   No card, no box, no separators: a gray 13px section label, then rows
+	   32px tall. A row is a gray 13px label and the value, which is a
+	   borderless text action that opens its picker (the controls' own looks
+	   are the `.item-aside :global(...)` rules below). */
 	.fields-panel {
 		display: flex;
 		flex-direction: column;
 		gap: 0;
 	}
 	.fields-header {
-		font-size: 0.7em;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: var(--text-muted);
-		padding: var(--space-2) 0;
-		margin-bottom: var(--space-1);
+		font-size: 13px;
+		font-weight: 500;
+		color: var(--ui-muted-foreground);
+		padding: 6px 0 4px;
+		margin: 0;
+	}
+	.fields-header:not(:first-child) {
+		margin-top: var(--space-5);
 	}
 	.field-row {
 		display: flex;
 		align-items: center;
-		gap: var(--space-3);
-		padding: var(--space-2) 0;
-		border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
-	}
-	.field-row:last-child {
-		border-bottom: none;
+		gap: var(--space-2);
+		min-height: 32px;
+		padding: 0;
 	}
 	.field-label {
-		font-size: 0.82em;
-		color: var(--text-secondary);
-		font-weight: 500;
-		width: 90px;
+		font-size: 13px;
+		color: var(--ui-muted-foreground);
+		font-weight: 400;
+		width: 84px;
 		flex-shrink: 0;
 	}
 	.field-value {
 		flex: 1;
 		min-width: 0;
+	}
+
+	/* Stacked (the docked pane, a narrow page): the properties are a compact
+	   block above the body, as the collection's layout setting says. The two
+	   columns have none of this: their list is always one column. */
+	@container item-layout (max-width: 859.98px) {
+		.layout-balanced .fields-panel {
+			display: grid;
+			/* `minmax(0, …)`: a bare `1fr` has an `auto` minimum, so a select's or
+			   the tag input's min-content widened the grid past its panel. */
+			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+			gap: 0 var(--space-6);
+		}
+		.layout-balanced .fields-header {
+			grid-column: 1 / -1;
+		}
+	}
+	/* A container query adds no specificity, so source order decides. */
+	@container item-layout (max-width: 559.98px) {
+		.layout-balanced .fields-panel {
+			grid-template-columns: minmax(0, 1fr);
+		}
+	}
+	@container item-layout (max-width: 859.98px) {
+		/* Content-primary: the properties as one wrapping row of pairs. */
+		.layout-content-primary .fields-panel {
+			display: flex;
+			flex-direction: row;
+			flex-wrap: wrap;
+			gap: var(--space-1) var(--space-4);
+		}
+		.layout-content-primary .fields-header {
+			display: none;
+		}
+		.layout-content-primary .field-label {
+			width: auto;
+			font-size: 12px;
+			white-space: nowrap;
+		}
 	}
 	.computed-value {
 		font-size: 0.88em;
@@ -9569,41 +9640,70 @@
 		border-top: 1px solid var(--border);
 	}
 
-	/* History */
+	/* ── Toolbar (SPEC-24 / TASK-31) ──────────────────────────────────────
+	   Round 28px icon buttons at the top right of the page (Linear's): copy
+	   link, copy ref, star, the installed apps' actions, ⚡, the child and
+	   mention counts, ⋯. One row at every width: the docked pane is
+	   user-draggable down to 312px, and eight 28px circles still fit. The
+	   look is the Button's `icon` variant (ui/README.md); it is written here
+	   because the ⋯ and star triggers are bound elements this file owns, and
+	   because ⚡ and the app actions come from child components, styled
+	   through `:global` below. */
 	.meta-actions {
+		grid-area: toolbar;
 		display: flex;
 		align-items: center;
-		gap: var(--space-2);
-		margin-bottom: var(--space-6);
-		/* Single row at every container width. The band lives in the docked
-		   pane (user-draggable, 312-672px) as well as the full page, so the
-		   old `wrap` gave back a whole row of vertical space the moment the
-		   pane got narrow. Buttons compress instead — see the
-		   `.meta-actions .action-btn` flex rule below. */
+		justify-content: flex-end;
+		gap: 8px;
+		margin-bottom: var(--space-3);
 		flex-wrap: nowrap;
-		/* Query container for the narrow-width padding tightening below. Keyed
-		   off the BAND, not the viewport, because the docked pane's width is
-		   user-dragged and decoupled from it (PLAN-2326 DR-2).
-
-		   Safe for the two menus this band contains, but NOT for the reason
-		   DR-3 gives. DR-3 says `inline-size` implies
-		   `contain: layout style inline-size`; that is wrong, and it's the
-		   dangerous direction to be wrong in. `container-type: inline-size`
-		   applies STYLE and INLINE-SIZE containment only — NOT layout
-		   containment (css-conditional-5 §container-type). Layout containment
-		   is the thing that would make this band a containing block for
-		   fixed-position descendants, and both menus render a non-portaled
-		   `position: fixed` BottomSheet on mobile, so under DR-3's reading the
-		   mobile sheet would collapse into a ~342x34 strip.
-
-		   It doesn't, and the absence of layout containment is why. Do not add
-		   `contain: layout` (or a transform/filter, which create a containing
-		   block by a different route) to this element — that WOULD trap the
-		   sheet. e2e/item-action-bar-band.spec.ts pins this and was
-		   mutation-tested against exactly that change. */
-		container-type: inline-size;
-		container-name: item-action-bar;
 	}
+	.meta-actions :global(.tool-btn),
+	.meta-actions :global(.quick-actions-menu > .trigger-btn) {
+		position: relative;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 4px;
+		width: 28px;
+		height: 28px;
+		padding: 0;
+		border-radius: 999px;
+		border: 1px solid color-mix(in oklab, var(--ui-foreground) 7%, transparent);
+		background: var(--ui-tab);
+		color: var(--ui-muted-foreground);
+		font-size: 14px;
+		line-height: 1;
+		white-space: nowrap;
+		cursor: pointer;
+		transition:
+			background 0.12s,
+			color 0.12s;
+	}
+	.meta-actions :global(.tool-btn:hover:not(:disabled)),
+	.meta-actions :global(.quick-actions-menu > .trigger-btn:hover) {
+		background: color-mix(in oklab, var(--ui-tab), white 5%);
+		color: var(--ui-foreground);
+	}
+	.meta-actions :global(.tool-btn:focus-visible) {
+		outline: 2px solid var(--ui-ring);
+		outline-offset: 2px;
+	}
+	.meta-actions :global(.tool-btn:disabled) {
+		opacity: 0.5;
+		cursor: default;
+	}
+	/* The counts ("3/5" children, "2" mentions) are labelled pills at the same height. */
+	.meta-actions :global(.tool-btn.tool-btn-count) {
+		width: auto;
+		padding: 0 10px;
+		font-size: 12px;
+	}
+	.meta-actions > :global(div.quick-actions-menu),
+	.menu-anchor {
+		display: flex;
+	}
+	/* `.action-btn` is the graph drawer's own button now. */
 	.action-btn {
 		padding: var(--space-1) var(--space-3);
 		min-width: 70px;
@@ -9614,10 +9714,6 @@
 		color: var(--text-secondary);
 		font-size: 0.85em;
 		cursor: pointer;
-		/* Was `all 0.1s`, which is fine for a hover but wrong now that width
-		   and padding are width-derived: dragging the pane animated every
-		   button's padding, so the row visibly wobbled behind the drag and
-		   settled ~100ms late. Enumerate the hover properties instead. */
 		transition:
 			background 0.1s,
 			color 0.1s,
@@ -9627,119 +9723,6 @@
 	.action-btn:hover {
 		background: var(--bg-tertiary);
 		color: var(--text-primary);
-	}
-	.action-btn.active {
-		background: var(--accent-primary-strong);
-		border-color: var(--accent-blue);
-		color: #fff;
-	}
-
-	/* Fluid action-bar buttons. Scoped to `.meta-actions` on purpose: the
-	   graph drawer's `.action-btn`s ("Close ✕", "Retry") are wider than 70px
-	   and must keep the plain `min-width` floor, not a 70px flex basis.
-
-	   `flex-basis: 70px` reproduces the old comfortable width when there is
-	   room, so nothing moves on a wide container. `flex-shrink: 1` lets the
-	   row compress when there isn't. `min-width: auto` (NOT 0) is what makes
-	   this safe — a flex item's automatic minimum is its content size, so
-	   shrinking stops at the label rather than clipping "🌳 12/34" down to
-	   nothing. Overriding the 70px floor above is the whole point; without
-	   this line the floor and the basis are the same number and nothing
-	   shrinks.
-
-	   Applies to the DIRECT-child buttons (star, 🌳, 📎) plus the ⚡ trigger's
-	   wrapper, so every labelled control in the band is one width. The ⚡ is
-	   the reason this list isn't just `.action-btn`: it belongs to
-	   QuickActionsMenu and never carried `.action-btn`, so it rendered 41x22
-	   against its neighbours' 70x26 — a different width AND height. */
-	.meta-actions > .action-btn,
-	.meta-actions > :global(div.quick-actions-menu) {
-		flex: 0 1 70px;
-		min-width: auto;
-	}
-	/* Both of these wrap a button in a plain div, which would otherwise be a
-	   block-layout flex item: the basis above only applies to a flex ITEM, so
-	   without `display: flex` here the ⋯ and ⚡ triggers sit at their
-	   block min-content width and refuse to participate in the compression.
-	   `.menu-anchor` keeps `position: relative` — Menu's anchored mode
-	   positions against it.
-
-	   The `div` qualifier on the ⚡ wrapper is load-bearing, not stylistic
-	   (Codex P2). QuickActionsMenu sets `.quick-actions-menu { display:
-	   inline-block }`, which Svelte scopes to `.quick-actions-menu.svelte-hash`
-	   — also (0,2,0). A bare `:global(.quick-actions-menu)` here would TIE it
-	   and be settled by cross-file stylesheet order, so a chunking change could
-	   silently restore `inline-block`: the wrapper would still take the 70px
-	   basis while the ⚡ inside it snapped back to intrinsic width, quietly
-	   undoing the uniform width and shrinking the touch target. The element
-	   selector takes this to (0,2,1) and wins outright. */
-	.menu-anchor,
-	.meta-actions :global(div.quick-actions-menu) {
-		display: flex;
-	}
-	/* Fill the wrapper the basis was applied to, and match `.action-btn`'s box
-	   metrics exactly — the trigger's own rule uses `2px` block padding, which
-	   is what made it 4px shorter than everything beside it.
-
-	   Specificity: the child component's scoped rule compiles to
-	   `.trigger-btn.svelte-<hash>` (0,2,0), so a bare `:global(.trigger-btn)`
-	   would TIE and be resolved by cross-file source order — unreliable. The
-	   child combinator takes this to 0,3,0 and wins outright. */
-	.meta-actions :global(.quick-actions-menu > .trigger-btn) {
-		flex: 1 1 auto;
-		min-width: auto;
-	}
-	/* One height for every control in the band, set in one place — the ⚡
-	   trigger's own rule used 2px block padding against `.action-btn`'s 4px,
-	   which is why it sat 4px shorter than its neighbours.
-
-	   `line-height` is pinned so glyph metrics can't leak into the height:
-	   "⋯" and "☆" resolved 1px apart, which `align-items: center` then showed
-	   as a misaligned row. 1.35 reproduces the line box the band had before
-	   this change (1.2 measured 24.3px tall overall).
-
-	   `--space-1` keeps the band's original 26.1px control height (16.1px line +
-	   8px padding + 2px border) on every surface. A `--space-2` variant was
-	   tried at 34.1px (+30%) and rejected as too tall — desktop first, then
-	   mobile too, so there is deliberately no per-breakpoint split here. It is
-	   padding rather than a fixed height so the box still grows if a label ever
-	   wraps to a second line or the root font size changes. */
-	.meta-actions > .action-btn,
-	.meta-actions .pane-more-btn,
-	.meta-actions :global(.quick-actions-menu > .trigger-btn) {
-		line-height: 1.35;
-		padding-block: var(--space-1);
-	}
-	/* The overflow trigger is the deliberate exception to the uniform width
-	   (user's call): it's a control rather than a labelled value, so it sizes
-	   to its glyph instead of padding out to 70px.
-
-	   `min-width: auto` is required, not decorative: `.action-btn`'s base
-	   `min-width: 70px` reaches this button too (it is a grandchild, so the
-	   direct-child override above misses it), and a 70px floor kept it padded
-	   out to 70px no matter what flex-basis said. */
-	.meta-actions > .menu-anchor,
-	.meta-actions .pane-more-btn {
-		flex: 0 0 auto;
-		min-width: auto;
-	}
-
-	/* Last resort before overflow. Once every control has shrunk to its own
-	   label the row can still exceed a 264px band (a 312px pane — the draggable
-	   minimum — with star + ⚡ + 🌳 + 📎 + ⋯ measured -3.4px, and -29.8px with a
-	   3-digit child count). Reclaiming 4px of padding per side per control buys
-	   ~40px, which clears both. Deliberately NOT `overflow-x: auto` here: a
-	   scrollport under `scrollbar-width: none` is what made controls silently
-	   unreachable the first time round (DR-12).
-
-	   Two-selector specificity (0,2,0) on purpose — `@container` contributes
-	   none of its own, so a bare `.action-btn` here would tie with the base
-	   rule above and be decided by source order. */
-	@container item-action-bar (max-width: 339.98px) {
-		.meta-actions .action-btn,
-		.meta-actions :global(.quick-actions-menu > .trigger-btn) {
-			padding-inline: var(--space-2);
-		}
 	}
 
 	/* Per-item dependency graph drawer (PLAN-1780 / TASK-1784). Right-docked
@@ -9800,11 +9783,12 @@
 			border-left: 0;
 		}
 	}
-	.star-btn.starred {
-		color: var(--accent-amber);
-	}
+	.star-btn.starred,
 	.star-btn:hover {
 		color: var(--accent-amber);
+	}
+	.star-btn.starred :global(svg path) {
+		fill: currentColor;
 	}
 	/* Pane ⋯ overflow anchor (PLAN-2290 Phase 4 PR B) — Menu's anchored
 	   mode positions against the nearest relative ancestor. */
@@ -9964,11 +9948,11 @@
 		}
 
 		/* Body: stack fields + content vertically instead of side-by-side. */
-		.item-body,
-		.item-body.layout-balanced,
-		.item-body.layout-focus {
+		.item-grid,
+		.item-body {
 			display: block !important;
 			grid-template-columns: none !important;
+			max-width: none !important;
 			gap: 0 !important;
 		}
 

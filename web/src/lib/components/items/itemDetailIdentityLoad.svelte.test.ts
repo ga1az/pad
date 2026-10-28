@@ -26,6 +26,29 @@ import { cleanup, fireEvent, render, waitFor } from '@testing-library/svelte';
 import { flushSync, tick } from 'svelte';
 import { bindReactiveEpoch, resetEpoch } from '../../../test/identityEpochMock.svelte';
 
+// The desktop page has no breadcrumb of its own (the panel header shows
+// workspace › collection › REF), so the collection's name reaches the page text
+// only through the mobile breadcrumb. The collection-race legs below read it
+// from the text, so they run on the mobile chrome.
+const vp = vi.hoisted(() => ({ isMobile: false }));
+vi.mock('$lib/stores/breakpoint.svelte', async (importOriginal) => {
+	const real = await importOriginal<typeof import('$lib/stores/breakpoint.svelte')>();
+	return {
+		...real,
+		viewport: {
+			get isMobile() {
+				return vp.isMobile;
+			},
+			get isCoarsePointer() {
+				return real.viewport.isCoarsePointer;
+			},
+			get dragDisabled() {
+				return vp.isMobile || real.viewport.isCoarsePointer;
+			}
+		}
+	};
+});
+
 vi.mock('$lib/components/editor/Editor.svelte', () => import('../../../test/StubComponent.svelte'));
 vi.mock('$lib/components/editor/EditorBubbleMenu.svelte', () => import('../../../test/StubComponent.svelte'));
 vi.mock('$lib/components/editor/EditorLinkPopover.svelte', () => import('../../../test/StubComponent.svelte'));
@@ -242,6 +265,7 @@ beforeEach(() => {
 	syncCallbacks.length = 0;
 	sseCallbacks.length = 0;
 	vi.mocked(api.collections.get).mockClear();
+	vp.isMobile = false;
 });
 
 afterEach(() => {
@@ -747,6 +771,7 @@ describe('the SSE callback refuses a continuation that spans an identity change 
 	 * GETs, counted after the identity's own reload has settled.
 	 */
 	async function collectionRace(moveIdentity: boolean, outcome: 'resolve' | 'reject') {
+		vp.isMobile = true;
 		const r = mount();
 		await loaded(r);
 		const fetches = deferNext(api.collections.get);
