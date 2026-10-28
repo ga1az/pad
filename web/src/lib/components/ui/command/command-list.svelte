@@ -39,6 +39,7 @@
 	{...restProps}
 >
 	{#snippet child({ props })}
+		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 		<div
 			{...props}
 			role={hasOptions ? props.role : undefined}

@@ -25,10 +25,11 @@ async function exerciseNewField(page: Page, dialog: ReturnType<Page['getByRole']
 	await expect(dialog.getByPlaceholder('Field name')).toHaveCount(before + 1);
 
 	// And the dialog still closes. The form now holds an edit, so Escape asks
-	// first (TASK-2191), through the app's confirm dialog (TASK-3543);
+	// first (TASK-2191), through the app's confirm dialog (TASK-3543, an
+	// alertdialog since SPEC-24 / TASK-26);
 	// choosing Discard closes it.
 	await page.keyboard.press('Escape');
-	const ask = page.getByRole('dialog', { name: /^Discard / });
+	const ask = page.getByRole('alertdialog', { name: /^Discard / });
 	await expect(ask, 'Escape on an edited form asks before discarding').toBeVisible();
 	await expect(dialog, 'the form stays open while the question is asked').toBeVisible();
 	await ask.getByRole('button', { name: 'Discard', exact: true }).click();

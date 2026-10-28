@@ -30,7 +30,9 @@ export function sonnerZIndex(): Plugin {
 		name: 'pad-sonner-z-index',
 		enforce: 'pre',
 		transform(code, id) {
-			if (!id.replaceAll('\\', '/').includes('/node_modules/svelte-sonner/dist/Toaster.svelte')) return;
+			// Not `Toaster.svelte?svelte&type=style`: that module is cut from the
+			// already-rewritten file.
+			if (!id.replaceAll('\\', '/').endsWith('/node_modules/svelte-sonner/dist/Toaster.svelte')) return;
 			return { code: capSonnerZIndex(code), map: null };
 		}
 	};

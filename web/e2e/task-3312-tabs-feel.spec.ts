@@ -156,7 +156,10 @@ test.describe('TASK-3312 workspace tabs feel', () => {
 			.toBeGreaterThan(before[1] + 2);
 	});
 
-	test('the first tab, active, keeps its left flare: the list does not clip it and shows no fade', async ({ page }) => {
+	test('the first tab, active, is not clipped by the list and shows no fade', async ({ page }) => {
+		// SPEC-24 / TASK-27: the tabs are pills in the frame, so there is no flare
+		// any more. What the old test protected still holds: the list must not
+		// clip the active first tab's left edge, and an unscrolled list shows no fade.
 		const { username, slugs } = await asNewUser(page);
 		await openTabs(page, slugs, 3);
 		await show(page, username, slugs[0], 3);
@@ -167,14 +170,12 @@ test.describe('TASK-3312 workspace tabs feel', () => {
 			return {
 				listLeft: list.getBoundingClientRect().left,
 				tabLeft: tab.getBoundingClientRect().left,
-				flareLeft: parseFloat(flare.left),
 				flareContent: flare.content,
 				fadeLeft: list.classList.contains('fade-left'),
 			};
 		});
-		expect(geo.flareContent, 'the active tab draws a left flare').not.toBe('none');
-		// The list clips at its padding box, so the flare must start inside it.
-		expect(geo.tabLeft + geo.flareLeft, `flare box starts inside the list (${JSON.stringify(geo)})`).toBeGreaterThanOrEqual(geo.listLeft);
+		expect(geo.flareContent, 'the pill tab draws no flare').toBe('none');
+		expect(geo.tabLeft, `the active first tab starts inside the list (${JSON.stringify(geo)})`).toBeGreaterThanOrEqual(geo.listLeft);
 		expect(geo.fadeLeft, 'no left fade over an unscrolled first tab').toBe(false);
 	});
 

@@ -497,9 +497,8 @@
 				class:no-topbar={!uiStore.topbarOpen}
 			>
 				{#if !uiStore.isMobile}
-					<div style="display: contents" inert={coveredPage.active}>
-						<PanelHeader />
-					</div>
+					<!-- PanelHeader inerts its own header: it also holds the notification panel. -->
+					<PanelHeader />
 				{/if}
 				<main class="main-content" inert={coveredPage.active && !coveredPage.keepsBottomNav}>
 					{@render children()}

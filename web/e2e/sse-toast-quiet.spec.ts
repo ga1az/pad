@@ -75,7 +75,9 @@ test('the shared-fixture flag silences another actor\'s creation toast (row arri
 	await page.goto(`/${fixture.adminUsername}/${fixture.workspaceSlug}/tasks`, {
 		waitUntil: 'domcontentloaded',
 	});
-	await expect(page.getByRole('heading', { name: /tasks/i }).first()).toBeVisible();
+	// The collection name is the panel header's breadcrumb page (the in-page
+	// heading went in SPEC-24 / TASK-29).
+	await expect(page.locator('[data-slot="breadcrumb-page"]', { hasText: /tasks/i })).toBeVisible();
 	// SSE must actually be CONNECTED before the external create — the heading
 	// alone doesn't prove it. The stream's response headers land in the log
 	// the moment the EventSource opens.
@@ -118,7 +120,7 @@ test('CONTROL: an unflagged context still shows the creation toast — the produ
 			`${fixture.baseURL}/${fixture.adminUsername}/${fixture.workspaceSlug}/tasks`,
 			{ waitUntil: 'domcontentloaded' },
 		);
-		await expect(page.getByRole('heading', { name: /tasks/i }).first()).toBeVisible();
+		await expect(page.locator('[data-slot="breadcrumb-page"]', { hasText: /tasks/i })).toBeVisible();
 		await expect
 			.poll(() => responseLog.some((u) => u.startsWith('/api/v1/events')), { timeout: 15_000 })
 			.toBe(true);

@@ -248,7 +248,10 @@ async function childrenDrag(
 		await openTab(page, 'Relationships');
 		const row1 = page.locator('.child-row').filter({ hasText: first });
 		const row2 = page.locator('.child-row').filter({ hasText: second });
-		await row2.scrollIntoViewIfNeeded();
+		// On the wide page the children sit at the foot of one long scroll, so
+		// scrolling to the SECOND row alone left the first below the fold. Centre the
+		// first (the two rows are adjacent) so both are on screen for the gesture.
+		await row1.evaluate((el) => el.scrollIntoView({ block: 'center' }));
 		await expect(row1).toBeVisible();
 		await expect(row2).toBeVisible();
 		const b1 = (await row1.boundingBox())!;

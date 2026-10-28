@@ -1,6 +1,7 @@
 import { test, expect } from './fixtures';
 import type { Page } from '@playwright/test';
 import { browserLogin, seedDoc } from './lib/collab-helpers';
+import { authJson, createWorkspace } from './lib/attachment-viewer';
 import type { SuiteFixture } from './fixtures';
 
 /**
@@ -125,8 +126,21 @@ test.describe('TASK-2235 U2: palette and quick-add are dialogs (desktop)', () =>
 		await expect(trigger).toBeFocused();
 	});
 
-	test('quick-add is a modal dialog: Tab stays inside, the picker takes its own Escape', async ({ page, fixture }) => {
-		await page.goto(`/${fixture.adminUsername}/${fixture.workspaceSlug}/tasks`);
+	test('quick-add is a modal dialog: Tab stays inside, the picker takes its own Escape', async ({ page, fixture, request }) => {
+		// A workspace of its own with seven collections. The check at the end needs
+		// the picker to be TALLER than the dialog, and the shared workspace's
+		// collection count depends on which specs ran before this one (alone, its
+		// four put the picker's edge about 1px past the dialog's, under any
+		// threshold; after a spec that adds collections it passed).
+		const created = await createWorkspace(fixture, request, 'Quick add picker');
+		for (const name of ['Alpha', 'Bravo', 'Charlie']) {
+			const r = await request.post(`/api/v1/workspaces/${created.slug}/collections`, {
+				headers: authJson(fixture),
+				data: { name },
+			});
+			expect(r.ok(), await r.text()).toBeTruthy();
+		}
+		await page.goto(`/${fixture.adminUsername}/${created.slug}/tasks`);
 		// shadcn-svelte's Dialog since TASK-26 (role="dialog", aria-modal).
 		const dialog = page.locator('[data-slot="dialog-content"].quick-add-dialog');
 		await expect(async () => {

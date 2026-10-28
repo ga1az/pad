@@ -28,6 +28,7 @@ describe('the toaster stays below the attachment viewer', () => {
 		const src = readFileSync(TOASTER, 'utf8');
 		expect(transform.call({}, src, TOASTER)?.code).toContain(`z-index: ${SONNER_TOASTER_Z_INDEX};`);
 		expect(transform.call({}, 'z-index: 999999999;', '/x/src/lib/Other.svelte')).toBeUndefined();
+		expect(transform.call({}, 'z-index: 5;', TOASTER + '?svelte&type=style&lang.css'), 'the style module is cut from the rewritten file').toBeUndefined();
 	});
 
 	it('vite.config.ts registers it, ahead of the Svelte compile', async () => {

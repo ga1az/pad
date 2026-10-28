@@ -48,6 +48,7 @@ vi.mock('$lib/stores/collections.svelte', async () => await import('./sidebarQui
 
 import Sidebar from './Sidebar.svelte';
 import { uiStore } from '$lib/stores/ui.svelte';
+import { collectionStore } from '$lib/stores/collections.svelte';
 
 function input(): HTMLTextAreaElement {
 	const el = document.querySelector<HTMLTextAreaElement>('.quick-add-modal textarea.quick-add-input');
@@ -115,5 +116,29 @@ describe('Sidebar quick-add — an in-flight create belongs to ONE opening of th
 		expect(input().readOnly, 'the new opening inherited the old one\'s busy state').toBe(false);
 		const create = document.querySelector<HTMLButtonElement>('.quick-add-submit');
 		expect(create?.disabled, 'Create is disabled until an unrelated request settles').toBe(false);
+	});
+});
+
+describe('Sidebar quick-add — an Escape meant for the collection picker (TASK-2235)', () => {
+	it('closes the picker only, even before focus has moved into it', async () => {
+		const extra = { id: 'c2', slug: 'ideas', name: 'Ideas', icon: '💡', prefix: 'IDEA', schema: '{"fields":[]}', settings: '{}', sort_order: 1 };
+		(collectionStore.collections as unknown[]).push(extra);
+		try {
+			render(Sidebar);
+			await open();
+			const pill = document.querySelector<HTMLButtonElement>('.quick-add-pill')!;
+			await fireEvent.click(pill);
+			await tick();
+			expect(document.querySelector('.quick-add-picker'), 'the picker opened').not.toBeNull();
+			// The picker takes focus a frame later; this press lands on the pill. The
+			// dialog's own Escape listener is on the document, so it only stays
+			// open if the press is stopped here.
+			await fireEvent.keyDown(pill, { key: 'Escape' });
+			await tick();
+			expect(document.querySelector('.quick-add-picker'), 'the picker closed').toBeNull();
+			expect(document.querySelector('.quick-add-modal'), 'the dialog stayed open').not.toBeNull();
+		} finally {
+			(collectionStore.collections as unknown[]).splice(1);
+		}
 	});
 });

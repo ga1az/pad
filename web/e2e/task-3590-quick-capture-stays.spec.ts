@@ -36,7 +36,12 @@ test.describe('TASK-3590: quick capture keeps your place', () => {
 		await expect(dialog).toBeVisible();
 		await expect(page).toHaveURL(new RegExp(`${listUrl}(\\?.*)?$`));
 
-		const toast = page.locator('.toast', { hasText: /Added TASK-\d+/ }).last();
+		// Sonner lists the newest toast FIRST (the old container put it last), so
+		// the newest is found by its ref number, not by its place in the stack.
+		const toasts = page.locator('.toast', { hasText: /Added TASK-\d+/ });
+		await expect.poll(() => toasts.count()).toBeGreaterThanOrEqual(2);
+		const refs = (await toasts.allTextContents()).map((t) => Number(/Added TASK-(\d+)/.exec(t)![1]));
+		const toast = toasts.nth(refs.indexOf(Math.max(...refs)));
 		await expect(toast).toBeVisible();
 		await input.press('Escape');
 		await expect(dialog).toBeHidden();

@@ -302,6 +302,10 @@
 			// was only meant to close the picker.
 			e.preventDefault();
 			if (pickerOpen) {
+				// Stopped here too: the dialog's own Escape listener is on the
+				// document (bits-ui) and ignores preventDefault, so a press that
+				// only closes the picker would otherwise close the dialog as well.
+				e.stopPropagation();
 				pickerOpen = false;
 				return;
 			}
@@ -333,7 +337,10 @@
 			e.preventDefault();
 			if (!pickerOpen) togglePicker();
 		} else if (e.key === 'Escape' && pickerOpen) {
+			// While focus has not yet moved into the picker (it follows a frame
+			// after the pill's click), this is the press that must not reach the dialog.
 			e.preventDefault();
+			e.stopPropagation();
 			pickerOpen = false;
 		}
 	}

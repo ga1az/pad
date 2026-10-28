@@ -74,7 +74,7 @@ test.describe('BUG-3229: a selection dragged out of a modal does not close it', 
 
 	test('shared Modal (keyboard shortcuts): drag out of its heading keeps it open; a backdrop click closes it', async ({ page, fixture }) => {
 		await page.goto(`/${fixture.adminUsername}/${fixture.workspaceSlug}/tasks`);
-		const dialog = page.locator('dialog.modal[open]');
+		const dialog = page.locator('[data-slot="dialog-content"]'); // AppDialog's content since TASK-26 (was dialog.modal[open])
 		await expect(async () => {
 			if (!(await dialog.isVisible())) await page.keyboard.press('?');
 			await expect(dialog).toBeVisible({ timeout: 1_000 });

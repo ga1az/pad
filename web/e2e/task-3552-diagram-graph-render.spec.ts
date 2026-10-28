@@ -133,7 +133,16 @@ async function graphDrawn(
 		ctx.drawImage(img, 0, 0);
 		const d = ctx.getImageData(0, 0, c.width, c.height).data;
 		const seen = new Set<number>();
-		for (let i = 0; i < d.length; i += 16) seen.add((d[i] << 16) | (d[i + 1] << 8) | d[i + 2]);
+		// Not the outer 16px: the canvas fills the content panel, whose rounded
+		// corners and 1px border (SPEC-24 / TASK-27) put anti-aliased frame pixels
+		// at the screenshot's edge. The WebGL output is the interior.
+		const inset = 16;
+		for (let y = inset; y < c.height - inset; y++) {
+			for (let x = inset; x < c.width - inset; x += 4) {
+				const i = (y * c.width + x) * 4;
+				seen.add((d[i] << 16) | (d[i + 1] << 8) | d[i + 2]);
+			}
+		}
 		return seen.size;
 	}, png.toString('base64'));
 	return {

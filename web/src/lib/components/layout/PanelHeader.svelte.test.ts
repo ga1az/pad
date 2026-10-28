@@ -4,7 +4,7 @@
 // stores, and "+ New <item>" is the sidebar's old "+ New Task": the same gate
 // (a collection the caller may create in) and the same request Cmd+N makes.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, cleanup, fireEvent } from '@testing-library/svelte';
+import { render, cleanup, fireEvent, waitFor } from '@testing-library/svelte';
 import { tick } from 'svelte';
 
 const ws = vi.hoisted(() => ({ editable: true }));
@@ -167,5 +167,20 @@ describe('PanelHeader bell', () => {
 		await fireEvent.click(bell);
 		await tick();
 		expect(document.querySelector('[role=dialog]')?.textContent).toContain('Notifications');
+	});
+});
+
+describe('PanelHeader while the notification panel covers the page (TASK-3520)', () => {
+	it('inerts the header but not the panel it holds', async () => {
+		await mountAt('/u/ws/tasks');
+		const bell = document.querySelector<HTMLButtonElement>('button.bell-btn')!;
+		expect(document.querySelector('header.content-panel-header')!.hasAttribute('inert') || (document.querySelector('header.content-panel-header') as HTMLElement & { inert?: boolean }).inert).toBeFalsy();
+		await fireEvent.click(bell);
+		await tick();
+		const panel = document.querySelector('[role="dialog"][aria-label="Notifications"], [role="dialog"]')!;
+		expect(panel, 'the panel opened').not.toBeNull();
+		// jsdom has no `inert` reflection: Svelte's property write is the evidence.
+		await waitFor(() => expect((document.querySelector('header.content-panel-header') as HTMLElement & { inert?: boolean }).inert).toBe(true));
+		expect(panel.closest('[inert]'), 'the panel is not inside an inert region').toBeNull();
 	});
 });

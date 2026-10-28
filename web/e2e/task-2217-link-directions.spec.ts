@@ -3,6 +3,7 @@ import { browserLogin } from './lib/collab-helpers';
 import { authJson } from './lib/attachment-viewer';
 import type { APIRequestContext } from '@playwright/test';
 import type { SuiteFixture } from './fixtures';
+import { openTab } from './lib/item-tabs';
 
 /**
  * TASK-2217 (audit C36): "TASK-8 blocks this" no longer means opening TASK-8
@@ -33,7 +34,7 @@ test.describe('TASK-2217: Add Relationship in both directions', () => {
 		const blocker = await createTask(fixture, request, `Blocker ${stamp}`);
 
 		await page.goto(`/${fixture.adminUsername}/${fixture.workspaceSlug}/tasks/${here.slug}`);
-		await page.getByRole('tab', { name: /Relationships/ }).first().click();
+		await openTab(page, /Relationships/);
 		await page.locator('.add-relationship-btn').click();
 		await page.getByLabel('Link type').selectOption('blocked_by');
 		await expect(page.locator('#add-link-reads')).toHaveText(/^the item you pick blocks TASK-\d+$/);

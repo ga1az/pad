@@ -19,6 +19,7 @@
 	import { titleStore } from '$lib/stores/title.svelte';
 	import { toastStore } from '$lib/stores/toast.svelte';
 	import { uiStore } from '$lib/stores/ui.svelte';
+	import { coveredPage } from '$lib/stores/coveredPage.svelte';
 	import { getActiveKey, getPrimaryDestinations } from '$lib/nav/destinations';
 	import { isAgentCollection } from '$lib/types';
 	import { avatarColor, avatarInitial } from '$lib/utils/avatar';
@@ -77,7 +78,12 @@
 	);
 </script>
 
-<header class="content-panel-header flex h-11 shrink-0 items-center gap-2 border-b border-border pr-3 pl-[19px]">
+<!--
+	`inert` while an overlay covers the page (TASK-3520), on the header ITSELF:
+	the notification panel below is the overlay, and an inert ancestor would
+	make it unreachable (the layout used to wrap this whole component).
+-->
+<header class="content-panel-header flex h-11 shrink-0 items-center gap-2 border-b border-border pr-3 pl-[19px]" inert={coveredPage.active}>
 	{#if ws && wsPrefix}
 		<Breadcrumb.Root class="min-w-0">
 			<Breadcrumb.List class="flex-nowrap gap-1.5 text-[13px] leading-5 font-medium text-foreground">
