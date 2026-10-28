@@ -44,6 +44,14 @@ describe('ConfirmDialog', () => {
 		expect(await answer).toBe(true);
 	});
 
+	it('Cancel takes the initial focus, so Enter on arrival never confirms (TASK-26)', async () => {
+		open();
+		void confirmDialog.request({ title: 'T', message: 'M', confirmLabel: 'Delete', danger: true });
+		await settle();
+		await new Promise((r) => setTimeout(r, 30));
+		expect(document.activeElement).toBe(byText('Cancel'));
+	});
+
 	it('Cancel answers no', async () => {
 		open();
 		const answer = confirmDialog.request({ title: 'T', message: 'M', confirmLabel: 'Replace content' });
