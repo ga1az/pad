@@ -9,6 +9,7 @@
   refocuses the button. The stored value is the emoji itself, as before.
 -->
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import * as Command from '$lib/components/ui/command';
 	import { EMOJI_GROUPS, filterEmojiGroups } from './emojiGroups';
 
@@ -20,10 +21,12 @@
 	let { selected, onselect }: Props = $props();
 
 	let query = $state('');
-	// Opens on the current icon when it is one of these, else on the first.
+	// Opens on the current icon when it is one of these, else on the first. Read
+	// once: the highlight is the user's from then on.
+	const initial = untrack(() => selected);
 	let highlighted = $state(
-		EMOJI_GROUPS.some((g) => g.emojis.some((e) => e.emoji === selected))
-			? (selected as string)
+		EMOJI_GROUPS.some((g) => g.emojis.some((e) => e.emoji === initial))
+			? (initial as string)
 			: EMOJI_GROUPS[0].emojis[0].emoji
 	);
 	const groups = $derived(filterEmojiGroups(query));
