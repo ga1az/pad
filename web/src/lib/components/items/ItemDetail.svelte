@@ -8902,29 +8902,6 @@
 
 	/* Title */
 	.title-row { margin: var(--space-2) 0 var(--space-2); display: flex; align-items: baseline; gap: var(--space-2); }
-	.header-tags {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-1, 0.25rem);
-		margin-bottom: var(--space-2);
-	}
-	.header-tag {
-		display: inline-flex;
-		align-items: center;
-		padding: 0.1em 0.55em;
-		font-size: 0.75em;
-		line-height: 1.5;
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: 999px;
-		color: var(--text-secondary);
-		text-decoration: none;
-		white-space: nowrap;
-	}
-	.header-tag:hover {
-		color: var(--text-primary);
-		border-color: var(--text-tertiary, var(--text-secondary));
-	}
 	/* The ref reads as the first word of the meta line (Linear), not a pill. */
 	.item-ref {
 		color: var(--text-secondary);
