@@ -32,6 +32,13 @@ export const LAST_ROUTE_PREFIX = 'pad-last-route-';
 /** Built inline by every page that uses `createScrollRestoration`. */
 export const LAST_SCROLL_PREFIX = 'pad-last-scroll-';
 
+/*
+ * KEPT ON PURPOSE: UI chrome preferences that say nothing about the account
+ * or its data, so the next user inherits them like any setting of the
+ * browser. `pad-theme` (light/dark), `pad-topbar` (workspace bar shown or
+ * hidden), `pad-sidebar-sections` (which desktop sidebar sections are
+ * collapsed, by fixed section id: TASK-27).
+ */
 export function clearPersistentIdentityState(): void {
 	if (!browser) return;
 
