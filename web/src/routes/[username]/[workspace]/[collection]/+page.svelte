@@ -1,6 +1,8 @@
 <script lang="ts">
-	import { Alert02Icon, LockIcon, PinIcon, Search01Icon, StarIcon } from '@hugeicons/core-free-icons';
+	import { Alert02Icon, LockIcon, MoreHorizontalIcon, PinIcon, Search01Icon, StarIcon } from '@hugeicons/core-free-icons';
 	import Icon from '$lib/icons/Icon.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { isRelationType } from '$lib/items/relationFieldTypes';
 	import { ownValue } from '$lib/utils/ownValue';
 	import { page, navigating } from '$app/state';
@@ -1957,9 +1959,9 @@
 	let viewMenuOpen = $state(false);
 	let viewMenuTrigger = $state<HTMLElement | undefined>(undefined);
 	let sortMenuOpen = $state(false);
-	let sortMenuTrigger = $state<HTMLElement | undefined>(undefined);
+	let sortMenuTrigger = $state<HTMLElement | null>(null);
 	let collMenuOpen = $state(false);
-	let collMenuTrigger = $state<HTMLElement | undefined>(undefined);
+	let collMenuTrigger = $state<HTMLElement | null>(null);
 
 	const VIEW_CHOICES = [
 		{ mode: 'list' as const, label: 'List', icon: '☰' },
@@ -4389,17 +4391,25 @@
 
 					{#if viewMode !== 'table'}
 						<div class="menu-anchor">
-							<button
-								class="toolbar-icon-btn"
-								bind:this={sortMenuTrigger}
-								onclick={() => (sortMenuOpen = !sortMenuOpen)}
-								aria-haspopup="menu"
-								aria-expanded={sortMenuOpen}
-								aria-label="Sort items"
-								title="Sort items"
-							>
-								<svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M4 2v10M4 12l-2.2-2.4M4 12l2.2-2.4M11 13V3M11 3 8.8 5.4M11 3l2.2 2.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-							</button>
+							<Tooltip.Root>
+								<Tooltip.Trigger onclick={() => (sortMenuOpen = !sortMenuOpen)}>
+									{#snippet child({ props })}
+										<Button
+											{...props}
+											variant="icon"
+											size="icon"
+											class="toolbar-icon-btn"
+											bind:ref={sortMenuTrigger}
+											aria-haspopup="menu"
+											aria-expanded={sortMenuOpen}
+											aria-label="Sort items"
+										>
+											<svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M4 2v10M4 12l-2.2-2.4M4 12l2.2-2.4M11 13V3M11 3 8.8 5.4M11 3l2.2 2.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+										</Button>
+									{/snippet}
+								</Tooltip.Trigger>
+								<Tooltip.Content>Sort items</Tooltip.Content>
+							</Tooltip.Root>
 							<ResponsiveMenu
 								open={sortMenuOpen}
 								onclose={() => (sortMenuOpen = false)}
@@ -4462,15 +4472,23 @@
 					{/if}
 
 					<div class="menu-anchor">
-						<button
-							class="toolbar-icon-btn"
-							bind:this={collMenuTrigger}
-							onclick={() => (collMenuOpen = !collMenuOpen)}
-							aria-haspopup="menu"
-							aria-expanded={collMenuOpen}
-							aria-label="Collection menu"
-							title="More"
-						>⋯</button>
+						<Tooltip.Root>
+							<Tooltip.Trigger onclick={() => (collMenuOpen = !collMenuOpen)}>
+								{#snippet child({ props })}
+									<Button
+										{...props}
+										variant="icon"
+										size="icon"
+										class="toolbar-icon-btn"
+										bind:ref={collMenuTrigger}
+										aria-haspopup="menu"
+										aria-expanded={collMenuOpen}
+										aria-label="Collection menu"
+									><Icon icon={MoreHorizontalIcon} /></Button>
+								{/snippet}
+							</Tooltip.Trigger>
+							<Tooltip.Content>More</Tooltip.Content>
+						</Tooltip.Root>
 						<!-- Mobile mount of the realtime badge (IDEA-2297), as a status
 						     badge on this button's corner rather than a flex item of its
 						     own: at 360 a separate dot wrapped alone onto a second row
