@@ -2,9 +2,19 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, custom]
+    paths-ignore:
+      - README.md
+      - CONTRIBUTING.md
+      - CLAUDE.md
+      - 'docs/**'
   pull_request:
-    branches: [main]
+    branches: [main, custom]
+    paths-ignore:
+      - README.md
+      - CONTRIBUTING.md
+      - CLAUDE.md
+      - 'docs/**'
 
 concurrency:
   group: ci-${{ github.ref }}

@@ -2,9 +2,19 @@ name: Nix
 
 on:
   push:
-    branches: [main]
+    branches: [main, custom]
+    paths-ignore:
+      - README.md
+      - CONTRIBUTING.md
+      - CLAUDE.md
+      - 'docs/**'
   pull_request:
-    branches: [main]
+    branches: [main, custom]
+    paths-ignore:
+      - README.md
+      - CONTRIBUTING.md
+      - CLAUDE.md
+      - 'docs/**'
 
 concurrency:
   # PR runs share a group per ref and supersede each other — a newer push to the
@@ -205,6 +215,7 @@ jobs:
     needs: nix
     if: >-
       github.event_name == 'push' &&
+      github.repository == 'PerpetualSoftware/pad' &&
       github.ref == 'refs/heads/main' &&
       needs.nix.outputs.vendor_hash_bumped == 'true'
     runs-on: ubuntu-latest
