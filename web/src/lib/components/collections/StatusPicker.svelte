@@ -19,6 +19,10 @@
 	declare is shown as-is with no row checked; choosing any option is then an
 	explicit decision, which is exactly what the old cycle could not offer
 	(BUG-3068 had to refuse the click instead).
+
+	`appearance="icon"` (TASK-28) draws the trigger as the value's icon, the
+	Linear card's status shape or priority bars, instead of a text chip. Same
+	menu, same title and ARIA; the value's name moves into the button's label.
 -->
 <script lang="ts">
 	import { Badge } from '$lib/components/ui/badge';
@@ -28,6 +32,10 @@
 	import { statusColor, priorityColor, formatFieldLabel as formatLabel } from '$lib/utils/fieldColors';
 	import { viewport } from '$lib/stores/breakpoint.svelte';
 	import { uniqueStrings } from '$lib/utils/unique';
+	import type { FieldDef } from '$lib/types';
+	import StatusIcon from '$lib/components/status/StatusIcon.svelte';
+	import PriorityIcon from '$lib/components/status/PriorityIcon.svelte';
+	import { priorityLevel, statusCategory } from '$lib/components/status/statusCategory';
 
 	interface Props {
 		/** The stored status; '' when the item has none. */
@@ -36,9 +44,13 @@
 		onselect: (status: string) => void;
 		/** Which field the chip is: the priority chip is the same picker (TASK-2214). */
 		kind?: 'status' | 'priority';
+		/** A text chip (the default), or the value's icon (TASK-28). */
+		appearance?: 'chip' | 'icon';
+		/** The field, for the status icon's terminal and abandoned options. */
+		field?: FieldDef;
 	}
 
-	let { value, options, onselect, kind = 'status' }: Props = $props();
+	let { value, options, onselect, kind = 'status', appearance = 'chip', field }: Props = $props();
 	// Each once: the menu is keyed by the option, and a repeat throws (TASK-3539).
 	let optionList = $derived(uniqueStrings(options));
 	const noun = $derived(kind === 'priority' ? 'Priority' : 'Status');
@@ -60,17 +72,37 @@
 	}
 </script>
 
-<Badge
-	size="sm"
-	color={color}
-	onclick={toggle}
-	bind:ref={triggerEl}
-	aria-haspopup={viewport.isMobile ? 'dialog' : 'menu'}
-	aria-expanded={open}
-	title="Change {noun.toLowerCase()}"
->
-	{formatLabel(value)}
-</Badge>
+{#if appearance === 'icon'}
+	<button
+		type="button"
+		class="picker-icon"
+		data-kind={kind}
+		onclick={(e) => { e.preventDefault(); toggle(e); }}
+		bind:this={triggerEl}
+		aria-haspopup={viewport.isMobile ? 'dialog' : 'menu'}
+		aria-expanded={open}
+		title="Change {noun.toLowerCase()}"
+	>
+		{#if kind === 'priority'}
+			<PriorityIcon level={priorityLevel(value)} />
+		{:else}
+			<StatusIcon category={statusCategory(value, field)} />
+		{/if}
+		<span class="picker-icon-name">{noun}: {formatLabel(value)}</span>
+	</button>
+{:else}
+	<Badge
+		size="sm"
+		color={color}
+		onclick={toggle}
+		bind:ref={triggerEl}
+		aria-haspopup={viewport.isMobile ? 'dialog' : 'menu'}
+		aria-expanded={open}
+		title="Change {noun.toLowerCase()}"
+	>
+		{formatLabel(value)}
+	</Badge>
+{/if}
 
 {#if open}
 	<div class="status-picker-host" use:portal>
@@ -94,3 +126,28 @@
 		</ResponsiveMenu>
 	</div>
 {/if}
+
+<style>
+	/* The icon trigger is unstyled here: the host sizes it (a bare icon beside
+	   the card title, a round box in the card's property row). */
+	.picker-icon {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0;
+		background: none;
+		border: none;
+		color: inherit;
+		cursor: pointer;
+	}
+	/* The value's name, for assistive tech (and any reader of the text). */
+	.picker-icon-name {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+	}
+</style>

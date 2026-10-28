@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Icon from '$lib/icons/Icon.svelte';
-	import { StarIcon } from '@hugeicons/core-free-icons';
+	import { CubeIcon, GitPullRequestIcon, StarIcon } from '@hugeicons/core-free-icons';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import type { Item, Collection, FieldDef } from '$lib/types';
@@ -10,9 +10,13 @@
 	import { viewport } from '$lib/stores/breakpoint.svelte';
 	import { workspaceStore } from '$lib/stores/workspace.svelte';
 	import { copyToClipboard } from '$lib/utils/clipboard';
-	import { relativeTime } from '$lib/utils/markdown';
 	import { statusColor, priorityColor, formatFieldLabel as formatLabel } from '$lib/utils/fieldColors';
 	import { Badge } from '$lib/components/ui/badge';
+	import { avatarColor, avatarInitial } from '$lib/utils/avatar';
+	import StatusIcon from '$lib/components/status/StatusIcon.svelte';
+	import PriorityIcon from '$lib/components/status/PriorityIcon.svelte';
+	import { priorityLevel, statusCategory } from '$lib/components/status/statusCategory';
+	import { createdLabel } from './cardDate';
 	import ItemActionsMenu from './ItemActionsMenu.svelte';
 	import StatusPicker from './StatusPicker.svelte';
 	import { cardPriorityWriter } from '$lib/collections/cardPriority';
@@ -93,10 +97,11 @@
 	let tags = $derived(parseTags(item));
 
 	// Absolute created timestamp for the age element's tooltip (IDEA-2286); the
-	// visible label is the abbreviated relativeTime() the item-detail header uses.
+	// visible label is Linear's short "Created Sep 16" (TASK-28).
 	let createdAtTitle = $derived(
 		item.created_at ? `Created ${new Date(item.created_at).toLocaleString()}` : ''
 	);
+	let createdText = $derived(createdLabel(item.created_at));
 
 	function tagUrl(tag: string): string {
 		return `/${username}/${wsSlug}/tags/${encodeURIComponent(tag)}`;
@@ -220,19 +225,32 @@
 	so a click anywhere that is not a control still opens the item (plain click
 	into the pane, modifier and middle clicks to the full page, as before), and
 	every control is a SIBLING raised above that overlay.
+
+	Linear's card (SPEC-24 / TASK-28): the ref and the assignee on top, the
+	status icon and the title, a row of property chips (the priority box first),
+	and "Created <date>". The star and the ⋮ appear on hover or focus.
 -->
-<div class="item-card" data-item-key={itemUrlId(item)} data-item-slug={item.slug} class:compact class:focused class:has-pr={!!pullRequest}>
-	{#if pullRequest}
-		<button
-			type="button"
-			class="pr-badge"
-			style:background={prStateColor(pullRequest.state)}
-			onclick={openPullRequest}
-			title="#{pullRequest.number} {pullRequest.title} ({(pullRequest.state ?? '').toLowerCase()})"
-		>
-			#{pullRequest.number}
-		</button>
+{#snippet assignee()}
+	{#if item.assigned_user_name}
+		<span
+			class="card-assignee"
+			style:background={avatarColor(item.assigned_user_name)}
+			role="img"
+			aria-label="Assigned to {item.assigned_user_name}"
+			title="Assigned to {item.assigned_user_name}"
+		>{avatarInitial(item.assigned_user_name)}</span>
+	{:else}
+		<span class="card-assignee unassigned" title="No assignee" aria-hidden="true">
+			<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+				<circle cx="8" cy="8" r="7.25" stroke="currentColor" stroke-width="1.2" stroke-dasharray="1.9 1.9" />
+				<circle cx="8" cy="6.4" r="2" fill="currentColor" />
+				<path d="M4.6 11.6c.7-1.4 2-2.1 3.4-2.1s2.7.7 3.4 2.1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+			</svg>
+		</span>
 	{/if}
+{/snippet}
+
+<div class="item-card" data-item-key={itemUrlId(item)} data-item-slug={item.slug} class:compact class:focused class:has-pr={!!pullRequest}>
 	<div class="card-top-row">
 		{#if showCollection && item.collection_name}
 			<span class="collection-badge">
@@ -263,6 +281,7 @@
 				<span class="sr-only" aria-live="polite">{copied ? `Copied ${itemRef}` : ''}</span>
 			</span>
 		{/if}
+		<span class="top-spacer"></span>
 		{#if viewport.isMobile}
 			<!--
 				Phone width (TASK-2244, Dave's ruling day 83): star, copy-ref and the
@@ -273,6 +292,7 @@
 			{#if starred}
 				<span class="starred-mark" aria-label="Starred" role="img"><Icon icon={StarIcon} /></span>
 			{/if}
+			{@render assignee()}
 			<ItemActionsMenu
 				{item}
 				{horizontal}
@@ -301,91 +321,149 @@
 			<span aria-hidden="true">{starred ? '★' : '☆'}</span>
 		</button>
 		{#if onReorderItem}
-			<ItemActionsMenu
-				{item}
-				{horizontal}
-				disabledDirs={reorderDisabledDirs}
-				label={item.title}
-				onReorder={(dir) => onReorderItem?.(item, dir)}
-				onMove={onMoveItem ? (dir) => onMoveItem?.(item, dir) : undefined}
-			/>
+			<span class="hover-action">
+				<ItemActionsMenu
+					{item}
+					{horizontal}
+					disabledDirs={reorderDisabledDirs}
+					label={item.title}
+					onReorder={(dir) => onReorderItem?.(item, dir)}
+					onMove={onMoveItem ? (dir) => onMoveItem?.(item, dir) : undefined}
+				/>
+			</span>
 		{/if}
 		{/if}
+		{#if !viewport.isMobile}{@render assignee()}{/if}
 	</div>
 
-	<div class="card-title">
-		<a href={itemUrl} class="card-link" onclick={handleCardClick}>{item.title}</a>
-	</div>
-
-	<div class="card-meta">
+	<div class="card-title-row">
 		<!--
-			STRING-SHAPED, not merely truthy (BUG-3041). These chips render a value
-			straight out of the item's `fields` blob, and a field's declared type is
-			not a promise about what is stored: retyping `status` to a list or
-			number type in the schema editor leaves the old values in place, and a
-			non-empty array is truthy. `statusColor`/`formatLabel` no longer throw on
-			one, but an empty chip describes nothing — so the card shows no chip at
-			all, exactly as it does for an absent value. Asking about the VALUE's
-			shape rather than the FIELD's type is deliberate: a type allow-list goes
-			stale the next time a type is added, and this question does not.
+			Desktop only: at phone width the status stays a text chip in the
+			property row (below), whose 44x44 touch extender (TASK-2244) needs the
+			title above it to grow into.
+
+			STRING-SHAPED, not merely truthy (BUG-3041). The status icon renders a
+			value straight out of the item's `fields` blob, and a field's declared
+			type is not a promise about what is stored: retyping `status` to a list
+			or number type in the schema editor leaves the old values in place, and
+			a non-empty array is truthy. An icon for such a value describes
+			nothing, so the card shows none at all, exactly as it does for an
+			absent value. Asking about the VALUE's shape rather than the FIELD's
+			type is deliberate: a type allow-list goes stale the next time a type
+			is added, and this question does not.
 		-->
-		{#if statusField && typeof fields.status === 'string' && fields.status}
+		{#if !viewport.isMobile && statusField && typeof fields.status === 'string' && fields.status}
 			{#if statusSettable && statusOptions && onStatusClick}
-				<!-- BUG-3157: a picker, never a one-tap cycle — see StatusPicker.
-				     The wrapper carries the card-only touch extender (TASK-2244); the
-				     table's picker is the same component and keeps its own size. -->
-				<span class="status-hit">
+				<!-- BUG-3157: a picker, never a one-tap cycle — see StatusPicker. -->
+				<span class="card-status">
 					<StatusPicker
 						value={fields.status}
 						options={statusOptions}
+						appearance="icon"
+						field={statusField}
 						onselect={(next) => onStatusClick(item, next)}
 					/>
 				</span>
 			{:else}
-				<Badge size="sm" color={statusColor(fields.status)}>
-					{formatLabel(fields.status)}
-				</Badge>
-			{/if}
-		{/if}
-		{#if priorityField && typeof fields.priority === 'string' && fields.priority}
-			{#if prioritySettable && writePriority}
-				<span class="status-hit">
-					<StatusPicker
-						kind="priority"
-						value={fields.priority}
-						options={priorityOptions}
-						onselect={(next) => writePriority(item, next)}
-					/>
+				<!-- The name is text, not only a label: the card still SHOWS the
+				     status to a reader who cannot change it. -->
+				<span class="card-status" title="Status: {formatLabel(fields.status)}">
+					<StatusIcon category={statusCategory(fields.status, statusField)} />
+					<span class="sr-only">Status: {formatLabel(fields.status)}</span>
 				</span>
-			{:else}
-				<Badge size="sm" color={priorityColor(fields.priority)}>
-					{formatLabel(fields.priority)}
-				</Badge>
 			{/if}
 		{/if}
-		{#if item.parent_title}
-			{@const parentLabel = item.parent_ref ? `${item.parent_ref}: ${item.parent_title}` : item.parent_title}
-			<span class="meta-parent" title={parentLabel}>{parentLabel}</span>
-		{/if}
-		{#if item.agent_role_name}
-			<span class="meta-sep">&middot;</span>
-			<span class="meta-role">
-				{#if item.agent_role_icon}<Icon icon={item.agent_role_icon} /> {/if}{item.agent_role_name}
-			</span>
-		{/if}
-		<span class="meta-spacer"></span>
-		{#if item.assigned_user_name}
-			<span class="meta-assignee">{item.assigned_user_name}</span>
-		{/if}
-		{#if item.created_at}
-			<span class="meta-age" title={createdAtTitle}>{relativeTime(item.created_at)}</span>
-		{/if}
+		<!-- `.card-title` holds the title alone: tests and e2e read its text. -->
+		<div class="card-title">
+			<a href={itemUrl} class="card-link" onclick={handleCardClick}>{item.title}</a>
+		</div>
 	</div>
 
-	{#if tags.length > 0}
-		<div class="card-tags">
+	{#if priorityField || item.parent_title || item.agent_role_name || pullRequest || tags.length > 0 || (viewport.isMobile && statusField && fields.status)}
+		<div class="card-meta">
+			{#if viewport.isMobile}
+				<!-- Phone width keeps the text chips (TASK-2244 / TASK-3311 measured
+				     their touch targets); same string-shape rule as above. -->
+				{#if statusField && typeof fields.status === 'string' && fields.status}
+					{#if statusSettable && statusOptions && onStatusClick}
+						<span class="status-hit">
+							<StatusPicker
+								value={fields.status}
+								options={statusOptions}
+								onselect={(next) => onStatusClick(item, next)}
+							/>
+						</span>
+					{:else}
+						<Badge size="sm" color={statusColor(fields.status)}>
+							{formatLabel(fields.status)}
+						</Badge>
+					{/if}
+				{/if}
+				{#if priorityField && typeof fields.priority === 'string' && fields.priority}
+					{#if prioritySettable && writePriority}
+						<span class="status-hit">
+							<StatusPicker
+								kind="priority"
+								value={fields.priority}
+								options={priorityOptions}
+								onselect={(next) => writePriority(item, next)}
+							/>
+						</span>
+					{:else}
+						<Badge size="sm" color={priorityColor(fields.priority)}>
+							{formatLabel(fields.priority)}
+						</Badge>
+					{/if}
+				{/if}
+			{:else if priorityField}
+				{#if prioritySettable && writePriority && typeof fields.priority === 'string'}
+					<span class="card-chip card-priority">
+						<StatusPicker
+							kind="priority"
+							value={fields.priority}
+							options={priorityOptions}
+							appearance="icon"
+							onselect={(next) => writePriority(item, next)}
+						/>
+					</span>
+				{:else}
+					<!-- Static (BUG-3041: string-shaped values only). A missing value
+					     is Linear's "no priority" dashes. -->
+					{@const priority = typeof fields.priority === 'string' ? fields.priority : ''}
+					<span class="card-chip card-priority" title={priority ? `Priority: ${formatLabel(priority)}` : 'No priority'}>
+						<PriorityIcon level={priorityLevel(priority)} />
+						<span class="sr-only">{priority ? `Priority: ${formatLabel(priority)}` : 'No priority'}</span>
+					</span>
+				{/if}
+			{/if}
+			{#if item.parent_title}
+				{@const parentLabel = item.parent_ref ? `${item.parent_ref}: ${item.parent_title}` : item.parent_title}
+				<span class="card-chip meta-parent" title={parentLabel}>
+					<Icon icon={CubeIcon} size={12} />
+					<span class="chip-text">{item.parent_title}</span>
+				</span>
+			{/if}
+			{#if item.agent_role_name}
+				<span class="card-chip meta-role">
+					{#if item.agent_role_icon}<Icon icon={item.agent_role_icon} size={12} />{/if}
+					<span class="chip-text">{item.agent_role_name}</span>
+				</span>
+			{/if}
+			{#if pullRequest}
+				<button
+					type="button"
+					class="card-chip pr-badge"
+					style:--pr-color={prStateColor(pullRequest.state)}
+					onclick={openPullRequest}
+					title="#{pullRequest.number} {pullRequest.title} ({(pullRequest.state ?? '').toLowerCase()})"
+				>
+					<Icon icon={GitPullRequestIcon} size={12} />
+					<span class="chip-text">#{pullRequest.number}</span>
+				</button>
+			{/if}
 			{#each tags as tag, i (i)}
-				<button type="button" class="card-tag" onclick={(e) => openTag(e, tag)} title="View items tagged “{tag}”">
+				<button type="button" class="card-chip card-tag" onclick={(e) => openTag(e, tag)} title="View items tagged “{tag}”">
+					<span class="tag-dot" aria-hidden="true"></span>
 					<span class="card-tag-text">{tag}</span>
 				</button>
 			{/each}
@@ -400,61 +478,38 @@
 			<span class="card-progress-text">{progress.done}/{progress.total} {progress.label ?? progressLabel}</span>
 		</div>
 	{/if}
+
+	{#if createdText}
+		<span class="meta-age" title={createdAtTitle}>Created {createdText}</span>
+	{/if}
 </div>
 
 <style>
+	/* Linear's card, measured at 1:1 (TASK-28): one step above the column, a
+	   1px border, 6px radius, 12px sides. Tokens are --ui-*, so the light
+	   theme follows. */
 	.item-card {
 		position: relative;
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-2);
-		background: var(--card-bg, var(--bg-primary));
-		border: 1px solid var(--card-border, var(--border));
-		border-radius: var(--radius-lg);
-		box-shadow: var(--shadow-card, none);
-		padding: var(--space-4) var(--space-5);
+		background: var(--ui-card);
+		border: 1px solid var(--ui-border);
+		border-radius: 6px;
+		box-shadow: 0 0 0 1px color-mix(in oklch, var(--ui-card), black 25%);
+		padding: 6px 12px 11px;
 		text-decoration: none;
-		color: inherit;
+		color: var(--ui-card-foreground);
+		font-size: 13px;
 		transition: background 0.1s;
 		/* When the card is a flex/grid item (board columns, list rows),
 		   allow it to shrink below its intrinsic content width so a long
 		   unbreakable title can wrap inside instead of pushing the card
-		   past its container. Pairs with overflow-wrap on .card-title.
-		   We deliberately do NOT set overflow: hidden here because the
-		   .pr-badge protrudes (right: -6px) and would get clipped. */
+		   past its container. Pairs with overflow-wrap on .card-title. */
 		min-width: 0;
 	}
 
-	.pr-badge {
-		position: absolute;
-		top: 8px;
-		right: -6px;
-		z-index: 1;
-		border: 1px solid var(--bg-primary);
-		border-radius: 10px;
-		padding: 1px 7px;
-		font-family: var(--font-mono);
-		font-size: 0.7em;
-		font-weight: 600;
-		line-height: 1.4;
-		color: #fff;
-		cursor: pointer;
-		white-space: nowrap;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-		transition: transform 0.1s, filter 0.1s;
-	}
-
-	.pr-badge:hover {
-		filter: brightness(1.1);
-		transform: scale(1.05);
-	}
-
-	.pr-badge:active {
-		transform: scale(0.95);
-	}
-
 	.item-card:hover {
-		border-color: var(--border-strong, var(--border));
+		background: color-mix(in oklch, var(--ui-card), white 3%);
 		text-decoration: none;
 	}
 
@@ -475,15 +530,14 @@
 	}
 	/* The focus ring goes on the card, which is what the link stands for. */
 	.item-card:has(.card-link:focus-visible) {
-		outline: 2px solid var(--accent-blue);
+		outline: 2px solid var(--ui-ring);
 		outline-offset: 2px;
 	}
 	/* Every control sits ABOVE the overlay: a positioned element later in the
 	   DOM (the overlay is in the title, after the top row) would otherwise
 	   paint over and swallow the earlier ones. Popovers are portaled to <body>,
-	   so they are not affected. The PR badge is already absolutely positioned
-	   with its own z-index, and must keep its position. */
-	.item-card :global(button:not(.pr-badge)),
+	   so they are not affected. */
+	.item-card :global(button),
 	.item-card :global(a:not(.card-link)) {
 		position: relative;
 		z-index: 1;
@@ -492,38 +546,31 @@
 	/* Selected-in-pane ring (the mock's violet glow). E2E asserts the
 	   .focused CLASS, not these styles — keep the class name stable. */
 	.item-card.focused {
-		border-color: color-mix(in srgb, var(--accent-primary, var(--accent-blue)) 60%, transparent);
+		border-color: color-mix(in srgb, var(--ui-primary) 60%, transparent);
 		box-shadow:
-			0 0 0 1px color-mix(in srgb, var(--accent-primary, var(--accent-blue)) 45%, transparent),
-			0 4px 18px color-mix(in srgb, var(--accent-primary, var(--accent-blue)) 22%, transparent);
+			0 0 0 1px color-mix(in srgb, var(--ui-primary) 45%, transparent),
+			0 4px 18px color-mix(in srgb, var(--ui-primary) 22%, transparent);
 		text-decoration: none;
 	}
 
 	.item-card.compact {
-		padding: var(--space-3) var(--space-4);
+		padding: 6px 12px 11px;
 	}
 
 	.card-top-row {
 		display: flex;
 		align-items: center;
-		gap: var(--space-2);
+		gap: 4px;
+		min-height: 20px;
+		/* The avatar sits 8px from the card's right edge, not 12. */
+		margin-right: -4px;
 	}
 
-	/* The star + reorder kebab form the right cluster (mock anatomy: ref
-	   left, star/kebab right). ONE auto margin — on the star — pushes the
-	   cluster right; the kebab follows it. Two competing auto margins
-	   would split the free space (see .meta-spacer note below). */
-	.card-top-row .star-btn {
-		margin-left: auto;
-	}
-
-	/* Phone width (TASK-2244): the star button is not rendered, so the ONE auto
-	   margin moves to the ⋯. Media query rather than a class because the markup
-	   branch is `viewport.isMobile`, which is this same query (breakpoint.svelte). */
-	@media (max-width: 768px) {
-		.card-top-row :global(.item-actions-menu) {
-			margin-left: auto;
-		}
+	/* The star, the ⋮ and the avatar form the right cluster; the spacer pushes
+	   them right. */
+	.top-spacer {
+		flex: 1 1 0;
+		min-width: 0;
 	}
 
 	/* Status chip touch extender (TASK-2244, Dave's ruling day 83). At phone
@@ -531,7 +578,6 @@
 	   so the chip does not change size. It grows UPWARD only, into the title,
 	   which is the card link and not a control. The row below can be tag
 	   BUTTONS, and a centred extender took the top of the first tag (measured).
-	   The wrapper is display: contents, so the meta row's layout is untouched.
 	   The e2e probes both sides: the area hits the chip, and no neighbour
 	   control (a tag, the card ⋯) loses any of its own area to it. */
 	.status-hit {
@@ -560,28 +606,12 @@
 		line-height: 1;
 	}
 
-	/* Reserve horizontal room on the right of the top row for the
-	   absolutely-positioned PR badge. Without this, on cards with
-	   showCollection=true (dashboard active items, role board) or long
-	   item refs, the badge can overlap the collection chip / item ref
-	   and intercept clicks. The reservation only applies when a PR
-	   badge is actually present so non-PR cards keep their full width.
-
-	   Width budget: pill is ~0.7em monospace, up to 6 chars (e.g.
-	   "#12345") + 14px padding + 1px border × 2 ≈ 50px, plus the
-	   badge protrudes 6px to the right (right: -6px) so the inner
-	   gap from the card's right edge is ~50 − 6 = 44px. Round up to
-	   52px for breathing room. */
-	.item-card.has-pr .card-top-row {
-		padding-right: 52px;
-	}
-
 	.collection-badge {
-		background: var(--bg-tertiary);
+		background: var(--ui-tab);
 		padding: 1px 7px;
 		border-radius: 10px;
-		font-size: 0.7em;
-		color: var(--text-muted);
+		font-size: 11px;
+		color: var(--ui-muted-foreground);
 		white-space: nowrap;
 	}
 
@@ -589,12 +619,13 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 2px;
+		min-width: 0;
 	}
 
 	.item-ref {
-		font-family: var(--font-mono);
-		font-size: 0.75em;
-		color: var(--text-muted);
+		font-size: 12px;
+		letter-spacing: 0.04em;
+		color: var(--ui-muted-foreground);
 		font-weight: 400;
 		white-space: nowrap;
 	}
@@ -606,41 +637,57 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		width: 22px;
-		height: 22px;
+		width: 20px;
+		height: 20px;
 		padding: 0;
 		background: none;
 		border: none;
-		border-radius: var(--radius-sm);
-		color: var(--text-muted);
+		border-radius: 4px;
+		color: var(--ui-muted-foreground);
 		cursor: pointer;
 		opacity: 0;
 		transition: opacity 0.15s, color 0.15s, background 0.15s;
 		flex-shrink: 0;
 	}
 
+	/* Copy-ref, the star and the ⋮ show on hover, or while anything in the card
+	   has focus, so the keyboard reaches them too. A starred star stays: it is
+	   state, not only an action. */
 	.item-card:hover .copy-ref-btn,
-	.copy-ref-btn:focus-visible,
+	.item-card:focus-within .copy-ref-btn,
 	.copy-ref-btn.copied {
+		opacity: 1;
+	}
+
+	.copy-ref-btn:hover {
+		color: var(--ui-foreground);
+		background: color-mix(in oklch, var(--ui-foreground) 8%, transparent);
+	}
+
+	.copy-ref-btn.copied {
+		color: var(--ui-status-review);
+	}
+
+	.hover-action {
+		display: inline-flex;
+		opacity: 0;
+		transition: opacity 0.15s;
+	}
+	.item-card:hover .hover-action,
+	.item-card:focus-within .hover-action,
+	.hover-action:has(:global(.iam-trigger.open)) {
 		opacity: 1;
 	}
 
 	/* Touch devices have no hover and don't reliably match :focus-visible on
 	   tap, so a purely hover-revealed control would be invisible there. Keep
-	   it at a low resting opacity like the sibling star button (IDEA-1904). */
-	@media (hover: none) {
-		.copy-ref-btn {
+	   them at a low resting opacity (IDEA-1904). A coarse pointer too: a
+	   headless desktop browser reports `hover: none` with a mouse. */
+	@media (hover: none) and (pointer: coarse) {
+		.copy-ref-btn,
+		.hover-action {
 			opacity: 0.65;
 		}
-	}
-
-	.copy-ref-btn:hover {
-		color: var(--text-primary);
-		background: var(--bg-tertiary);
-	}
-
-	.copy-ref-btn.copied {
-		color: var(--accent-green, #22c55e);
 	}
 
 	.sr-only {
@@ -655,11 +702,38 @@
 		border: 0;
 	}
 
-	.card-title {
-		font-size: 0.95em;
-		color: var(--text-primary);
-		line-height: 1.45;
+	/* The assignee: an 18px initial disc, or Linear's dashed "no assignee". */
+	.card-assignee {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		flex: none;
+		width: 18px;
+		height: 18px;
+		border-radius: 50%;
+		color: #fff;
+		font-size: 10px;
 		font-weight: 600;
+		line-height: 1;
+	}
+	.card-assignee.unassigned {
+		color: var(--ui-subtle-foreground);
+	}
+
+	/* The status icon and the title, wrapping to two lines at most. */
+	.card-title-row {
+		display: flex;
+		align-items: flex-start;
+		gap: 6px;
+		margin-top: 3px;
+		min-width: 0;
+	}
+	.card-title {
+		flex: 1 1 auto;
+		font-size: 13px;
+		line-height: 16px;
+		font-weight: 500;
+		color: var(--ui-foreground);
 		/* Long titles without spaces (URLs, identifiers like
 		   `WorkspaceTemplateRegistryConfiguration`, code snippets pasted
 		   into a title) used to push the card past its container. Allow
@@ -667,101 +741,73 @@
 		overflow-wrap: anywhere;
 		min-width: 0;
 	}
-
-	.compact .card-title {
-		font-size: 0.92em;
+	.card-title .card-link {
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		overflow: hidden;
+		min-width: 0;
 	}
 
+	.card-status {
+		display: inline-flex;
+		flex: none;
+		height: 16px;
+		align-items: center;
+	}
+	.card-status :global(.picker-icon) {
+		width: 16px;
+		height: 16px;
+		margin: 0 -1px;
+		border-radius: 4px;
+	}
+	.card-status :global(.picker-icon:hover) {
+		background: color-mix(in oklch, var(--ui-foreground) 8%, transparent);
+	}
+
+	/* The property chips: a row of 24px pills with a 1px border, the
+	   priority first as a round box. */
 	.card-meta {
 		display: flex;
 		align-items: center;
-		gap: 5px;
+		gap: 4px;
 		flex-wrap: wrap;
+		margin-top: 10px;
 		/* Allow flex children with intrinsic content wider than the card
 		   (e.g. a long parent title from an `implements` link to an idea)
 		   to shrink instead of pushing the card past its column. */
 		min-width: 0;
 	}
 
-	/* Status + priority render as Chip primitives now (tinted pills per
-	   the refresh mock); the status chip is a picker trigger (BUG-3157). */
-
-	.meta-sep {
-		font-size: 0.7em;
-		color: var(--text-muted);
-	}
-
-	.meta-parent {
-		font-size: 0.7em;
-		font-weight: 500;
-		color: var(--accent-purple, var(--text-secondary));
-		/* Long parent titles (e.g. a task that implements an idea whose
-		   title is a paragraph) used to push the card outside its
-		   container on Board view (BUG-630). Cap the chip to the card
-		   width and truncate with an ellipsis; the full label is still
-		   accessible via the tooltip on hover. */
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		max-width: 100%;
-		min-width: 0;
-	}
-
-	.meta-role {
-		font-size: 0.7em;
-		font-weight: 500;
-		color: var(--accent-teal, var(--accent-blue));
-		white-space: nowrap;
-	}
-
-	.meta-assignee {
-		font-size: 0.7em;
-		font-weight: 500;
-		color: var(--accent-blue);
-		white-space: nowrap;
-	}
-
-	/* Spacer pushes the assignee + age cluster to the right edge so the age sits
-	   opposite the status (IDEA-2286). A dedicated spacer — rather than
-	   margin-left:auto on both assignee and age — keeps the layout deterministic:
-	   two competing auto margins would split the free space and strand the
-	   assignee mid-row. */
-	.meta-spacer {
-		flex: 1 1 0;
-		min-width: 0;
-	}
-
-	.meta-age {
-		font-size: 0.7em;
-		font-weight: 500;
-		color: var(--text-muted);
-		white-space: nowrap;
-	}
-
-	.card-tags {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-1, 0.25rem);
-	}
-
-	/* Tag pills use the Chip tint treatment (purple family per the mock). */
-	.card-tag {
+	.card-chip {
 		display: inline-flex;
 		align-items: center;
-		padding: 0.1em 0.55em;
-		font-size: 0.68em;
-		line-height: 1.5;
-		background: color-mix(in srgb, var(--accent-purple) var(--chip-alpha, 16%), transparent);
-		border: none;
-		border-radius: 6px;
-		color: color-mix(in srgb, var(--accent-purple) var(--chip-text-mix, 100%), #000);
+		gap: 5px;
+		height: 24px;
+		max-width: 100%;
+		min-width: 0;
+		padding: 0 8px;
+		/* Lighter than the card's own border, as Linear's chips are. */
+		border: 1px solid color-mix(in oklch, var(--ui-foreground) 13%, transparent);
+		border-radius: 999px;
+		background: none;
+		color: var(--ui-muted-foreground);
+		font-size: 12px;
 		font-weight: 500;
+		line-height: 1;
+		white-space: nowrap;
+	}
+	button.card-chip {
 		cursor: pointer;
-		max-width: 12rem;
+		font-family: inherit;
+	}
+	button.card-chip:hover {
+		color: var(--ui-foreground);
+		background: color-mix(in oklch, var(--ui-foreground) 4%, transparent);
 	}
 
-	/* The ellipsis clips the TEXT, not the button: a clipping button would clip
-	   its own phone-width touch extender (TASK-3311). */
+	.chip-text,
 	.card-tag-text {
 		min-width: 0;
 		overflow: hidden;
@@ -769,18 +815,60 @@
 		white-space: nowrap;
 	}
 
-	.card-tag:hover {
-		filter: brightness(1.15);
+	/* The priority box: a 24px circle, the picker filling it. */
+	.card-priority {
+		justify-content: center;
+		width: 24px;
+		padding: 0;
+		flex: none;
+	}
+	.card-priority :global(.picker-icon) {
+		width: 100%;
+		height: 100%;
+		border-radius: 50%;
+	}
+	.card-priority :global(.picker-icon:hover) {
+		background: color-mix(in oklch, var(--ui-foreground) 6%, transparent);
+	}
+
+	.meta-parent {
+		/* Long parent titles (e.g. a task that implements an idea whose
+		   title is a paragraph) used to push the card outside its
+		   container on Board view (BUG-630). The chip caps to the card
+		   width and truncates; the full label is in the tooltip. */
+		max-width: 100%;
+	}
+	.meta-parent :global(.pad-icon) {
+		color: var(--accent-orange, #f2994a);
+	}
+
+	.meta-role :global(.pad-icon) {
+		color: var(--accent-teal, var(--accent-blue));
+	}
+
+	.pr-badge :global(.pad-icon) {
+		color: var(--pr-color);
+	}
+
+	.card-tag {
+		max-width: 12rem;
+	}
+	.tag-dot {
+		flex: none;
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: var(--accent-purple);
 	}
 
 	/* Phone width (TASK-3311): each tag is a 44x44 touch target. It grows
 	   visibly to 44 wide and 28 tall (Dave's ruling: not bigger pills), and an
 	   invisible extender adds the last 16px, 8 above and 8 below. That fills the
-	   16px gap between wrapped rows and the card's 8px gap above the row (the
+	   16px gap between wrapped rows and the card's gap above the row (the
 	   status chip's extender grows UP, away from the tags), so no neighbouring
 	   control loses area to it. */
 	@media (max-width: 768px) {
-		.card-tags {
+		.card-meta {
 			row-gap: 16px;
 		}
 		.card-tag {
@@ -803,26 +891,36 @@
 	.card-progress {
 		display: flex;
 		align-items: center;
-		gap: var(--space-2);
+		gap: 8px;
+		margin-top: 10px;
 	}
 	.card-progress-bar {
 		flex: 1;
 		height: 4px;
-		background: var(--bg-tertiary);
+		background: var(--ui-tab);
 		border-radius: 2px;
 		overflow: hidden;
 	}
 	.card-progress-fill {
 		height: 100%;
-		background: var(--accent-green);
+		background: var(--ui-status-review);
 		border-radius: 2px;
 		transition: width 0.3s ease;
 	}
 	.card-progress-text {
-		font-size: 0.7em;
-		color: var(--text-muted);
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
 		white-space: nowrap;
 		flex-shrink: 0;
+	}
+
+	.meta-age {
+		margin-top: 10px;
+		font-size: 12px;
+		line-height: 16px;
+		color: var(--ui-muted-foreground);
+		white-space: nowrap;
+		align-self: flex-start;
 	}
 
 	.star-btn {
@@ -830,17 +928,24 @@
 		background: none;
 		cursor: pointer;
 		padding: 0;
-		font-size: 0.95em;
+		font-size: 13px;
 		line-height: 1;
-		color: var(--text-muted);
-		opacity: 0.65;
+		color: var(--ui-muted-foreground);
+		opacity: 0;
 		transition: opacity 0.15s, color 0.15s;
 		flex-shrink: 0;
 	}
 
 	.item-card:hover .star-btn,
+	.item-card:focus-within .star-btn,
 	.star-btn.starred {
 		opacity: 1;
+	}
+
+	@media (hover: none) and (pointer: coarse) {
+		.star-btn {
+			opacity: 0.65;
+		}
 	}
 
 	.star-btn:hover {
