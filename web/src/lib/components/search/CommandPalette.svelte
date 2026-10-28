@@ -2020,7 +2020,7 @@
 		text-align: center;
 		line-height: 18px;
 		border-radius: 4px;
-		background: color-mix(in srgb, var(--ui-foreground) 8%, transparent);
+		background: color-mix(in srgb, var(--ui-foreground) 5%, transparent);
 	}
 	.sr-only {
 		position: absolute;
