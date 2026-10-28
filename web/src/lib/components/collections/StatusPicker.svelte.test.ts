@@ -5,7 +5,7 @@
  * the component's own contract; the views' tests pin that every surface uses it.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, cleanup, fireEvent } from '@testing-library/svelte';
+import { render, cleanup, fireEvent, waitFor } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import StatusPicker from './StatusPicker.svelte';
 import { STATUS_CHIP, STATUS_ROW, chooseStatus, openStatusPicker, rowLabel, statusChipIn, statusRows } from './statusPickerTestKit';
@@ -107,6 +107,23 @@ describe('StatusPicker', () => {
 			await tick();
 			expect(statusRows()).toHaveLength(0);
 			expect(document.body.textContent).toContain('No results');
+		});
+
+		it('a list with no row is not a listbox (axe: aria-required-children), and is one again with rows', async () => {
+			const { screen } = renderPicker();
+			await openStatusPicker(screen.container);
+			const list = () => document.body.querySelector('[data-slot="command-list"]')!;
+			await waitFor(() => expect(list().getAttribute('role')).toBe('listbox'));
+			expect(list().getAttribute('aria-label')).toBeTruthy();
+			await fireEvent.input(searchInput(), { target: { value: 'zzz' } });
+			await waitFor(() => expect(list().hasAttribute('role')).toBe(false));
+			expect(list().querySelector('[role="option"]')).toBeNull();
+			expect(list().hasAttribute('aria-label')).toBe(false);
+			expect(list().hasAttribute('tabindex')).toBe(false);
+			expect(list().textContent).toContain('No results');
+			await fireEvent.input(searchInput(), { target: { value: 'prog' } });
+			await waitFor(() => expect(list().getAttribute('role')).toBe('listbox'));
+			expect(list().getAttribute('tabindex')).toBe('0');
 		});
 
 		it('ArrowDown then Enter picks that row, writes once, closes, and refocuses the chip', async () => {

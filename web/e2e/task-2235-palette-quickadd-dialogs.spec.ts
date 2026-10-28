@@ -43,7 +43,7 @@ async function focusOwner(page: Page): Promise<string> {
 		if (!a || a === document.body) return 'body';
 		if (a.closest('.palette')) return 'palette';
 		if (a.closest('nav.bottom-nav')) return 'nav';
-		if (a.closest('dialog.quick-add-dialog')) return 'quick-add';
+		if (a.closest('[data-slot="dialog-content"].quick-add-dialog')) return 'quick-add';
 		return `page:${a.tagName.toLowerCase()}.${(a as HTMLElement).className}`;
 	});
 }

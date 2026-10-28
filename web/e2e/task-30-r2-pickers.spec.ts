@@ -196,15 +196,22 @@ test.describe('TASK-30 r2: Popover + Command pickers', () => {
 		await dark(page);
 		await expect(card(page, title)).toBeVisible();
 
-		// Status: rows with the gray digit hints. (A search with no match leaves an
-		// option-less listbox, which axe flags as aria-required-children: that is
-		// bits-ui's Command, not scanned here.)
+		// Status: rows with the gray digit hints, then (below) a search with no match.
 		await card(page, title).locator('[title="Change status"]').click();
 		await expect(statusPanel(page)).toBeVisible();
 		await page.keyboard.press('ArrowDown');
 		await dark(page);
 		const rows = await new AxeBuilder({ page }).include('[data-slot="popover-content"]').analyze();
 		expect(rows.violations.map((v) => `${v.id}: ${v.help}`), 'axe on the open status picker').toEqual([]);
+
+		// No match: the list holds only the "No results" line. bits-ui gives the
+		// list role="listbox" whatever it holds, and an option-less listbox is
+		// axe's aria-required-children (ui/command's list drops the role then).
+		await page.keyboard.type('zzz');
+		await expect(statusPanel(page).getByText('No results')).toBeVisible();
+		await expect(statusPanel(page).locator('[role="option"]')).toHaveCount(0);
+		const none = await new AxeBuilder({ page }).include('[data-slot="popover-content"]').analyze();
+		expect(none.violations.map((v) => `${v.id}: ${v.help}`), 'axe on the status picker with no match').toEqual([]);
 		await page.keyboard.press('Escape');
 
 		// Icon: group headings over the grid, inside a real dialog.

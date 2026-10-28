@@ -199,8 +199,12 @@ describe('a status field holding a LIST', () => {
 
 		// The status cell is the picker's icon trigger with the name beside it
 		// (SPEC-24 / TASK-31), no longer a text chip: the value is shown, and
-		// exactly one trigger is clickable.
-		expect(screen.container.textContent).toContain('In Progress');
+		// exactly one trigger is clickable. The trigger's own name ("Status: In
+		// Progress") is visually hidden, so it cannot stand for the shown text:
+		// the visible label is the `.cell-status-label` beside it.
+		const labels = [...screen.container.querySelectorAll('.cell-status .cell-status-label')];
+		expect(labels.map((l) => (l.textContent ?? '').trim())).toEqual(['In Progress']);
+		expect(labels[0].closest('.cell-status')?.querySelector(STATUS_CHIP), 'the label sits beside the picker trigger').not.toBeNull();
 		expect(screen.container.querySelectorAll(STATUS_CHIP)).toHaveLength(1);
 	});
 
