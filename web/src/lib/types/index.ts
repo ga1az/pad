@@ -3206,6 +3206,12 @@ export function getAbandonedOptions(collection: Collection): string[] {
 	return terminal.filter((v) => NEGATIVE_TERMINALS.includes(v.trim().toLowerCase()));
 }
 
+/** Whether a terminal value closes without delivering by NAME alone, for a
+ * field that declares no abandoned_options (the StatusIcon's fallback). */
+export function isNegativeTerminal(value: string): boolean {
+	return NEGATIVE_TERMINALS.includes(value.trim().toLowerCase());
+}
+
 /** getAbandonedOptions for callers with no collection context. */
 export const DEFAULT_ABANDONED_STATUSES = DEFAULT_TERMINAL_STATUSES.filter((v) => NEGATIVE_TERMINALS.includes(v));
 
