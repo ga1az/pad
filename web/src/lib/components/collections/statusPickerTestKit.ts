@@ -18,13 +18,19 @@ export function statusChipIn(container: ParentNode): HTMLElement {
 	return chip as HTMLElement;
 }
 
-/** The open picker's rows. The menu is portaled, so they live under <body>. */
+/**
+ * The open picker's rows. The picker is portaled, so they live under <body>:
+ * the desktop popover's Command options (TASK-30), or the mobile sheet's
+ * menuitemradio rows.
+ */
+export const STATUS_ROW = '[role="menuitemradio"], [data-slot="popover-content"] [role="option"]';
+
 export function statusRows(): HTMLElement[] {
-	return Array.from(document.body.querySelectorAll<HTMLElement>('[role="menuitemradio"]'));
+	return Array.from(document.body.querySelectorAll<HTMLElement>(STATUS_ROW));
 }
 
 export function rowLabel(row: HTMLElement): string {
-	return row.querySelector('.mi-label')?.textContent?.trim() ?? '';
+	return row.querySelector('.mi-label, [data-option-label]')?.textContent?.trim() ?? '';
 }
 
 /** Click the chip and return the picker's rows. */

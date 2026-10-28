@@ -27,7 +27,7 @@ test.describe('TASK-2214: set priority from a card', () => {
 		const card = page.locator('.item-card').filter({ hasText: title }).first();
 		await expect(card).toBeVisible();
 		await card.locator('[title="Change priority"]').click();
-		await page.getByRole('menuitemradio', { name: 'High' }).click();
+		await page.getByRole('dialog', { name: 'Priority' }).getByRole('option', { name: 'High' }).click();
 		await expect(card.locator('[title="Change priority"]')).toHaveText(/High/);
 
 		const stored = await request.get(`/api/v1/workspaces/${fixture.workspaceSlug}/items/${slug}`, { headers: authJson(fixture) });

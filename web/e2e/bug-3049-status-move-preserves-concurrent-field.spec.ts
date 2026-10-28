@@ -102,7 +102,7 @@ test('BUG-3049: a status click does not revert a field written after page load',
 		(r) => r.url().includes(`/items/${item.id}`) && r.request().method() === 'PATCH',
 	);
 	await statusChip.click();
-	await page.getByRole('menu', { name: 'Status' }).getByRole('menuitemradio', { name: /done/i }).click();
+	await page.getByRole('dialog', { name: 'Status' }).getByRole('option', { name: /done/i }).click();
 	const patchRes = await patched;
 	expect(patchRes.ok(), await patchRes.text()).toBeTruthy();
 

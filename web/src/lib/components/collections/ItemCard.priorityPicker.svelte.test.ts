@@ -12,7 +12,7 @@ const perm = vi.hoisted(() => ({ canEdit: true }));
 vi.mock('$lib/stores/workspace.svelte', () => ({ workspaceStore: { canEditItem: () => perm.canEdit } }));
 
 import ItemCard from './ItemCard.svelte';
-import { rowLabel } from './statusPickerTestKit';
+import { rowLabel, statusRows } from './statusPickerTestKit';
 
 const PRIORITY_CHIP = '[aria-haspopup][title="Change priority"]';
 
@@ -50,7 +50,7 @@ describe('card priority picker (TASK-2214)', () => {
 		expect(chip, 'priority chip is a picker').not.toBeNull();
 		await fireEvent.click(chip);
 		await tick();
-		const rows = Array.from(document.body.querySelectorAll<HTMLElement>('[role="menuitemradio"]'));
+		const rows = statusRows();
 		expect(rows.map(rowLabel)).toEqual(['Low', 'Medium', 'High']);
 		await fireEvent.click(rows.find((r) => rowLabel(r) === 'High')!);
 		expect(write).toHaveBeenCalledTimes(1);
@@ -65,7 +65,7 @@ describe('card priority picker (TASK-2214)', () => {
 		});
 		await fireEvent.click(screen.container.querySelector(PRIORITY_CHIP) as HTMLElement);
 		await tick();
-		const rows = Array.from(document.body.querySelectorAll<HTMLElement>('[role="menuitemradio"]'));
+		const rows = statusRows();
 		await fireEvent.click(rows.find((r) => rowLabel(r) === 'Medium')!);
 		expect(write).not.toHaveBeenCalled();
 	});
@@ -86,7 +86,7 @@ describe('card priority picker (TASK-2214)', () => {
 			expect(chip.textContent?.trim()).toBe('No priority');
 			await fireEvent.click(chip);
 			await tick();
-			const rows = Array.from(document.body.querySelectorAll<HTMLElement>('[role="menuitemradio"]'));
+			const rows = statusRows();
 			expect(rows.map(rowLabel)).toEqual(['Low', 'Medium', 'High']);
 			// Nothing is checked: the item has no priority yet.
 			expect(rows.filter((r) => r.getAttribute('aria-checked') === 'true')).toHaveLength(0);

@@ -24,6 +24,13 @@ if (typeof HTMLDialogElement !== 'undefined') {
 	};
 }
 
+// jsdom does not implement `Element.prototype.scrollIntoView`. bits-ui's
+// Command calls it on the highlighted row whenever the highlight moves, so
+// every test that opens a Command (the pickers, the palette) needs a no-op.
+if (typeof Element !== 'undefined' && typeof Element.prototype.scrollIntoView !== 'function') {
+	Element.prototype.scrollIntoView = function scrollIntoView() {};
+}
+
 // This jsdom build exposes a `localStorage` OBJECT with no working methods
 // (it warns `--localstorage-file was provided without a valid path`), so
 // `localStorage.getItem is not a function` blows up at MODULE-LOAD time for

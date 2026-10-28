@@ -1,5 +1,5 @@
 <!--
-	StatusPicker — the status chip on a card or table row, as a MENU trigger
+	StatusPicker — the status chip on a card or a list row, as a MENU trigger
 	(BUG-3157).
 
 	It used to be a one-tap CYCLE control: a click advanced the status to the
@@ -9,11 +9,18 @@
 	ruling: on every device the chip opens a picker, and nothing changes until an
 	option is chosen.
 
-	The picker is the shared Menu — a portaled popover on desktop, a BottomSheet
-	at the mobile breakpoint — mounted from a host portaled to <body>. The chip
-	lives inside the card's <a> and inside the board's dnd zone; rendering the
-	sheet there would put its rows inside a link and under svelte-dnd-action,
-	which rewrites the ARIA roles of what it contains.
+	The picker is a Popover holding a Command on desktop (TASK-30: a search
+	field over the rows, Linear's), a BottomSheet menu at the mobile breakpoint
+	(unchanged). Both portal out of the chip's container: it lives inside the
+	card's <a> and inside the board's dnd zone, and rows rendered there would
+	sit inside a link and under svelte-dnd-action, which rewrites the ARIA
+	roles of what it contains.
+
+	The popover's keys: typing filters the rows, ↑/↓ move the highlight, Enter
+	picks, Esc closes and refocuses the chip. While the search is empty a digit
+	picks that row (the gray number on its right). The search is ours
+	(`shouldFilter={false}`), because the digits and the numbering follow the
+	rows that are showing.
 
 	Choosing the current value writes nothing. A stored value the options do not
 	declare is shown as-is with no row checked; choosing any option is then an
@@ -28,6 +35,10 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import ResponsiveMenu from '$lib/components/ui-adapters/ResponsiveMenu.svelte';
 	import ResponsiveMenuItem from '$lib/components/ui-adapters/ResponsiveMenuItem.svelte';
+	import AnchoredPopover from '$lib/components/ui-adapters/AnchoredPopover.svelte';
+	import * as Command from '$lib/components/ui/command';
+	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import { Tick02Icon } from '@hugeicons/core-free-icons';
 	import { portal } from '$lib/utils/portalAction';
 	import { statusColor, priorityColor, formatFieldLabel as formatLabel } from '$lib/utils/fieldColors';
 	import { viewport } from '$lib/stores/breakpoint.svelte';
@@ -60,15 +71,40 @@
 	let triggerEl = $state<HTMLElement | null>(null);
 
 	function toggle(e: MouseEvent) {
-		// The chip sits inside the card's <a> and the table row's click target;
+		// The chip sits inside the card's <a> and the list row's click target;
 		// Chip already preventDefault()s, this keeps the card from opening.
 		e.stopPropagation();
+		// A fresh search each time the popover opens, on the current value.
+		if (!open) {
+			query = '';
+			highlighted = optionList.includes(value) ? value : (optionList[0] ?? '');
+		}
 		open = !open;
 	}
 
 	function choose(status: string) {
 		open = false;
 		if (status !== value) onselect(status);
+	}
+
+	// The desktop popover's search. Our own filter, so the digit shortcuts and
+	// the numbers shown follow the rows that are showing.
+	let query = $state('');
+	let highlighted = $state('');
+	const visible = $derived(
+		optionList.filter((o) => {
+			const q = query.trim().toLowerCase();
+			return !q || formatLabel(o).toLowerCase().includes(q) || o.toLowerCase().includes(q);
+		})
+	);
+
+	function onSearchKeydown(e: KeyboardEvent, close: (refocus?: boolean) => void) {
+		if (query !== '' || e.metaKey || e.ctrlKey || e.altKey || !/^[1-9]$/.test(e.key)) return;
+		const option = visible[Number(e.key) - 1];
+		e.preventDefault();
+		if (!option) return;
+		close(true);
+		choose(option);
 	}
 </script>
 
@@ -79,7 +115,7 @@
 		data-kind={kind}
 		onclick={(e) => { e.preventDefault(); toggle(e); }}
 		bind:this={triggerEl}
-		aria-haspopup={viewport.isMobile ? 'dialog' : 'menu'}
+		aria-haspopup="dialog"
 		aria-expanded={open}
 		title="Change {noun.toLowerCase()}"
 	>
@@ -96,7 +132,7 @@
 		color={color}
 		onclick={toggle}
 		bind:ref={triggerEl}
-		aria-haspopup={viewport.isMobile ? 'dialog' : 'menu'}
+		aria-haspopup="dialog"
 		aria-expanded={open}
 		title="Change {noun.toLowerCase()}"
 	>
@@ -105,26 +141,67 @@
 {/if}
 
 {#if open}
-	<div class="status-picker-host" use:portal>
-		<ResponsiveMenu
-			{open}
-			onclose={() => (open = false)}
-			trigger={triggerEl ?? undefined}
-			mode="portal"
-			align="left"
-			width={200}
-			sheetOnMobile
-			sheetMenu
-			sheetTitle={noun}
-			ariaLabel={noun}
-		>
-			{#each optionList as option (option)}
-				<ResponsiveMenuItem checked={option === value} onclick={() => choose(option)}>
-					{formatLabel(option)}
-				</ResponsiveMenuItem>
-			{/each}
-		</ResponsiveMenu>
-	</div>
+	{#if viewport.isMobile}
+		<div class="status-picker-host" use:portal>
+			<ResponsiveMenu
+				{open}
+				onclose={() => (open = false)}
+				trigger={triggerEl ?? undefined}
+				mode="portal"
+				align="left"
+				width={200}
+				sheetOnMobile
+				sheetMenu
+				sheetTitle={noun}
+				ariaLabel={noun}
+			>
+				{#each optionList as option (option)}
+					<ResponsiveMenuItem checked={option === value} onclick={() => choose(option)}>
+						{formatLabel(option)}
+					</ResponsiveMenuItem>
+				{/each}
+			</ResponsiveMenu>
+		</div>
+	{:else}
+		<AnchoredPopover {open} onclose={() => (open = false)} trigger={triggerEl} width={240} ariaLabel={noun}>
+			{#snippet children({ close })}
+				<Command.Root shouldFilter={false} loop label={noun} bind:value={highlighted}>
+					<Command.Input
+						bind:value={query}
+						placeholder={kind === 'priority' ? 'Set priority…' : 'Change status…'}
+						aria-label={noun}
+						onkeydown={(e) => onSearchKeydown(e, close)}
+					/>
+					<Command.List class="max-h-64">
+						<Command.Empty>No results</Command.Empty>
+						{#each visible as option, i (option)}
+							<Command.Item
+								value={option}
+								aria-checked={option === value}
+								onSelect={() => {
+									close(true);
+									choose(option);
+								}}
+							>
+								{#if kind === 'priority'}
+									<PriorityIcon level={priorityLevel(option)} />
+								{:else}
+									<StatusIcon category={statusCategory(option, field)} />
+								{/if}
+								<span data-option-label class="min-w-0 flex-1 truncate">{formatLabel(option)}</span>
+								{#if option === value}
+									<HugeiconsIcon icon={Tick02Icon} strokeWidth={2} class="text-muted-foreground" />
+								{/if}
+								{#if i < 9}
+									<Command.Shortcut class="ml-1 w-3 text-center">{i + 1}</Command.Shortcut>
+								{/if}
+							</Command.Item>
+						{/each}
+					</Command.List>
+				</Command.Root>
+			{/snippet}
+		</AnchoredPopover>
+	{/if}
 {/if}
 
 <style>
