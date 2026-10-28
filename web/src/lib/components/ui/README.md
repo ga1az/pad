@@ -29,3 +29,18 @@ Measured from Linear (dark): buttons almost never have a box.
 | Not for actions | `outline` | A bordered box reads as an input in this theme |
 
 Legacy `common/Button` mapping, as applied: `primary` became `default` only where it is a form or dialog submit and `ghost` elsewhere (header and empty-state actions); `secondary`, the default, and `ghost` became `ghost`; `danger` became `destructive`; `danger-solid` became `destructive-solid`. Sizes: legacy `md` is `default` (28px), `sm` is `sm`.
+
+## App adapters (`$lib/components/ui-adapters/`, TASK-26)
+
+Some legacy primitives carried app behaviour the stock components do not, and the call sites and their tests depend on it. Those live in one adapter each, composed from the components here; `ui.css` scans the folder (`@source`).
+
+- **AppDialog** (replaces `common/Modal`): Dialog with the parent's `open` as the single source of truth (Escape and backdrop presses call `onclose()`, so a draft guard can refuse), the BUG-3229 full-press backdrop rule, `maxWidth` / `placement` / `closeOnBackdrop` / `labelledby`. Mounted only while open: bits-ui's Presence ignores the first change of `open` after it is constructed.
+- **ResponsiveMenu / ResponsiveMenuItem** (replace `common/Menu` / `MenuItem`): Dropdown Menu on desktop, the existing BottomSheet at the mobile breakpoint with `sheetOnMobile`. Keeps the old keyboard model (first-row focus, wrapping arrows over every `menuitem`, Escape refocuses the trigger, no typeahead), the escape stack, and the portal scroll dismissal.
+- **AppToaster / AppToast** (replace `common/ToastContainer`): mirrors `toastStore` into Sonner; the store keeps timing, holds, grouping and history.
+
+`ConfirmDialog` is the Alert Dialog host for the `confirmDialog` store.
+
+Two more rules learned here:
+
+- **bits-ui and svelte-sonner compile in runes mode** (`svelteCompileOptions.ts`). A few of their files use no rune, and one legacy-mode component switches the whole Svelte runtime into legacy mode.
+- **Check the built CSS for collisions** before you add an `@source` line or prose to a scanned file: every word becomes a candidate, and a generated utility (`.grid`, `.inline`, `.table`, `.block`, `.visible`) hits any legacy element with that class. Reword the prose, or rename the legacy class.
