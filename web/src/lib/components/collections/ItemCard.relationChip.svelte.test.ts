@@ -81,7 +81,7 @@ describe('a status/priority field retyped to a relation', () => {
 		// PRECONDITION: the card rendered. "No chip" must not be "no card".
 		expect(screen.container.textContent).toContain('Car One');
 		expect(screen.container.textContent).not.toContain(RELATION_ID);
-		expect(screen.container.querySelectorAll('.chip')).toHaveLength(0);
+		expect(screen.container.querySelectorAll('[data-slot="badge"]')).toHaveLength(0);
 	});
 
 	it('offers no WRITE either — clicking anything on the card cycles nothing', () => {
@@ -105,7 +105,7 @@ describe('a status/priority field retyped to a relation', () => {
 		// The card always has other controls (star, ⋮, the ref copy), so a
 		// non-empty loop is a real claim rather than a formality.
 		expect(screen.container.querySelectorAll('.item-card')).toHaveLength(1);
-		const clickables = [...screen.container.querySelectorAll('.chip, button, [role="button"]')];
+		const clickables = [...screen.container.querySelectorAll('[data-slot="badge"], button, [role="button"]')];
 		expect(clickables.length, 'nothing was clicked, so nothing was tested').toBeGreaterThan(0);
 		for (const el of clickables) {
 			(el as HTMLElement).click();

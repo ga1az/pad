@@ -2,8 +2,8 @@
 	import { onMount } from 'svelte';
 	import { api, PadApiError } from '$lib/api/client';
 	import { authStore } from '$lib/stores/auth.svelte';
-	import Button from '$lib/components/common/Button.svelte';
-	import Chip from '$lib/components/common/Chip.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
 	import AppInstallCodePanel from './AppInstallCodePanel.svelte';
 	import AppArtifactReview from './AppArtifactReview.svelte';
 	import { normalizePreview } from './appsShape';
@@ -133,10 +133,10 @@
 					disabled={busy}
 					autocomplete="off"
 				/>
-				<Button type="submit" variant="primary" size="sm" disabled={busy || !baseUrl.trim()}>
+				<Button type="submit" variant="default" size="sm" disabled={busy || !baseUrl.trim()}>
 					{busy ? 'Fetching…' : 'Review'}
 				</Button>
-				<Button type="button" size="sm" disabled={busy} onclick={onclose}>Cancel</Button>
+				<Button variant="secondary" type="button" size="sm" disabled={busy} onclick={onclose}>Cancel</Button>
 			</div>
 		</form>
 	{:else}
@@ -170,7 +170,7 @@
 					{#each preview.collections as c (c.key)}
 						<li>
 							{c.name} <span class="mono">/{c.slug}</span>
-							{#if c.adopt}<Chip size="sm" color="var(--accent-blue)">reuses the existing collection</Chip>{/if}
+							{#if c.adopt}<Badge size="sm" color="var(--accent-blue)">reuses the existing collection</Badge>{/if}
 						</li>
 					{/each}
 				</ul>
@@ -200,10 +200,10 @@
 
 			<p class="hint">This review expires at {new Date(preview.expires_at).toLocaleTimeString()}.</p>
 			<div class="row">
-				<Button variant="primary" size="sm" disabled={busy} onclick={install}>
+				<Button variant="default" size="sm" disabled={busy} onclick={install}>
 					{busy ? 'Installing…' : `Install ${preview.title}`}
 				</Button>
-				<Button size="sm" disabled={busy} onclick={cancel}>Cancel</Button>
+				<Button variant="secondary" size="sm" disabled={busy} onclick={cancel}>Cancel</Button>
 			</div>
 		</section>
 	{/if}

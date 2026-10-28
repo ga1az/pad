@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { api, PadApiError } from '$lib/api/client';
 	import { authStore } from '$lib/stores/auth.svelte';
-	import Button from '$lib/components/common/Button.svelte';
+	import { Button } from '$lib/components/ui/button';
 	import AppArtifactReview from './AppArtifactReview.svelte';
 	import { normalizePreview, normalizeUpgradeResult } from './appsShape';
 	import type { AppInstallPreview, AppInstallSummary, AppUpgradeDiffEntry, AppUpgradeConfirmResult } from '$lib/types';
@@ -169,7 +169,7 @@
 		{:else}
 			<p>No new drafts.</p>
 		{/if}
-		<Button size="sm" onclick={onclose}>Done</Button>
+		<Button variant="secondary" size="sm" onclick={onclose}>Done</Button>
 	{:else if preview}
 		<p class="not-reviewed" role="note">{preview.notice}</p>
 		{#if preview.upgrade?.notice}<p class="hint">{preview.upgrade.notice}</p>{/if}
@@ -200,11 +200,11 @@
 
 		<div class="row">
 			{#if entries.length > 0}
-				<Button variant="primary" size="sm" disabled={busy} onclick={confirm}>
+				<Button variant="default" size="sm" disabled={busy} onclick={confirm}>
 					{busy ? 'Upgrading…' : `Upgrade to v${preview.version}`}
 				</Button>
 			{/if}
-			<Button size="sm" disabled={busy} onclick={cancel}>{entries.length > 0 ? 'Cancel' : 'Close'}</Button>
+			<Button variant="secondary" size="sm" disabled={busy} onclick={cancel}>{entries.length > 0 ? 'Cancel' : 'Close'}</Button>
 		</div>
 	{/if}
 
@@ -213,8 +213,8 @@
 			{error}{#if errorPath}<span class="mono"> ({errorPath})</span>{/if}
 		</p>
 		<div class="row">
-			{#if canRetry}<Button size="sm" disabled={busy} onclick={load}>Preview again</Button>{/if}
-			{#if !preview}<Button size="sm" disabled={busy} onclick={onclose}>Back</Button>{/if}
+			{#if canRetry}<Button variant="secondary" size="sm" disabled={busy} onclick={load}>Preview again</Button>{/if}
+			{#if !preview}<Button variant="secondary" size="sm" disabled={busy} onclick={onclose}>Back</Button>{/if}
 		</div>
 	{/if}
 </section>

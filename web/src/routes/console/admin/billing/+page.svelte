@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api/client';
-	import Chip from '$lib/components/common/Chip.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import PageHeader from '$lib/components/common/PageHeader.svelte';
 	import type { AdminBillingStats } from '$lib/types';
 
@@ -117,7 +117,7 @@
 			</div>
 		{:else if !stats.stripe_configured}
 			<div class="banner info" role="status" aria-live="polite">
-				<Chip color="var(--status-blue)">Stripe not configured</Chip>
+				<Badge color="var(--status-blue)">Stripe not configured</Badge>
 				Stripe billing is not yet configured. Stripe-derived metrics will be zero
 				until <code>STRIPE_SECRET_KEY</code> is set on pad-cloud.
 			</div>
@@ -128,7 +128,7 @@
 			<div class="stat" class:disabled={stripeUnavailable}>
 				<span class="stat-label">MRR</span>
 				{#if stripeUnavailable}
-					<span class="stat-chip"><Chip color="var(--accent-gray)">N/A</Chip></span>
+					<span class="stat-chip"><Badge color="var(--accent-gray)">N/A</Badge></span>
 				{:else}
 					<span class="stat-value">{mrrFormatted}</span>
 				{/if}
@@ -139,7 +139,7 @@
 			<div class="stat" class:disabled={stripeUnavailable}>
 				<span class="stat-label">ARR</span>
 				{#if stripeUnavailable}
-					<span class="stat-chip"><Chip color="var(--accent-gray)">N/A</Chip></span>
+					<span class="stat-chip"><Badge color="var(--accent-gray)">N/A</Badge></span>
 				{:else}
 					<span class="stat-value">{arrFormatted}</span>
 				{/if}
@@ -150,7 +150,7 @@
 			<div class="stat" class:disabled={stripeUnavailable}>
 				<span class="stat-label">Active Subscriptions</span>
 				{#if stripeUnavailable}
-					<span class="stat-chip"><Chip color="var(--accent-gray)">N/A</Chip></span>
+					<span class="stat-chip"><Badge color="var(--accent-gray)">N/A</Badge></span>
 				{:else}
 					<span class="stat-value">{stats.active_subscriptions}</span>
 				{/if}
@@ -188,7 +188,7 @@
 			<div class="stat" class:disabled={stripeUnavailable}>
 				<span class="stat-label">Churn (30d)</span>
 				{#if stripeUnavailable}
-					<span class="stat-chip"><Chip color="var(--accent-gray)">N/A</Chip></span>
+					<span class="stat-chip"><Badge color="var(--accent-gray)">N/A</Badge></span>
 				{:else}
 					<span class="stat-value">{churnFormatted}</span>
 				{/if}

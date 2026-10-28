@@ -14,7 +14,7 @@
 <script lang="ts">
 	import { adminFetch, type AdminUser } from '$lib/stores/admin.svelte';
 	import { agentNameFromMetadata } from '$lib/utils/agentActor';
-	import Chip from '$lib/components/common/Chip.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 
 	interface Props {
 		user: AdminUser;
@@ -153,11 +153,11 @@
 		<div class="vitals-email">{user.email}</div>
 	</div>
 	<div class="vitals-badges">
-		<Chip color={(user.role || 'member') === 'admin' ? 'var(--accent-orange)' : 'var(--accent-gray)'}
-			>{user.role || 'member'}</Chip
+		<Badge color={(user.role || 'member') === 'admin' ? 'var(--accent-orange)' : 'var(--accent-gray)'}
+			>{user.role || 'member'}</Badge
 		>
-		<Chip color={(user.plan || 'free') === 'pro' ? 'var(--status-blue)' : 'var(--accent-gray)'}
-			>{user.plan || 'free'}</Chip
+		<Badge color={(user.plan || 'free') === 'pro' ? 'var(--status-blue)' : 'var(--accent-gray)'}
+			>{user.plan || 'free'}</Badge
 		>
 		<span class="vitals-age">Joined {accountAge(user.created_at)}</span>
 	</div>

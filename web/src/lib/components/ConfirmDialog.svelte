@@ -6,7 +6,7 @@
 	// pattern from every other confirmation in the app.
 	import { confirmDialog } from '$lib/stores/confirmDialog.svelte';
 	import Modal from '$lib/components/common/Modal.svelte';
-	import Button from '$lib/components/common/Button.svelte';
+	import { Button } from '$lib/components/ui/button';
 
 	let active = $derived(confirmDialog.active);
 </script>
@@ -21,7 +21,7 @@
 		</div>
 		<div class="modal-footer">
 			<Button variant="secondary" autofocus onclick={() => confirmDialog.cancel()}>{active.cancelLabel ?? 'Cancel'}</Button>
-			<Button variant={active.danger ? 'danger-solid' : 'primary'} onclick={() => confirmDialog.confirm()}>
+			<Button variant={active.danger ? 'destructive-solid' : 'default'} onclick={() => confirmDialog.confirm()}>
 				{active.confirmLabel}
 			</Button>
 		</div>

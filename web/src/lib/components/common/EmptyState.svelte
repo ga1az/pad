@@ -4,7 +4,7 @@
 	import type { IconSvgElement } from '@hugeicons/svelte';
 	import { ownValue } from '$lib/utils/ownValue';
 	import type { Collection } from '$lib/types';
-	import Button from '$lib/components/common/Button.svelte';
+	import { Button } from '$lib/components/ui/button';
 
 	interface Props {
 		/** Collection mode (legacy): collection-flavored copy + create CTA +
@@ -78,7 +78,7 @@
 		<p class="empty-message">{message}</p>
 		{#if oncreate}
 			<div class="create-btn-wrap">
-				<Button variant="primary" onclick={oncreate}>
+				<Button variant="default" onclick={oncreate}>
 					+ Create {singularName[0].toUpperCase() + singularName.slice(1)}
 				</Button>
 			</div>
@@ -138,7 +138,7 @@
 		gap: var(--space-2);
 	}
 
-	/* Layout-only wrapper — the button itself is the shared <Button> primitive. */
+	/* Layout-only wrapper — the button itself is the shared <Button variant="secondary"> primitive. */
 	.create-btn-wrap {
 		margin-bottom: var(--space-5);
 	}

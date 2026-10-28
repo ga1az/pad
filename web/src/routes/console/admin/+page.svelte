@@ -5,7 +5,7 @@
 	import { appendUnique } from '$lib/utils/activityPaging';
 	import { adminFetch, formatDate, adminStore, type AdminUser } from '$lib/stores/admin.svelte';
 	import UserModal from '$lib/components/admin/UserModal.svelte';
-	import Chip from '$lib/components/common/Chip.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 
 	// --- List + pagination + filter + sort state (PLAN-1542 / TASK-1549) ---
 	// All filter state is reactive $state; we rebuild the query string on
@@ -418,20 +418,20 @@
 								     "active" is the common case; omit the pill to avoid
 								     visual noise. Other states call out problems. -->
 								{#if user.status && user.status !== 'active'}
-									<span class="status-chip"><Chip size="sm" color={userStatusColor(user.status)}>{user.status}</Chip></span>
+									<span class="status-chip"><Badge size="sm" color={userStatusColor(user.status)}>{user.status}</Badge></span>
 								{/if}
 							</td>
 							<td
-								><Chip size="sm" color={user.role === 'admin' ? 'var(--accent-orange)' : 'var(--accent-gray)'}
-									>{user.role || 'member'}</Chip
+								><Badge size="sm" color={user.role === 'admin' ? 'var(--accent-orange)' : 'var(--accent-gray)'}
+									>{user.role || 'member'}</Badge
 								></td
 							>
 							<td class="num-cell">{user.workspace_count ?? 0}</td>
 							<td>{user.email}</td>
 							{#if adminStore.stats?.cloud_mode}
 								<td
-									><Chip size="sm" color={user.plan === 'pro' ? 'var(--status-blue)' : 'var(--accent-gray)'}
-										>{user.plan || 'free'}</Chip
+									><Badge size="sm" color={user.plan === 'pro' ? 'var(--status-blue)' : 'var(--accent-gray)'}
+										>{user.plan || 'free'}</Badge
 									></td
 								>
 							{/if}
@@ -652,7 +652,7 @@
 	}
 	/* Status pill wrapper — keeps the pill offset from the user name.
 	   Colors live in userStatusColor(); the pill itself is the shared
-	   <Chip> primitive. PLAN-1542 / TASK-1548 / TASK-2292. */
+	   <Badge color="var(--accent-gray)"> primitive. PLAN-1542 / TASK-1548 / TASK-2292. */
 	.status-chip {
 		margin-left: var(--space-2);
 	}

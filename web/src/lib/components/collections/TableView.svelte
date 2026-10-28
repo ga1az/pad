@@ -11,7 +11,7 @@
 	import { laneOrderAfterMove, disabledDirections, type ReorderDirection } from '$lib/collections/reorder';
 	import { page } from '$app/state';
 	import { canonicalValueColor, formatFieldLabel as formatLabel } from '$lib/utils/fieldColors';
-	import Chip from '$lib/components/common/Chip.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import StatusPicker from './StatusPicker.svelte';
 	import EmptyState from '../common/EmptyState.svelte';
 	import ItemActionsMenu from './ItemActionsMenu.svelte';
@@ -369,7 +369,7 @@
 						{:else if field.options && typeof fields[field.key] === 'string' && fields[field.key]}
 							{@const chipColor = canonicalValueColor(fields[field.key])}
 							{#if chipColor}
-								<Chip size="sm" color={chipColor}>{formatLabel(fields[field.key])}</Chip>
+								<Badge size="sm" color={chipColor}>{formatLabel(fields[field.key])}</Badge>
 							{:else}
 								<span class="cell-value">{fields[field.key]}</span>
 							{/if}

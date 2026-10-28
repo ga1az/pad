@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Button from '$lib/components/common/Button.svelte';
-	import Chip from '$lib/components/common/Chip.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
 	import DeferMenu from './DeferMenu.svelte';
 	import type { NeedsRow, NeedsView } from '$lib/types';
 
@@ -48,10 +48,10 @@
 		<div class="meta">
 			<span class="ref">{row.item.ref}</span>
 			<span>{row.item.collection}</span>
-			{#if row.item.status}<Chip size="sm">{row.item.status}</Chip>{/if}
+			{#if row.item.status}<Badge color="var(--accent-gray)" size="sm">{row.item.status}</Badge>{/if}
 			<span class="wait" title={row.waiting_since}>waiting {ago(row.waiting_since)}</span>
 			{#each hints as hint, i (i)}
-				<span data-testid="needs-hint"><Chip size="sm" color="var(--accent-amber)">{hint}</Chip></span>
+				<span data-testid="needs-hint"><Badge size="sm" color="var(--accent-amber)">{hint}</Badge></span>
 			{/each}
 		</div>
 		<p class="why">{row.why.text}{#if row.why.by} <span class="by">({row.why.by})</span>{/if}</p>
@@ -59,7 +59,7 @@
 	</div>
 	<div class="actions">
 		{#if view === 'hidden'}
-			<Button size="sm" disabled={busy} onclick={() => onrestore(row)}>Restore</Button>
+			<Button variant="secondary" size="sm" disabled={busy} onclick={() => onrestore(row)}>Restore</Button>
 		{:else}
 			<Button size="sm" variant="ghost" disabled={busy} onclick={() => ondismiss(row)}>Dismiss</Button>
 			<div class="defer-wrap">

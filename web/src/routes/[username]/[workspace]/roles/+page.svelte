@@ -21,7 +21,7 @@
 	import ItemCard from '$lib/components/collections/ItemCard.svelte';
 	import EmojiPickerButton from '$lib/components/common/EmojiPickerButton.svelte';
 	import Modal from '$lib/components/common/Modal.svelte';
-	import Button from '$lib/components/common/Button.svelte';
+	import { Button } from '$lib/components/ui/button';
 	import PageHeader from '$lib/components/common/PageHeader.svelte';
 	import EmptyState from '$lib/components/common/EmptyState.svelte';
 	import { TRIGGERS, SHADOW_ITEM_MARKER_PROPERTY_NAME } from 'svelte-dnd-action';

@@ -75,7 +75,7 @@ function item(id: string, fields: Record<string, unknown>): Item {
 	} as unknown as Item;
 }
 
-const chips = (c: HTMLElement) => [...c.querySelectorAll('.chip')].map((e) => (e.textContent ?? '').trim());
+const chips = (c: HTMLElement) => [...c.querySelectorAll('[data-slot="badge"]')].map((e) => (e.textContent ?? '').trim());
 
 describe('a status field holding a LIST', () => {
 	// Retained `options` are what make this reachable: the schema editor does not
@@ -119,7 +119,7 @@ describe('a status field holding a LIST', () => {
 	it('and offers no WRITE either — the withheld chip is the point, not its styling', () => {
 		// The chip this arm draws is CLICKABLE, and cycling it sends a SCALAR into
 		// a list field, which the server refuses. Asserting the absence of a
-		// `.chip` class checks decoration; this clicks every control in the row
+		// the badge's data-slot checks decoration; this clicks every control in the row
 		// and asserts nothing reached the handler (enumeration round, d3).
 		const onStatusChange = vi.fn();
 		const screen = render(TableView, {
@@ -135,7 +135,7 @@ describe('a status field holding a LIST', () => {
 		// comment above ("clicks every control in the row") would be describing a
 		// loop that never ran.
 		expect(screen.container.querySelectorAll('.table-row:not(.table-header)').length).toBeGreaterThan(0);
-		const clickables = [...screen.container.querySelectorAll('.table-cell [role="button"], .table-cell button, .table-cell .chip')];
+		const clickables = [...screen.container.querySelectorAll('.table-cell [role="button"], .table-cell button, .table-cell [data-slot="badge"]')];
 		expect(clickables.length, 'nothing was clicked, so nothing was tested').toBeGreaterThan(0);
 		for (const el of clickables) (el as HTMLElement).click();
 		expect(onStatusChange).not.toHaveBeenCalled();
@@ -198,7 +198,7 @@ describe('a status field holding a LIST', () => {
 		});
 
 		expect(chips(screen.container)).toContain('In Progress');
-		const clickable = [...screen.container.querySelectorAll('.chip')].filter(
+		const clickable = [...screen.container.querySelectorAll('[data-slot="badge"]')].filter(
 			(c) => c.matches(STATUS_CHIP),
 		);
 		expect(clickable).toHaveLength(1);

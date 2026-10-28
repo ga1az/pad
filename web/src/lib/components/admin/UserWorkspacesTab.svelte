@@ -8,7 +8,7 @@
 -->
 <script lang="ts">
 	import { adminFetch, type AdminUser } from '$lib/stores/admin.svelte';
-	import Chip from '$lib/components/common/Chip.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 
 	interface Props {
 		user: AdminUser;
@@ -150,13 +150,13 @@
 							<div class="ws-slug">{ws.workspace_slug}</div>
 						</td>
 						<td>
-							<Chip
+							<Badge
 								size="sm"
 								color={ws.role === 'owner'
 									? 'var(--accent-orange)'
 									: ws.role === 'editor'
 										? 'var(--status-blue)'
-										: 'var(--accent-gray)'}>{ws.role}</Chip
+										: 'var(--accent-gray)'}>{ws.role}</Badge
 							>
 						</td>
 						<td class="num">{ws.collections_count}</td>

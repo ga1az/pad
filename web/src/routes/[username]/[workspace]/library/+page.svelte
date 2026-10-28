@@ -8,7 +8,7 @@
 	import { api } from '$lib/api/client';
 	import { authStore } from '$lib/stores/auth.svelte';
 	import { createScrollRestoration } from '$lib/scroll/restore.svelte';
-	import Chip from '$lib/components/common/Chip.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import PlaybookInvokeChips from '$lib/components/playbooks/PlaybookInvokeChips.svelte';
 	import AgentTermsLegend from '$lib/components/agent/AgentTermsLegend.svelte';
 	import { termTitle } from '$lib/agent/agentTerms';
@@ -484,13 +484,13 @@
 									<div class="badges">
 										<!-- TASK-2257 (C72): each chip says what it is, to a pointer
 										     (title) and to a screen reader (the hidden prefix). -->
-										<Chip size="sm" color="var(--status-blue)" title={termTitle('trigger', convention.trigger)}><span class="sr-only">{'Trigger: '}</span>{convention.trigger}</Chip>
-										<Chip size="sm" color="var(--accent-purple)" title={termTitle('surface', conventionSurfaceLabel(convention))}><span class="sr-only">{'Surface: '}</span>{conventionSurfaceLabel(convention)}</Chip>
-										<Chip size="sm" color={ownValue(priorityColors, convention.enforcement) ?? 'var(--accent-gray)'} title={termTitle('enforcement', convention.enforcement)}>
+										<Badge size="sm" color="var(--status-blue)" title={termTitle('trigger', convention.trigger)}><span class="sr-only">{'Trigger: '}</span>{convention.trigger}</Badge>
+										<Badge size="sm" color="var(--accent-purple)" title={termTitle('surface', conventionSurfaceLabel(convention))}><span class="sr-only">{'Surface: '}</span>{conventionSurfaceLabel(convention)}</Badge>
+										<Badge size="sm" color={ownValue(priorityColors, convention.enforcement) ?? 'var(--accent-gray)'} title={termTitle('enforcement', convention.enforcement)}>
 											<span class="sr-only">{'Enforcement: '}</span>{convention.enforcement}
-										</Chip>
+										</Badge>
 										{#if convention.commands?.length}
-											<Chip size="sm" color="var(--accent-purple)">{convention.commands.length} cmd{convention.commands.length > 1 ? 's' : ''}</Chip>
+											<Badge size="sm" color="var(--accent-purple)">{convention.commands.length} cmd{convention.commands.length > 1 ? 's' : ''}</Badge>
 										{/if}
 									</div>
 									{#if isExpanded}
@@ -508,9 +508,9 @@
 									{#if isActive}
 										{@const href = activeItemHref(convention, conventionItemsByTitle, conventionsSlug)}
 										{#if href}
-											<a class="active-link" {href} title="Open the convention this created"><Chip color={statusColor('active')}>Active</Chip><span class="sr-only">{`: open ${convention.title}`}</span></a>
+											<a class="active-link" {href} title="Open the convention this created"><Badge color={statusColor('active')}>Active</Badge><span class="sr-only">{`: open ${convention.title}`}</span></a>
 										{:else}
-											<Chip color={statusColor('active')}>Active</Chip>
+											<Badge color={statusColor('active')}>Active</Badge>
 										{/if}
 										{#if offer}
 											<a
@@ -574,8 +574,8 @@
 									<h3 class="card-title">{playbook.title}</h3>
 									<div class="badges">
 										<PlaybookInvokeChips slug={playbook.invocation_slug} />
-										<Chip size="sm" color="var(--status-blue)" title={termTitle('trigger', playbook.trigger)}><span class="sr-only">{'Trigger: '}</span>{playbook.trigger}</Chip>
-										<Chip size="sm" color="var(--accent-purple)" title={termTitle('surface', playbook.scope)}><span class="sr-only">{'Scope: '}</span>{playbook.scope}</Chip>
+										<Badge size="sm" color="var(--status-blue)" title={termTitle('trigger', playbook.trigger)}><span class="sr-only">{'Trigger: '}</span>{playbook.trigger}</Badge>
+										<Badge size="sm" color="var(--accent-purple)" title={termTitle('surface', playbook.scope)}><span class="sr-only">{'Scope: '}</span>{playbook.scope}</Badge>
 										<PlaybookInvokeChips argCount={playbook.arguments?.length ?? 0} />
 									</div>
 									{#if isExpanded}
@@ -593,9 +593,9 @@
 									{#if isActive}
 										{@const href = activeItemHref(playbook, playbookItemsByTitle, playbooksSlug)}
 										{#if href}
-											<a class="active-link" {href} title="Open the playbook this created"><Chip color={statusColor('active')}>Active</Chip><span class="sr-only">{`: open ${playbook.title}`}</span></a>
+											<a class="active-link" {href} title="Open the playbook this created"><Badge color={statusColor('active')}>Active</Badge><span class="sr-only">{`: open ${playbook.title}`}</span></a>
 										{:else}
-											<Chip color={statusColor('active')}>Active</Chip>
+											<Badge color={statusColor('active')}>Active</Badge>
 										{/if}
 										{#if offer}
 											<a

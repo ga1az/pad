@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { ItemImplementationNote, ItemDecisionLogEntry } from '$lib/types';
 	import { relativeTime } from '$lib/utils/markdown';
-	import Chip from '$lib/components/common/Chip.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 
 	// One card for both structured kinds (BUG-2301). They share a shape —
 	// headline + optional body + actor + timestamp — and differ only in
@@ -34,8 +34,8 @@
 
 <div class="card" class:decision={kind === 'decision'}>
 	<div class="row">
-		<Chip size="sm" color={kind === 'decision' ? 'var(--accent-orange)' : 'var(--accent-cyan)'}
-			>{label}</Chip
+		<Badge size="sm" color={kind === 'decision' ? 'var(--accent-orange)' : 'var(--accent-cyan)'}
+			>{label}</Badge
 		>
 		{#if actorLabel}
 			<span class="actor">{actorLabel}</span>

@@ -2,7 +2,7 @@
 	import { withRequestDeadline } from '$lib/api/client';
 	import { onMount } from 'svelte';
 	import { adminFetch, adminPost, getCSRFToken, formatDate } from '$lib/stores/admin.svelte';
-	import Chip from '$lib/components/common/Chip.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import EmptyState from '$lib/components/common/EmptyState.svelte';
 
 	interface AdminInvitation {
@@ -159,9 +159,9 @@
 								<td>{inv.email}</td>
 								<td>{inv.workspace_name}</td>
 								<td>
-									<Chip size="sm" color={inv.role === 'owner' ? 'var(--accent-green)' : 'var(--accent-gray)'}>
+									<Badge size="sm" color={inv.role === 'owner' ? 'var(--accent-green)' : 'var(--accent-gray)'}>
 										{inv.role}
-									</Chip>
+									</Badge>
 								</td>
 								<td>{inv.invited_by_name}</td>
 								<td class="date-cell">{formatDate(inv.created_at)}</td>

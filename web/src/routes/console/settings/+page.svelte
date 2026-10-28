@@ -11,7 +11,7 @@
 	import { toastStore } from '$lib/stores/toast.svelte';
 	import { copyToClipboard } from '$lib/utils/clipboard';
 	import { exportAndDownloadAccountData } from '$lib/utils/artifacts';
-	import Button from '$lib/components/common/Button.svelte';
+	import { Button } from '$lib/components/ui/button';
 	import Modal from '$lib/components/common/Modal.svelte';
 	import NotificationSettings from '$lib/components/settings/NotificationSettings.svelte';
 	import CharacterShortcutsToggle from '$lib/components/common/CharacterShortcutsToggle.svelte';
@@ -671,7 +671,7 @@
 					<p class="success">{profileMsg}</p>
 				{/if}
 				<div class="btn-row">
-					<Button variant="primary" onclick={saveProfile} disabled={profileSaving}>
+					<Button variant="default" onclick={saveProfile} disabled={profileSaving}>
 						{profileSaving ? 'Saving...' : 'Save Changes'}
 					</Button>
 				</div>
@@ -720,7 +720,7 @@
 							<p class="success">{setPasswordMsg}</p>
 						{/if}
 						<div class="btn-row">
-							<Button variant="primary" onclick={sendSetPasswordEmail} disabled={setPasswordSending || !profile?.email}>
+							<Button variant="default" onclick={sendSetPasswordEmail} disabled={setPasswordSending || !profile?.email}>
 								{setPasswordSending ? 'Sending...' : 'Email me a link to set a password'}
 							</Button>
 						</div>
@@ -754,7 +754,7 @@
 						<p class="success">{passwordMsg}</p>
 					{/if}
 					<div class="btn-row">
-						<Button variant="primary" onclick={changePassword} disabled={passwordSaving}>
+						<Button variant="default" onclick={changePassword} disabled={passwordSaving}>
 							{passwordSaving ? 'Changing...' : 'Change Password'}
 						</Button>
 					</div>
@@ -807,7 +807,7 @@
 										<p class="error">{totpError}</p>
 									{/if}
 									<div class="btn-row">
-										<Button variant="danger" onclick={disableTOTP} disabled={totpSaving}>
+										<Button variant="destructive" onclick={disableTOTP} disabled={totpSaving}>
 											{totpSaving ? 'Disabling...' : 'Confirm Disable'}
 										</Button>
 										<Button variant="secondary" onclick={() => { showDisableConfirm = false; disablePassword = ''; totpError = ''; }} disabled={totpSaving}>
@@ -817,14 +817,14 @@
 								</div>
 							{:else}
 								<div class="btn-row">
-									<Button variant="danger" onclick={() => { showDisableConfirm = true; totpError = ''; totpMsg = ''; }}>
+									<Button variant="destructive" onclick={() => { showDisableConfirm = true; totpError = ''; totpMsg = ''; }}>
 										Disable 2FA
 									</Button>
 								</div>
 							{/if}
 						{:else}
 							<div class="btn-row">
-								<Button variant="primary" onclick={startTOTPSetup} disabled={totpSaving}>
+								<Button variant="default" onclick={startTOTPSetup} disabled={totpSaving}>
 									{totpSaving ? 'Setting up...' : 'Enable 2FA'}
 								</Button>
 							</div>
@@ -866,7 +866,7 @@
 						<p class="error">{totpError}</p>
 					{/if}
 					<div class="btn-row">
-						<Button variant="primary" onclick={verifyTOTP} disabled={totpSaving || !totpCode.trim()}>
+						<Button variant="default" onclick={verifyTOTP} disabled={totpSaving || !totpCode.trim()}>
 							{totpSaving ? 'Verifying...' : 'Verify & Enable'}
 						</Button>
 						<Button variant="secondary" onclick={cancelSetup} disabled={totpSaving}>Cancel</Button>
@@ -888,7 +888,7 @@
 							<p class="success">{totpMsg}</p>
 						{/if}
 						<div class="btn-row">
-							<Button variant="primary" onclick={finishSetup}>Done</Button>
+							<Button variant="default" onclick={finishSetup}>Done</Button>
 						</div>
 					</div>
 				{/if}
@@ -917,7 +917,7 @@
 									{/if}
 								</div>
 								{#if linked}
-									<Button variant="danger" size="sm" onclick={() => unlinkProvider(p.id)}>Unlink</Button>
+									<Button variant="destructive" size="sm" onclick={() => unlinkProvider(p.id)}>Unlink</Button>
 								{:else if p.webLinkable}
 									<a href="/auth/{p.id}/link" data-sveltekit-reload class="primary-btn small">Link {p.name}</a>
 								{/if}
@@ -994,7 +994,7 @@
 						bind:value={newTokenName}
 						disabled={tokenCreating}
 					/>
-					<Button variant="primary" onclick={createToken} disabled={tokenCreating || !newTokenName.trim()}>
+					<Button variant="default" onclick={createToken} disabled={tokenCreating || !newTokenName.trim()}>
 						{tokenCreating ? 'Creating...' : 'Create'}
 					</Button>
 				</div>
@@ -1039,7 +1039,7 @@
 								</div>
 								<div class="token-row-actions">
 									<Button variant="secondary" size="sm" onclick={() => askRotateToken(token)}>Rotate</Button>
-									<Button variant="danger" size="sm" onclick={() => askDeleteToken(token)}>Delete</Button>
+									<Button variant="destructive" size="sm" onclick={() => askDeleteToken(token)}>Delete</Button>
 								</div>
 							</div>
 						{/each}
@@ -1062,7 +1062,7 @@
 							take a moment for large accounts.
 						</p>
 					</div>
-					<Button variant="danger" onclick={exportData} disabled={exportSaving}>
+					<Button variant="destructive" onclick={exportData} disabled={exportSaving}>
 						{exportSaving ? 'Exporting...' : 'Export my data'}
 					</Button>
 				</div>
@@ -1084,7 +1084,7 @@
 						</p>
 					</div>
 					{#if !showDeleteConfirm}
-						<Button variant="danger" onclick={revealDeleteConfirm}>Delete my account</Button>
+						<Button variant="destructive" onclick={revealDeleteConfirm}>Delete my account</Button>
 					{/if}
 				</div>
 
@@ -1168,7 +1168,7 @@
 						{/if}
 
 						<div class="btn-row">
-							<Button variant="danger" onclick={deleteAccount} disabled={deleteSaving}>
+							<Button variant="destructive" onclick={deleteAccount} disabled={deleteSaving}>
 								{deleteSaving ? 'Deleting...' : 'Permanently delete my account'}
 							</Button>
 							<Button variant="secondary" onclick={cancelDelete} disabled={deleteSaving}>Cancel</Button>
@@ -1201,7 +1201,7 @@
 			{/if}
 			<div class="modal-actions">
 				<Button variant="secondary" onclick={closeDeleteToken} disabled={tokenDeleting}>Cancel</Button>
-				<Button variant="danger" onclick={deleteToken} disabled={tokenDeleting}>
+				<Button variant="destructive" onclick={deleteToken} disabled={tokenDeleting}>
 					{tokenDeleting ? 'Deleting…' : 'Delete token'}
 				</Button>
 			</div>
@@ -1231,7 +1231,7 @@
 			{/if}
 			<div class="modal-actions">
 				<Button variant="secondary" onclick={closeRotateToken} disabled={tokenRotating}>Cancel</Button>
-				<Button variant="primary" onclick={rotateToken} disabled={tokenRotating}>
+				<Button variant="default" onclick={rotateToken} disabled={tokenRotating}>
 					{tokenRotating ? 'Rotating…' : 'Rotate token'}
 				</Button>
 			</div>

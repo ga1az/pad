@@ -1,7 +1,7 @@
 <script lang="ts">
 	// What a kept draft's restore changed (TASK-3607): the patch endpoint's
 	// unified diff, as the server applied it over the newer version.
-	import Button from '$lib/components/common/Button.svelte';
+	import { Button } from '$lib/components/ui/button';
 
 	interface Props {
 		diff: string;

@@ -12,7 +12,7 @@
 	import type { Item } from '$lib/types';
 	import type { ChangeContext } from '$lib/timeline/changeContext';
 	import { statusColor, priorityColor } from '$lib/utils/fieldColors';
-	import Chip from '$lib/components/common/Chip.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import { IMPORTED_TITLE } from '$lib/utils/imported';
 	import { viaAppTitle } from '$lib/utils/viaApp';
 	import ActivityChangeValue from './ActivityChangeValue.svelte';
@@ -187,7 +187,7 @@
 							<span class="via-app" title={viaAppTitle(row.who.viaAppName)}>via <bdi>{row.who.viaAppName}</bdi></span>
 						{/if}
 						{#if row.who.imported}
-							<span class="imported" title={IMPORTED_TITLE}><Chip size="sm">Imported</Chip></span>
+							<span class="imported" title={IMPORTED_TITLE}><Badge color="var(--accent-gray)" size="sm">Imported</Badge></span>
 						{/if}
 						<span class="muted">·</span>
 						<span class="muted" title={new Date(row.at).toLocaleString()}
@@ -221,18 +221,18 @@
 					<header class="head">
 						<bdi class="name">{whoName(ev.who)}</bdi>
 						{#if ev.who.kind === 'agent'}
-							<Chip size="sm" color="var(--accent-purple)">Agent</Chip>
+							<Badge size="sm" color="var(--accent-purple)">Agent</Badge>
 						{/if}
 						{#if ev.who.viaAppName}
 							<span class="via-app" title={viaAppTitle(ev.who.viaAppName)}>via <bdi>{ev.who.viaAppName}</bdi></span>
 						{/if}
 						{#if ev.who.imported}
-							<span class="imported" title={IMPORTED_TITLE}><Chip size="sm">Imported</Chip></span>
+							<span class="imported" title={IMPORTED_TITLE}><Badge color="var(--accent-gray)" size="sm">Imported</Badge></span>
 						{/if}
 						{#if ev.who.kind === 'system'}
-							<Chip size="sm">Recovered</Chip>
+							<Badge color="var(--accent-gray)" size="sm">Recovered</Badge>
 						{:else if sourceLabel(ev.who.source)}
-							<Chip size="sm">{sourceLabel(ev.who.source)}</Chip>
+							<Badge color="var(--accent-gray)" size="sm">{sourceLabel(ev.who.source)}</Badge>
 						{/if}
 						<span class="verb">
 							{#if ev.who.kind === 'agent' && ev.who.user}for <bdi>{ev.who.user}</bdi>{' · '}{/if}{eventVerb(
@@ -274,14 +274,14 @@
 							<span class="field-label">{titleCase(fieldLabel(c.field))}</span>
 							<span class="values">
 								<s class="from">
-									{#if fromColor}<Chip size="sm" color={fromColor}>{c.from}</Chip>{:else}<ActivityChangeValue
+									{#if fromColor}<Badge size="sm" color={fromColor}>{c.from}</Badge>{:else}<ActivityChangeValue
 											text={c.from}
 											field={changeContext?.fieldFor(c.field)}
 											context={changeContext}
 										/>{/if}
 								</s>
 								<span class="arrow" aria-label="to">→</span>
-								{#if toColor}<Chip size="sm" color={toColor}>{c.to}</Chip>{:else}<span class="to"
+								{#if toColor}<Badge size="sm" color={toColor}>{c.to}</Badge>{:else}<span class="to"
 										><ActivityChangeValue text={c.to} field={changeContext?.fieldFor(c.field)} context={changeContext} /></span
 									>{/if}
 							</span>

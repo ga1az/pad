@@ -7,8 +7,8 @@
 	import { toastStore } from '$lib/stores/toast.svelte';
 	import { confirmDialog } from '$lib/stores/confirmDialog.svelte';
 	import { copyToClipboard } from '$lib/utils/clipboard';
-	import Button from '$lib/components/common/Button.svelte';
-	import Chip from '$lib/components/common/Chip.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
 	import { AGENT_LINK_STATUS_LABEL, agentLastActivity, agentLinkStatus, type AgentLinkStatus } from '$lib/agent/joinedAgents';
 	import type { AgentJoinLink, AgentJoinLinkWithCode, WorkspaceAgent } from '$lib/types';
 
@@ -151,7 +151,7 @@
 <div class="agents-tab">
 	{#if loadError}
 		<p class="error" role="alert">{loadError}</p>
-		<Button size="sm" onclick={load}>Try again</Button>
+		<Button variant="secondary" size="sm" onclick={load}>Try again</Button>
 	{:else if !links}
 		<p class="hint">Loading…</p>
 	{:else}
@@ -170,7 +170,7 @@
 				bind:value={label}
 				disabled={creating}
 			/>
-			<Button variant="primary" size="sm" type="submit" disabled={creating}>
+			<Button variant="default" size="sm" type="submit" disabled={creating}>
 				<Icon icon={Link01Icon} />
 				{creating ? 'Creating…' : 'Create link'}
 			</Button>
@@ -182,7 +182,7 @@
 				<p class="warn">Copy this link now. It cannot be shown again.</p>
 				<div class="url-row">
 					<input type="text" readonly aria-label="Join link URL" value={minted.url} onfocus={(e) => e.currentTarget.select()} />
-					<Button size="sm" onclick={copyMinted}><Icon icon={Copy01Icon} /> Copy</Button>
+					<Button variant="secondary" size="sm" onclick={copyMinted}><Icon icon={Copy01Icon} /> Copy</Button>
 					<Button size="sm" variant="ghost" onclick={() => (minted = null)}>Done</Button>
 				</div>
 			</div>
@@ -196,14 +196,14 @@
 					{@const status = agentLinkStatus(link)}
 					<li class="row" data-testid="agent-link-row">
 						<span class="name">{linkName(link)}</span>
-						<Chip size="sm" color={STATUS_COLOR[status]}>{AGENT_LINK_STATUS_LABEL[status]}</Chip>
+						<Badge size="sm" color={STATUS_COLOR[status]}>{AGENT_LINK_STATUS_LABEL[status]}</Badge>
 						<span class="meta">{link.agent_count} of {link.max_agents} agents</span>
 						<span class="meta">
 							{status === 'expired' ? 'Expired' : 'Expires'}
 							{formatDate(link.expires_at)}
 						</span>
 						{#if status !== 'revoked'}
-							<Button size="sm" variant="danger" class="end" onclick={() => revokeLink(link)} aria-label="Revoke {linkName(link)}">
+							<Button size="sm" variant="destructive" class="end" onclick={() => revokeLink(link)} aria-label="Revoke {linkName(link)}">
 								<Icon icon={Delete02Icon} /> Revoke
 							</Button>
 						{/if}
@@ -225,7 +225,7 @@
 						{#if agent.link_id && linkLabels.get(agent.link_id)}
 							<span class="meta">via {linkLabels.get(agent.link_id)}</span>
 						{/if}
-						<Button size="sm" variant="danger" class="end" onclick={() => revokeAgent(agent)} aria-label="Revoke {agent.display_name}">
+						<Button size="sm" variant="destructive" class="end" onclick={() => revokeAgent(agent)} aria-label="Revoke {agent.display_name}">
 							<Icon icon={Delete02Icon} /> Revoke
 						</Button>
 					</li>

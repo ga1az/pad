@@ -6,7 +6,7 @@
 	import BillingIntervalPicker from '$lib/components/billing/BillingIntervalPicker.svelte';
 	import { decideCheckout, unavailableMessage } from '$lib/billing/checkoutDecision';
 	import { toastStore } from '$lib/stores/toast.svelte';
-	import Button from '$lib/components/common/Button.svelte';
+	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount, onDestroy } from 'svelte';
@@ -449,7 +449,7 @@
 						<p class="interval-notice" role="status">{intervalNotice}</p>
 					{/if}
 					<Button
-						variant="primary"
+						variant="default"
 						onclick={startCheckout}
 						disabled={checkoutInProgress || unavailable.includes(interval)}
 					>
@@ -528,7 +528,7 @@
 							<p class="interval-notice">{intervalNotice}</p>
 						{/if}
 						<Button
-							variant="primary"
+							variant="default"
 							onclick={startCheckout}
 							disabled={checkoutInProgress || unavailable.includes(interval)}
 						>

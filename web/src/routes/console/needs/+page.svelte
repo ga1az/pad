@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { api } from '$lib/api/client';
-	import Button from '$lib/components/common/Button.svelte';
+	import { Button } from '$lib/components/ui/button';
 	import PageHeader from '$lib/components/common/PageHeader.svelte';
 	import NeedsRowView from '$lib/components/needs/NeedsRow.svelte';
 	import type { NeedsRow, NeedsSort, NeedsView, NeedsWorkspaceCount } from '$lib/types';
@@ -278,7 +278,7 @@
 	{#each SORTS as s (s.value)}
 		<Button
 			size="sm"
-			variant={sort === s.value ? 'primary' : 'ghost'}
+			variant={sort === s.value ? 'default' : 'ghost'}
 			aria-pressed={sort === s.value}
 			onclick={() => (sort = s.value)}
 		>
@@ -298,7 +298,7 @@
 	<p class="muted">Loading…</p>
 {:else if loadError}
 	<p class="error" role="alert">{loadError}</p>
-	<Button onclick={() => load(sort, view)}>Try again</Button>
+	<Button variant="secondary" onclick={() => load(sort, view)}>Try again</Button>
 {:else if groups.length === 0 && !nextCursor}
 	<p class="muted" data-testid="needs-empty">
 		{view === 'hidden' ? 'Nothing is hidden.' : 'Nothing needs you right now.'}
@@ -324,7 +324,7 @@
 		</section>
 	{/each}
 	{#if nextCursor}
-		<Button disabled={loadingMore} onclick={loadMore}>{loadingMore ? 'Loading…' : 'Load more'}</Button>
+		<Button variant="secondary" disabled={loadingMore} onclick={loadMore}>{loadingMore ? 'Loading…' : 'Load more'}</Button>
 	{/if}
 {/if}
 

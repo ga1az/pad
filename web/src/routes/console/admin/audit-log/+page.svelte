@@ -3,7 +3,7 @@
 	import { SvelteSet } from 'svelte/reactivity';
 	import { adminFetch } from '$lib/stores/admin.svelte';
 	import { agentNameOf } from '$lib/utils/agentActor';
-	import Chip from '$lib/components/common/Chip.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import EmptyState from '$lib/components/common/EmptyState.svelte';
 	import { appendUnique, cursorAfter } from '$lib/utils/activityPaging';
 
@@ -366,9 +366,9 @@
 								{:else}<bdi>{who.account}</bdi>{/if}
 							</td>
 							<td>
-								<Chip size="sm" color={actionColor(entry.action)}>
+								<Badge size="sm" color={actionColor(entry.action)}>
 									{formatAction(entry.action)}
-								</Chip>
+								</Badge>
 							</td>
 							<td class="details-cell">
 								{#if entry.metadata}

@@ -98,7 +98,7 @@ always a broadcast that went out.
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import Modal from '$lib/components/common/Modal.svelte';
-	import Button from '$lib/components/common/Button.svelte';
+	import { Button } from '$lib/components/ui/button';
 	import { api, PadApiError } from '$lib/api/client';
 	import { authStore } from '$lib/stores/auth.svelte';
 	import { toastStore } from '$lib/stores/toast.svelte';
@@ -772,7 +772,7 @@ always a broadcast that went out.
 				Copy instead
 			</Button>
 		{/if}
-		<Button variant="primary" disabled={!canSend} onclick={handleSend}>
+		<Button variant="default" disabled={!canSend} onclick={handleSend}>
 			{sending ? 'Sending…' : 'Push'}
 		</Button>
 	</div>

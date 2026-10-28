@@ -17,7 +17,7 @@
 	import { page } from '$app/state';
 	import { openChildrenDialog } from '$lib/stores/openChildrenDialog.svelte';
 	import Modal from '$lib/components/common/Modal.svelte';
-	import Button from '$lib/components/common/Button.svelte';
+	import { Button } from '$lib/components/ui/button';
 
 	// NO STALENESS COMPARISON IS MADE HERE, and that is a decision rather than an
 	// omission (BUG-3067, rounds 5-8).
@@ -149,7 +149,7 @@
 
 			<div class="modal-footer">
 				<Button variant="secondary" autofocus onclick={onCancel}>Cancel</Button>
-				<Button variant="danger-solid" onclick={onConfirm}>
+				<Button variant="destructive-solid" onclick={onConfirm}>
 					Override and mark {active.details.attempted_value}
 				</Button>
 			</div>

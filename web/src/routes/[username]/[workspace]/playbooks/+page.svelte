@@ -25,10 +25,10 @@
 	import { createScrollRestoration } from '$lib/scroll/restore.svelte';
 	import { exportAndDownloadArtifact, importArtifactFile } from '$lib/utils/artifacts';
 	import { statusColor } from '$lib/utils/fieldColors';
-	import Chip from '$lib/components/common/Chip.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import AgentTermsLegend from '$lib/components/agent/AgentTermsLegend.svelte';
 	import { termTitle } from '$lib/agent/agentTerms';
-	import Button from '$lib/components/common/Button.svelte';
+	import { Button } from '$lib/components/ui/button';
 	import PageHeader from '$lib/components/common/PageHeader.svelte';
 	import EmptyState from '$lib/components/common/EmptyState.svelte';
 	import PlaybookFormFields from '$lib/components/playbooks/PlaybookFormFields.svelte';
@@ -500,7 +500,7 @@
 						>{importing ? 'Importing…' : 'Import artifact'}</Button>
 						{/if}
 						{#if canCreatePlaybook}
-						<Button variant="primary" onclick={() => (showNewForm = true)}>+ New Playbook</Button>
+						<Button variant="default" onclick={() => (showNewForm = true)}>+ New Playbook</Button>
 						{/if}
 						<input
 							bind:this={importInputEl}
@@ -564,7 +564,7 @@
 				<div class="form-actions">
 					<Button variant="ghost" onclick={resetForm}>Cancel</Button>
 					<Button variant="secondary" disabled={!newTitle.trim()} onclick={() => createPlaybook('draft')}>Create as Draft</Button>
-					<Button variant="primary" disabled={!newTitle.trim()} onclick={() => createPlaybook('active')}>Create as Active</Button>
+					<Button variant="default" disabled={!newTitle.trim()} onclick={() => createPlaybook('active')}>Create as Active</Button>
 				</div>
 			</div>
 		{/if}
@@ -600,7 +600,7 @@
 			>
 				{#snippet actions()}
 					{#if canCreatePlaybook}
-						<Button variant="primary" onclick={() => (showNewForm = true)}>Create Your First Playbook</Button>
+						<Button variant="default" onclick={() => (showNewForm = true)}>Create Your First Playbook</Button>
 					{/if}
 				{/snippet}
 			</EmptyState>
@@ -661,13 +661,13 @@
 							<div class="card-title-row">
 								<span class="card-title" class:deprecated-title={status === 'deprecated'}>{item.title}</span>
 								{#if isBodyStale(item)}<StaleBodyDot />{/if}
-								{#if status}<Chip size="sm" color={statusColor(status)}>{statusLabel(status)}</Chip>{/if}
+								{#if status}<Badge size="sm" color={statusColor(status)}>{statusLabel(status)}</Badge>{/if}
 							</div>
 							<div class="card-meta">
 								<PlaybookInvokeChips slug={invocationSlug} {argCount} />
-								<Chip size="sm" color="var(--status-blue)" title={termTitle('trigger', trigger)}><span class="sr-only">{'Trigger: '}</span>{trigger}</Chip>
+								<Badge size="sm" color="var(--status-blue)" title={termTitle('trigger', trigger)}><span class="sr-only">{'Trigger: '}</span>{trigger}</Badge>
 								<span class="meta-sep" aria-hidden="true">&middot;</span>
-								<Chip size="sm" color="var(--accent-purple)" title={termTitle('surface', scope)}><span class="sr-only">{'Scope: '}</span>{scope}</Chip>
+								<Badge size="sm" color="var(--accent-purple)" title={termTitle('surface', scope)}><span class="sr-only">{'Scope: '}</span>{scope}</Badge>
 								{#if steps > 0}
 									<span class="meta-sep">&middot;</span>
 									<span class="step-count">{steps} step{steps !== 1 ? 's' : ''}</span>
@@ -735,11 +735,11 @@
 									{:else if confirmDeleteSlug === item.slug}
 										<span class="delete-confirm">
 											Delete?
-											<Button variant="danger" size="sm" disabled={deleting === item.slug} onclick={() => deletePlaybook(item.slug)}>{deleting === item.slug ? '...' : 'Yes'}</Button>
+											<Button variant="destructive" size="sm" disabled={deleting === item.slug} onclick={() => deletePlaybook(item.slug)}>{deleting === item.slug ? '...' : 'Yes'}</Button>
 											<Button variant="secondary" size="sm" onclick={() => (confirmDeleteSlug = null)}>No</Button>
 										</span>
 									{:else}
-										<Button variant="danger" size="sm" onclick={() => (confirmDeleteSlug = item.slug)}>Delete</Button>
+										<Button variant="destructive" size="sm" onclick={() => (confirmDeleteSlug = item.slug)}>Delete</Button>
 									{/if}
 								</div>
 							</div>
@@ -808,8 +808,8 @@
 	}
 	@media (max-width: 768px) {
 		.form-actions { flex-direction: column; }
-		/* Full-width form buttons on mobile — the shared Button primitive's
-		   root carries the .btn class, so :global reaches into it. */
-		.form-actions :global(.btn) { width: 100%; }
+		/* Full-width form buttons on mobile — the shared Button's root
+		   carries data-slot="button", so :global reaches into it. */
+		.form-actions :global([data-slot='button']) { width: 100%; }
 	}
 </style>

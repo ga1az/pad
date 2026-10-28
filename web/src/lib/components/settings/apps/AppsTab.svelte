@@ -2,8 +2,8 @@
 	import { api } from '$lib/api/client';
 	import { onMount, tick } from 'svelte';
 	import { authStore } from '$lib/stores/auth.svelte';
-	import Button from '$lib/components/common/Button.svelte';
-	import Chip from '$lib/components/common/Chip.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
 	import AppInstallFlow from './AppInstallFlow.svelte';
 	import AppInstallDetail from './AppInstallDetail.svelte';
 	import { appStateLabel, appStateColor } from './appState';
@@ -65,7 +65,7 @@
 <div class="apps-tab" bind:this={root}>
 	{#if loadError}
 		<p class="error" role="alert">{loadError}</p>
-		<Button size="sm" onclick={load}>Try again</Button>
+		<Button variant="secondary" size="sm" onclick={load}>Try again</Button>
 	{:else if !list}
 		<p class="hint">Loading…</p>
 	{:else if !list.available}
@@ -97,7 +97,7 @@
 					<li>
 						<button class="card" data-install={app.install_id} onclick={() => (selectedId = app.install_id)}>
 							<span class="name">{app.app_name}</span>
-							<Chip size="sm" color={appStateColor(app.state)}>{appStateLabel(app.state)}</Chip>
+							<Badge size="sm" color={appStateColor(app.state)}>{appStateLabel(app.state)}</Badge>
 							<span class="origin">{app.origin}</span>
 							{#if app.webhook?.status === 'awaiting_secret'}
 								<span class="flag">Webhook waiting for an install code</span>
@@ -110,7 +110,7 @@
 				{/each}
 			</ul>
 		{/if}
-		<Button variant="primary" size="sm" onclick={() => (installing = true)}>Install an app</Button>
+		<Button variant="default" size="sm" onclick={() => (installing = true)}>Install an app</Button>
 		{#if tombstones.length > 0}
 			<details class="tombstones">
 				<summary>Uninstalled ({tombstones.length})</summary>

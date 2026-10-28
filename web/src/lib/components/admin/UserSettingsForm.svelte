@@ -21,7 +21,7 @@
 	import { untrack } from 'svelte';
 	import { adminFetch, adminPatch, adminPost, type AdminUser } from '$lib/stores/admin.svelte';
 	import { api } from '$lib/api/client';
-	import Button from '$lib/components/common/Button.svelte';
+	import { Button } from '$lib/components/ui/button';
 
 	interface Props {
 		user: AdminUser;
@@ -352,7 +352,7 @@
 							{roleAction()} <strong>{user.name || user.username}</strong> to {editRole}?
 						</span>
 						<Button
-							variant="primary"
+							variant="default"
 							disabled={roleSaving}
 							onclick={changeRole}>{roleSaving ? 'Saving…' : 'Confirm'}</Button
 						>
@@ -391,7 +391,7 @@
 			<div class="row">
 				<span>Send a password-reset email or generate a temporary password?</span>
 				<Button
-					variant="primary"
+					variant="default"
 					disabled={resetSaving}
 					onclick={resetPassword}>{resetSaving ? 'Working…' : 'Confirm'}</Button
 				>
@@ -407,7 +407,7 @@
 		{#if !user.disabled_at}
 			{#if !disableConfirm}
 				<Button
-					variant="danger"
+					variant="destructive"
 					onclick={() => {
 						disableConfirm = true;
 						disableTyped = '';
@@ -432,7 +432,7 @@
 					/>
 					<div class="row">
 						<Button
-							variant="danger"
+							variant="destructive"
 							disabled={disableSaving || disableTyped.trim() !== user.email}
 							onclick={toggleDisable}
 							title={disableTyped.trim() === user.email
@@ -519,7 +519,7 @@
 	</div>
 
 	<div class="save-row">
-		<Button variant="primary" disabled={saving} onclick={saveUser}
+		<Button variant="default" disabled={saving} onclick={saveUser}
 			>{saving ? 'Saving…' : 'Save plan + overrides'}</Button
 		>
 		{#if saveMsg}<span class="msg" class:ok={saveMsg === 'Saved'}>{saveMsg}</span>{/if}

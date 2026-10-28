@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Markdown a save could not store is offered back on the next open of the
 	// item (BUG-3230 U0; the text is kept by $lib/items/refusedRawDraft).
-	import Button from '$lib/components/common/Button.svelte';
+	import { Button } from '$lib/components/ui/button';
 	import DiffView from '$lib/components/versions/DiffView.svelte';
 
 	interface Props {
@@ -89,12 +89,12 @@
 	{/if}
 	<div class="actions">
 		{#if conflict || cannotApply}
-			<Button variant="primary" size="sm" disabled={busy} onclick={oncopy}>Copy it</Button>
+			<Button variant="default" size="sm" disabled={busy} onclick={oncopy}>Copy it</Button>
 		{:else if copyLeads}
-			<Button variant="primary" size="sm" disabled={busy} onclick={oncopy}>Copy it</Button>
+			<Button variant="default" size="sm" disabled={busy} onclick={oncopy}>Copy it</Button>
 			<Button variant="secondary" size="sm" disabled={busy || restoreBlocked !== null} onclick={onrestore}>Restore it</Button>
 		{:else}
-			<Button variant="primary" size="sm" disabled={busy} onclick={onrestore}>Restore it</Button>
+			<Button variant="default" size="sm" disabled={busy} onclick={onrestore}>Restore it</Button>
 			<Button variant="secondary" size="sm" disabled={busy} onclick={oncopy}>Copy it</Button>
 		{/if}
 		<Button variant="ghost" size="sm" disabled={busy} onclick={ondismiss}>Discard</Button>

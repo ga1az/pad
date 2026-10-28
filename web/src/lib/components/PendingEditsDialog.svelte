@@ -4,7 +4,7 @@
 	// KEEP the tab's edits).
 	import { pendingEditsDialog } from '$lib/stores/pendingEditsDialog.svelte';
 	import Modal from '$lib/components/common/Modal.svelte';
-	import Button from '$lib/components/common/Button.svelte';
+	import { Button } from '$lib/components/ui/button';
 
 	let active = $derived(pendingEditsDialog.active);
 </script>
@@ -66,12 +66,12 @@
 		<div class="modal-footer">
 			{#if active.kind === 'stale'}
 				<Button variant="secondary" onclick={() => pendingEditsDialog.reload()}>Reload the stored text</Button>
-				<Button variant="danger" onclick={() => pendingEditsDialog.overwrite()}>Overwrite with my text</Button>
+				<Button variant="destructive" onclick={() => pendingEditsDialog.overwrite()}>Overwrite with my text</Button>
 			{:else}
 			<Button variant="secondary" onclick={() => pendingEditsDialog.keep()}>
 				{active.kind === 'save' ? (active.reason === 'set_aside' ? 'Keep those edits' : "Keep the tab's edits") : 'Cancel'}
 			</Button>
-			<Button variant="primary" onclick={() => pendingEditsDialog.overwrite()}>
+			<Button variant="default" onclick={() => pendingEditsDialog.overwrite()}>
 				{active.kind === 'duplicate' ? 'Copy the stored body' : active.kind === 'excerpt' ? 'Use it anyway' : active.reason === 'set_aside' ? 'Discard them' : 'Overwrite them'}
 			</Button>
 			{/if}

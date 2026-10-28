@@ -21,7 +21,7 @@
 	(BUG-3068 had to refuse the click instead).
 -->
 <script lang="ts">
-	import Chip from '$lib/components/common/Chip.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import Menu from '$lib/components/common/Menu.svelte';
 	import MenuItem from '$lib/components/common/MenuItem.svelte';
 	import { portal } from '$lib/utils/portalAction';
@@ -45,7 +45,7 @@
 	const color = $derived(kind === 'priority' ? priorityColor(value) : statusColor(value));
 
 	let open = $state(false);
-	let triggerEl = $state<HTMLButtonElement>();
+	let triggerEl = $state<HTMLElement | null>(null);
 
 	function toggle(e: MouseEvent) {
 		// The chip sits inside the card's <a> and the table row's click target;
@@ -60,24 +60,24 @@
 	}
 </script>
 
-<Chip
+<Badge
 	size="sm"
 	color={color}
 	onclick={toggle}
-	bind:el={triggerEl}
-	haspopup={viewport.isMobile ? 'dialog' : 'menu'}
-	expanded={open}
+	bind:ref={triggerEl}
+	aria-haspopup={viewport.isMobile ? 'dialog' : 'menu'}
+	aria-expanded={open}
 	title="Change {noun.toLowerCase()}"
 >
 	{formatLabel(value)}
-</Chip>
+</Badge>
 
 {#if open}
 	<div class="status-picker-host" use:portal>
 		<Menu
 			{open}
 			onclose={() => (open = false)}
-			trigger={triggerEl}
+			trigger={triggerEl ?? undefined}
 			mode="portal"
 			align="left"
 			width={200}

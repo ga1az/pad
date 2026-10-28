@@ -2,8 +2,8 @@
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api/client';
 	import Modal from '$lib/components/common/Modal.svelte';
-	import Chip from '$lib/components/common/Chip.svelte';
-	import Button from '$lib/components/common/Button.svelte';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
 	import PageHeader from '$lib/components/common/PageHeader.svelte';
 	import type { AppGrant, ConnectedApp, Workspace } from '$lib/types';
 	import { uniqueStrings } from '$lib/utils/unique';
@@ -345,9 +345,9 @@
 							<div class="app-body">
 								<div class="app-title-row">
 									<h2 class="app-title">{app.client_name}</h2>
-									<Chip color={tierColor(app.capability_tier)}>
+									<Badge color={tierColor(app.capability_tier)}>
 										{TIER_LABELS[app.capability_tier]}
-									</Chip>
+									</Badge>
 								</div>
 
 								<div class="chip-row">
@@ -447,7 +447,7 @@
 								{editingId === app.id ? 'Done' : 'Edit'}
 							</Button>
 							<Button
-								variant="danger"
+								variant="destructive"
 								onclick={() => openConfirm({ id: app.id, label: app.client_name })}
 							>
 								Revoke
@@ -550,7 +550,7 @@
 									<div class="edit-label-row">
 										<span class="edit-label">Workspace allow-list</span>
 										{#if isAll}
-											<Chip size="sm" color="var(--accent-gray)">Inert while wildcard is on</Chip>
+											<Badge size="sm" color="var(--accent-gray)">Inert while wildcard is on</Badge>
 										{/if}
 									</div>
 									<div class="ws-chips">
@@ -653,7 +653,7 @@
 							</div>
 							<div class="app-actions">
 								<Button
-									variant="danger"
+									variant="destructive"
 									onclick={() => openConfirm({ id: grant.id, label: grant.app_name })}
 								>
 									Revoke
@@ -688,7 +688,7 @@
 			{/if}
 			<div class="modal-actions">
 				<Button variant="secondary" onclick={closeConfirm} disabled={revoking}>Cancel</Button>
-				<Button variant="danger" onclick={confirmRevoke} disabled={revoking}>
+				<Button variant="destructive" onclick={confirmRevoke} disabled={revoking}>
 					{revoking ? 'Revoking…' : 'Revoke'}
 				</Button>
 			</div>
@@ -1019,7 +1019,7 @@
 			align-self: stretch;
 		}
 
-		/* Layout-only: stretch the shared <Button>s full-width on mobile.
+		/* Layout-only: stretch the shared <Button variant="secondary">s full-width on mobile.
 		   :global because the button element lives inside the Button component. */
 		.app-actions :global(button) {
 			width: 100%;

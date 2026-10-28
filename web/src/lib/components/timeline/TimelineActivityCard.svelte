@@ -3,7 +3,7 @@
 	import { relativeTime } from '$lib/utils/markdown';
 	import { parseFieldChanges } from '$lib/utils/activityChanges';
 	import { agentNameOf } from '$lib/utils/agentActor';
-	import Chip from '$lib/components/common/Chip.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import ActivityChangeValue from './ActivityChangeValue.svelte';
 	import type { ChangeContext } from '$lib/timeline/changeContext';
 
@@ -81,12 +81,12 @@
 		     in a title. An earlier round removed this attribute on the grounds
 		     that the chip never clipped; a later round added the width bound and
 		     made that premise false. -->
-		<Chip
+		<Badge
 			size="sm"
 			color={activity.actor === 'agent' ? 'var(--accent-purple)' : 'var(--status-blue)'}
 			><bdi class="actor-label" title={getActorLabel(activity)}
 				>{getActorLabel(activity)}</bdi
-			></Chip
+			></Badge
 		>
 		{#if activity.actor_name}
 			<bdi class="actor-name">{activity.actor_name}</bdi>
@@ -103,7 +103,7 @@
 			     earlier, so the direction does. -->
 			<span class="move-detail">{reorderDirection}</span>
 		{/if}
-		<Chip size="sm">{getSourceLabel(activity.source)}</Chip>
+		<Badge color="var(--accent-gray)" size="sm">{getSourceLabel(activity.source)}</Badge>
 		<span class="spacer"></span>
 		<span class="timestamp" title={new Date(activity.created_at).toLocaleString()}>{relativeTime(activity.created_at)}</span>
 	</div>

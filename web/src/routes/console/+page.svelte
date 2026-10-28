@@ -6,8 +6,8 @@
 	import { api } from '$lib/api/client';
 	import { authStore } from '$lib/stores/auth.svelte';
 	import { uiStore } from '$lib/stores/ui.svelte';
-	import Chip from '$lib/components/common/Chip.svelte';
-	import Button from '$lib/components/common/Button.svelte';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
 	import EmptyState from '$lib/components/common/EmptyState.svelte';
 	import TutorialSuggestion from '$lib/components/tutorials/TutorialSuggestion.svelte';
 	import type { Workspace } from '$lib/types';
@@ -77,7 +77,7 @@
 			<div class="section-header">
 				<h2 class="section-title">Your Workspaces</h2>
 				<Button
-					variant="primary"
+					variant="default"
 					class={uiStore.addWorkspaceHighlighted ? 'add-highlighted' : ''}
 					onclick={() => uiStore.openCreateWorkspace()}
 				>Create Workspace</Button>
@@ -134,9 +134,9 @@
 							<div class="card-top">
 								<span class="card-name">{ws.name}</span>
 								{#if ws.is_guest}
-									<Chip size="sm" color="var(--accent-amber)">Guest</Chip>
+									<Badge size="sm" color="var(--accent-amber)">Guest</Badge>
 								{:else}
-									<Chip size="sm" color="var(--status-blue)">Member</Chip>
+									<Badge size="sm" color="var(--status-blue)">Member</Badge>
 								{/if}
 							</div>
 							{#if ws.description}
@@ -157,7 +157,7 @@
 	/* Closing the last workspace tab lands here with the create action
 	   highlighted as the way back in (PLAN-3002 Q2). This page has no
 	   TopBar, so its Create Workspace button is the "+" the ruling names. */
-	.section-header :global(.btn.add-highlighted) {
+	.section-header :global([data-slot='button'].add-highlighted) {
 		box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-blue) 35%, transparent);
 	}
 

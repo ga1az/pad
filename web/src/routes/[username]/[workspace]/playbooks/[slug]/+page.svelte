@@ -15,7 +15,7 @@
 	import { createScrollRestoration } from '$lib/scroll/restore.svelte';
 	import { exportAndDownloadArtifact } from '$lib/utils/artifacts';
 	import PlaybookFormFields from '$lib/components/playbooks/PlaybookFormFields.svelte';
-	import Button from '$lib/components/common/Button.svelte';
+	import { Button } from '$lib/components/ui/button';
 	import BuiltinUpdateNotice from '$lib/components/items/BuiltinUpdateNotice.svelte';
 	import {
 		playbookFieldsPatch,
@@ -475,7 +475,7 @@
 						Save and close
 					</Button>
 					<Button
-						variant="primary"
+						variant="default"
 						disabled={saving || accepting || !title.trim()}
 						onclick={() => save()}
 					>
@@ -663,9 +663,9 @@
 		.header-actions {
 			align-self: stretch;
 		}
-		/* Equal-width header buttons on mobile — the shared Button primitive's
-		   root carries the .btn class, so :global reaches into it. */
-		.header-actions :global(.btn) {
+		/* Equal-width header buttons on mobile — the shared Button's root
+		   carries data-slot="button", so :global reaches into it. */
+		.header-actions :global([data-slot='button']) {
 			flex: 1;
 		}
 	}

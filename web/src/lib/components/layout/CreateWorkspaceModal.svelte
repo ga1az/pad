@@ -39,7 +39,7 @@
 	import type { Workspace, WorkspaceTemplate } from '$lib/types';
 	import { groupTemplatesByCategory } from '$lib/utils/templates';
 	import Modal from '$lib/components/common/Modal.svelte';
-	import Button from '$lib/components/common/Button.svelte';
+	import { Button } from '$lib/components/ui/button';
 	import { ImportTransportError } from '$lib/api/importUpload';
 	import { formatBytes } from '$lib/attachments/display';
 	import {
@@ -713,23 +713,23 @@
 		<div class="modal-footer">
 			<Button variant="secondary" onclick={close}>Cancel</Button>
 			{#if mode === 'create'}
-				<Button variant="primary" onclick={createWorkspace} disabled={!newName.trim()}>
+				<Button variant="default" onclick={createWorkspace} disabled={!newName.trim()}>
 					Create Workspace
 				</Button>
 			{:else if importPhase === 'uploading' || importPhase === 'finishing'}
 				<Button variant="secondary" onclick={cancelUpload} disabled={importPhase === 'finishing'}>
 					Stop upload
 				</Button>
-				<Button variant="primary" disabled>
+				<Button variant="default" disabled>
 					{importPhase === 'uploading' ? 'Uploading…' : 'Finishing…'}
 				</Button>
 			{:else if importPhase === 'resolving'}
-				<Button variant="primary" disabled>Checking…</Button>
+				<Button variant="default" disabled>Checking…</Button>
 			{:else if importPhase === 'outcome' && importOutcome && (importOutcome.kind === 'complete' || importOutcome.kind === 'kept')}
 				{@const view = importOutcome}
-				<Button variant="primary" onclick={() => openImported(view)}>Open workspace</Button>
+				<Button variant="default" onclick={() => openImported(view)}>Open workspace</Button>
 			{:else}
-				<Button variant="primary" onclick={importWorkspace} disabled={!importFile || importing}>
+				<Button variant="default" onclick={importWorkspace} disabled={!importFile || importing}>
 					{importPhase === 'outcome' ? 'Try again' : importing ? 'Importing...' : 'Import Workspace'}
 				</Button>
 			{/if}

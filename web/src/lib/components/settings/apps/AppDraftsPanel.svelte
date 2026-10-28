@@ -3,8 +3,8 @@
 	import { page } from '$app/state';
 	import { api } from '$lib/api/client';
 	import { authStore } from '$lib/stores/auth.svelte';
-	import Button from '$lib/components/common/Button.svelte';
-	import Chip from '$lib/components/common/Chip.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
 	import type { AppInstallArtifact } from '$lib/types';
 	import { normalizeInstallState } from './appsShape';
 
@@ -90,7 +90,7 @@
 	<p class="sr-only" role="status">{announcement}</p>
 	{#if loadError}
 		<p class="error" role="alert">{loadError}</p>
-		<Button size="sm" onclick={load}>Try again</Button>
+		<Button variant="secondary" size="sm" onclick={load}>Try again</Button>
 	{:else if artifacts === null}
 		<p class="hint">Loading…</p>
 	{:else if artifacts.length === 0}
@@ -101,10 +101,10 @@
 				<li data-testid="app-artifact-row">
 					<a data-item={a.item_id} href="/{username}/{wsSlug}/{a.collection_slug}/{a.ref ?? a.slug}">{a.title}</a>
 					{#if a.ref}<span class="mono">{a.ref}</span>{/if}
-					<Chip size="sm" color={a.status === 'draft' ? 'var(--accent-amber)' : 'var(--accent-green)'}>{a.status ?? 'unknown'}</Chip>
+					<Badge size="sm" color={a.status === 'draft' ? 'var(--accent-amber)' : 'var(--accent-green)'}>{a.status ?? 'unknown'}</Badge>
 					<span class="hint">from v{a.version}</span>
 					{#if a.status === 'draft'}
-						<Button size="sm" disabled={activating !== null} onclick={(e) => activate(a, e.currentTarget)}>
+						<Button variant="secondary" size="sm" disabled={activating !== null} onclick={(e) => activate(a, e.currentTarget)}>
 							{activating === a.item_id ? 'Activating…' : `Activate ${a.title}`}
 						</Button>
 					{/if}

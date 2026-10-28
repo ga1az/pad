@@ -2,8 +2,8 @@
 	import { onMount, tick } from 'svelte';
 	import { api, PadApiError } from '$lib/api/client';
 	import { authStore } from '$lib/stores/auth.svelte';
-	import Button from '$lib/components/common/Button.svelte';
-	import Chip from '$lib/components/common/Chip.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
 	import AppInstallCodePanel from './AppInstallCodePanel.svelte';
 	import AppUpgradeReview from './AppUpgradeReview.svelte';
 	import AppDraftsPanel from './AppDraftsPanel.svelte';
@@ -155,7 +155,7 @@
 
 	<header class="head">
 		<h3 tabindex="-1" bind:this={heading}>{install.app_name}</h3>
-		<Chip size="sm" color={appStateColor(installState)}>{appStateLabel(installState)}</Chip>
+		<Badge size="sm" color={appStateColor(installState)}>{appStateLabel(installState)}</Badge>
 	</header>
 	<dl class="facts">
 		<dt>Origin</dt>
@@ -217,19 +217,19 @@
 			<strong>{c.title}</strong>
 			<p>{c.body}</p>
 			<div class="row">
-				<Button variant={c.danger ? 'danger-solid' : 'primary'} size="sm" disabled={busy} onclick={() => pending && run(pending)}>
+				<Button variant={c.danger ? 'destructive-solid' : 'default'} size="sm" disabled={busy} onclick={() => pending && run(pending)}>
 					{busy ? 'Working…' : label(pending)}
 				</Button>
-				<Button size="sm" disabled={busy} onclick={cancelPending}>Cancel</Button>
+				<Button variant="secondary" size="sm" disabled={busy} onclick={cancelPending}>Cancel</Button>
 			</div>
 		</div>
 	{:else if actions.length > 0}
 		<div class="row actions" bind:this={actionsEl}>
 			{#if canUpgrade}
-				<Button data-action="upgrade" size="sm" onclick={() => ((upgrading = true), (error = ''))}>Check for an update</Button>
+				<Button variant="secondary" data-action="upgrade" size="sm" onclick={() => ((upgrading = true), (error = ''))}>Check for an update</Button>
 			{/if}
 			{#each actions as a (a)}
-				<Button data-action={a} size="sm" variant={consequences[a].danger ? 'danger' : 'secondary'} onclick={() => ((pending = a), (error = ''))}>
+				<Button data-action={a} size="sm" variant={consequences[a].danger ? 'destructive' : 'secondary'} onclick={() => ((pending = a), (error = ''))}>
 					{label(a)}
 				</Button>
 			{/each}

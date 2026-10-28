@@ -20,7 +20,7 @@
 	import { formatChangesForDisplay } from '$lib/utils/activityChanges';
 	import OnboardingLaunchpad from '$lib/components/OnboardingLaunchpad.svelte';
 	import ConnectWorkspaceModal from '$lib/components/ConnectWorkspaceModal.svelte';
-	import Button from '$lib/components/common/Button.svelte';
+	import { Button } from '$lib/components/ui/button';
 	import CreateCollectionModal from '$lib/components/collections/CreateCollectionModal.svelte';
 	import { collectionStore } from '$lib/stores/collections.svelte';
 	import { titleStore } from '$lib/stores/title.svelte';
@@ -663,7 +663,7 @@
 					<Button variant="secondary" onclick={() => uiStore.requestQuickAdd(firstCollection.slug)}><Icon icon={firstCollection.icon} /> New {firstCollection.name.replace(/s$/, '')}</Button>
 				{/if}
 				{#if hasTasksCollection}
-					<Button variant="primary" onclick={() => uiStore.requestQuickAdd('tasks')}>+ New Task</Button>
+					<Button variant="default" onclick={() => uiStore.requestQuickAdd('tasks')}>+ New Task</Button>
 				{/if}
 			</div>
 		</header>
@@ -729,7 +729,7 @@
 							have it set up for you — or create your first collection by hand.
 						</p>
 						<div class="empty-escape-actions">
-							<Button variant="primary" onclick={() => (showCreateCollection = true)}>+ Create a collection</Button>
+							<Button variant="default" onclick={() => (showCreateCollection = true)}>+ Create a collection</Button>
 							<Button variant="secondary" onclick={showOnboarding}>Show setup guide</Button>
 						</div>
 					</div>
@@ -1036,7 +1036,7 @@
 			<div class="dash-error-icon"><Icon icon={Alert02Icon} /></div>
 			<h2>Couldn't load the dashboard</h2>
 			<p>Something went wrong while loading. It may be a temporary network or server issue.</p>
-			<Button variant="primary" onclick={() => { if (wsSlug) load(wsSlug); }}>Retry</Button>
+			<Button variant="default" onclick={() => { if (wsSlug) load(wsSlug); }}>Retry</Button>
 		</div>
 	{:else}
 		<div class="loading">No dashboard data available.</div>

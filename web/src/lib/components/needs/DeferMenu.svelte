@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import Button from '$lib/components/common/Button.svelte';
+	import { Button } from '$lib/components/ui/button';
 	import { dateAt9, localDateValue, nextMondayAt9, tomorrowAt9 } from './deferTimes';
 
 	interface Props {
@@ -68,7 +68,7 @@
 			bind:value={picked}
 			oninput={() => (error = '')}
 		/>
-		<Button size="sm" disabled={!picked} onclick={chooseDate}>Defer</Button>
+		<Button variant="secondary" size="sm" disabled={!picked} onclick={chooseDate}>Defer</Button>
 	</div>
 	{#if error}<p class="err" role="alert">{error}</p>{/if}
 </div>

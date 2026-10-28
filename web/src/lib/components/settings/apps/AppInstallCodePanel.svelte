@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import Button from '$lib/components/common/Button.svelte';
+	import { Button } from '$lib/components/ui/button';
 	import { copyToClipboard } from '$lib/utils/clipboard';
 	import type { AppInstallCode } from '$lib/types';
 
@@ -39,10 +39,10 @@
 	<p class="notice">{code.notice}</p>
 	<div class="code-row">
 		<code class="code" data-testid="app-install-code">{code.install_code}</code>
-		<Button size="sm" onclick={copy}>{copied ? 'Copied' : 'Copy'}</Button>
+		<Button variant="secondary" size="sm" onclick={copy}>{copied ? 'Copied' : 'Copy'}</Button>
 	</div>
 	<p class="expires">Expires at {expiresLabel}. It will not be shown again.</p>
-	<Button variant="primary" size="sm" onclick={ondone}>Done</Button>
+	<Button variant="default" size="sm" onclick={ondone}>Done</Button>
 </div>
 
 <style>

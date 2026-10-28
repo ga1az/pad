@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { adminFetch } from '$lib/stores/admin.svelte';
-	import Chip from '$lib/components/common/Chip.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import { appendUnique } from '$lib/utils/activityPaging';
 	import EmptyState from '$lib/components/common/EmptyState.svelte';
 
@@ -180,15 +180,15 @@
 							<td title={entry.user_id}>{entry.user_name || shortRef(entry.user_id)}</td>
 							<td title={entry.connection_id}>{entry.connection_name || shortRef(entry.connection_id)}</td>
 							<td>
-								<Chip size="sm" color={entry.token_kind === 'oauth' ? 'var(--accent-green)' : 'var(--accent-gray)'}>
+								<Badge size="sm" color={entry.token_kind === 'oauth' ? 'var(--accent-green)' : 'var(--accent-gray)'}>
 									{entry.token_kind}
-								</Chip>
+								</Badge>
 							</td>
 							<td class="tool-cell">{entry.tool_name}</td>
 							<td>
-								<Chip size="sm" color={statusColor(entry.result_status)}>
+								<Badge size="sm" color={statusColor(entry.result_status)}>
 									{entry.result_status}
-								</Chip>
+								</Badge>
 								{#if entry.error_kind}
 									<span class="error-kind">{entry.error_kind}</span>
 								{/if}

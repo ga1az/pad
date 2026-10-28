@@ -877,7 +877,7 @@ describe('a REFUSED grouping must not write a group value (U4, codex round 1 P5)
 		// And no chip, rather than an empty one: a chip that formats nothing
 		// describes nothing. Both keys are covered, since `priority` reaches the
 		// same helpers by a different branch.
-		expect(screen.container.querySelectorAll('.item-card .chip')).toHaveLength(0);
+		expect(screen.container.querySelectorAll('.item-card [data-slot="badge"]')).toHaveLength(0);
 		// The raw ids must not leak out through a stringified array either.
 		expect(screen.container.textContent).not.toContain('id-red');
 	});
@@ -909,7 +909,7 @@ describe('a REFUSED grouping must not write a group value (U4, codex round 1 P5)
 			} as never,
 		});
 
-		const chips = [...screen.container.querySelectorAll('.item-card .chip')].map((c) =>
+		const chips = [...screen.container.querySelectorAll('.item-card [data-slot="badge"]')].map((c) =>
 			(c.textContent ?? '').trim(),
 		);
 		expect(chips).toContain('In Progress');

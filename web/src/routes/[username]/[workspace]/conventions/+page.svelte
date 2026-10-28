@@ -18,7 +18,7 @@
 	import { createScrollRestoration } from '$lib/scroll/restore.svelte';
 	import { exportAndDownloadArtifact, importArtifactFile } from '$lib/utils/artifacts';
 	import { SvelteSet, SvelteMap } from 'svelte/reactivity';
-	import Button from '$lib/components/common/Button.svelte';
+	import { Button } from '$lib/components/ui/button';
 	import PageHeader from '$lib/components/common/PageHeader.svelte';
 	import AgentTermsLegend from '$lib/components/agent/AgentTermsLegend.svelte';
 	import { termTitle, enforcementLabel } from '$lib/agent/agentTerms';
@@ -682,7 +682,7 @@
 				</Button>
 				{/if}
 				{#if canCreateConvention}
-				<Button variant="primary" onclick={() => (showCreate = !showCreate)}>
+				<Button variant="default" onclick={() => (showCreate = !showCreate)}>
 					{showCreate ? 'Cancel' : '+ New Convention'}
 				</Button>
 				{/if}
@@ -740,7 +740,7 @@
 				<textarea aria-label="Instruction for the agent" bind:value={newContent} placeholder="Instruction the agent should follow..." rows="3"></textarea>
 				<div class="form-actions">
 					<Button variant="secondary" onclick={resetForm}>Cancel</Button>
-					<Button variant="primary" type="submit" disabled={creating || !newTitle.trim()}>
+					<Button variant="default" type="submit" disabled={creating || !newTitle.trim()}>
 						{creating ? 'Creating...' : 'Create'}
 					</Button>
 				</div>
@@ -892,7 +892,7 @@
 														onkeydown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); saveEditing(item); } if (e.key === 'Escape') cancelEditing(); }}
 													></textarea>
 													<div class="expanded-actions">
-														<Button variant="primary" size="sm" disabled={saving || !workspaceStore.canEditItem(item)} title={workspaceStore.canEditItem(item) ? undefined : 'You can no longer edit this convention'} onclick={() => saveEditing(item)}>{saving ? 'Saving...' : 'Save'}</Button>
+														<Button variant="default" size="sm" disabled={saving || !workspaceStore.canEditItem(item)} title={workspaceStore.canEditItem(item) ? undefined : 'You can no longer edit this convention'} onclick={() => saveEditing(item)}>{saving ? 'Saving...' : 'Save'}</Button>
 														<Button variant="secondary" size="sm" onclick={cancelEditing}>Cancel</Button>
 														<span class="edit-hint">{modKeyLabel('Enter')} to save · Esc to cancel</span>
 													</div>
@@ -950,10 +950,10 @@
 															<!-- Delete is an item write, refused without edit (BUG-3266). -->
 														{:else if confirmDelete === item.slug}
 															<span class="confirm-text">Delete this convention?</span>
-															<Button variant="danger-solid" size="sm" onclick={() => deleteConvention(item)}>Confirm</Button>
+															<Button variant="destructive-solid" size="sm" onclick={() => deleteConvention(item)}>Confirm</Button>
 															<Button variant="secondary" size="sm" onclick={() => (confirmDelete = null)}>Cancel</Button>
 														{:else}
-															<Button variant="danger" size="sm" onclick={() => (confirmDelete = item.slug)}>Delete</Button>
+															<Button variant="destructive" size="sm" onclick={() => (confirmDelete = item.slug)}>Delete</Button>
 														{/if}
 													</div>
 												{/if}

@@ -12,7 +12,7 @@
 	import { copyToClipboard } from '$lib/utils/clipboard';
 	import { relativeTime } from '$lib/utils/markdown';
 	import { statusColor, priorityColor, formatFieldLabel as formatLabel } from '$lib/utils/fieldColors';
-	import Chip from '$lib/components/common/Chip.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import ItemActionsMenu from './ItemActionsMenu.svelte';
 	import StatusPicker from './StatusPicker.svelte';
 	import { cardPriorityWriter } from '$lib/collections/cardPriority';
@@ -342,9 +342,9 @@
 					/>
 				</span>
 			{:else}
-				<Chip size="sm" color={statusColor(fields.status)}>
+				<Badge size="sm" color={statusColor(fields.status)}>
 					{formatLabel(fields.status)}
-				</Chip>
+				</Badge>
 			{/if}
 		{/if}
 		{#if priorityField && typeof fields.priority === 'string' && fields.priority}
@@ -358,9 +358,9 @@
 					/>
 				</span>
 			{:else}
-				<Chip size="sm" color={priorityColor(fields.priority)}>
+				<Badge size="sm" color={priorityColor(fields.priority)}>
 					{formatLabel(fields.priority)}
-				</Chip>
+				</Badge>
 			{/if}
 		{/if}
 		{#if item.parent_title}

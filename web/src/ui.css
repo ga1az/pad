@@ -35,6 +35,7 @@
 
 @source "./lib/components/ui/**/*.{svelte,ts}";
 @source "./routes/_ui-preview/**/*.svelte";
+@source "./lib/components/ui-adapters/**/*.{svelte,ts}";
 
 /* `dark:` follows the app's own theme switch (see app.css "Light mode" and
    the comment atop lib/components/editor/mermaidTheme.ts). There is no
@@ -333,4 +334,35 @@ a:where([data-slot]) {
 }
 a:where([data-slot]):hover {
 	text-decoration: inherit;
+}
+
+/* Tinted badge (ui/badge `color`, the legacy Chip's colored label). The
+   color arrives as --badge-c on the element. Dark keeps the hue at full
+   strength on a faint fill; light darkens the text (72%) so a small colored
+   label holds AA on white. Here rather than in the component because the
+   component reads only --ui-* tokens (uiTokens.test.ts). */
+[data-slot="badge"][data-color] {
+	color: color-mix(in srgb, var(--badge-c) 72%, #000);
+	background-color: color-mix(in srgb, var(--badge-c) 12%, transparent);
+	border-color: color-mix(in srgb, var(--badge-c) 28%, transparent);
+	@variant dark {
+		color: var(--badge-c);
+		background-color: color-mix(in srgb, var(--badge-c) 14%, transparent);
+	}
+}
+button[data-slot="badge"][data-color]:hover {
+	filter: brightness(1.15);
+}
+[data-slot="badge"][data-pulse] {
+	animation: ui-badge-pulse 0.3s ease;
+}
+@keyframes ui-badge-pulse {
+	50% {
+		transform: scale(1.12);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	[data-slot="badge"][data-pulse] {
+		animation: none;
+	}
 }

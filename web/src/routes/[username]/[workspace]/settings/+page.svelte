@@ -22,8 +22,8 @@
 	import AppsTab from '$lib/components/settings/apps/AppsTab.svelte';
 	import AgentsTab from '$lib/components/settings/AgentsTab.svelte';
 	import { BotIcon } from '@hugeicons/core-free-icons';
-	import Chip from '$lib/components/common/Chip.svelte';
-	import Button from '$lib/components/common/Button.svelte';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
 	import ContentError from '$lib/components/common/ContentError.svelte';
 	import { loadFailure } from '$lib/api/loadFailure';
 	import { collectionStore } from '$lib/stores/collections.svelte';
@@ -1111,10 +1111,10 @@
 					{#if contextSummary.length > 0}
 						<div class="context-summary">
 							{#each contextSummary as entry (entry.label)}
-								<Chip color="var(--accent-gray)">
+								<Badge color="var(--accent-gray)">
 									<span class="context-chip-label">{entry.label}</span>
 									<span class="context-chip-value">{entry.value}</span>
-								</Chip>
+								</Badge>
 							{/each}
 						</div>
 					{/if}
@@ -1134,7 +1134,7 @@
 					{/if}
 					{#if isOwner}
 						<div class="context-actions">
-							<Button variant="primary" onclick={saveContext} disabled={savingContext}>
+							<Button variant="default" onclick={saveContext} disabled={savingContext}>
 								{savingContext ? 'Saving...' : 'Save Context'}
 							</Button>
 							<Button variant="secondary" onclick={resetContextEditor} disabled={savingContext}>
@@ -1175,9 +1175,9 @@
 											<span class="member-email">{member.user_email}</span>
 										</div>
 										{#if expandedAccessUserId === member.user_id && !accessLoading}
-											<Chip size="sm" color={accessMode === 'specific' ? 'var(--status-blue)' : 'var(--accent-gray)'}>
+											<Badge size="sm" color={accessMode === 'specific' ? 'var(--status-blue)' : 'var(--accent-gray)'}>
 												{accessMode === 'all' ? 'All collections' : `${accessCollectionIds.length} collection${accessCollectionIds.length !== 1 ? 's' : ''}`}
-											</Chip>
+											</Badge>
 										{/if}
 									</div>
 									<div class="member-actions">
@@ -1200,12 +1200,12 @@
 											</select>
 											<!-- TASK-2190: no Remove on your own row; the server refuses it. -->
 											{#if member.user_id !== sessionUserId}
-												<Button variant="danger" size="sm" onclick={() => handleRemoveMember(member.user_id, member.user_name)}>
+												<Button variant="destructive" size="sm" onclick={() => handleRemoveMember(member.user_id, member.user_name)}>
 													Remove
 												</Button>
 											{/if}
 										{:else}
-											<Chip color="var(--accent-gray)">{member.role}</Chip>
+											<Badge color="var(--accent-gray)">{member.role}</Badge>
 										{/if}
 									</div>
 								</div>
@@ -1248,7 +1248,7 @@
 															/>
 															<span class="access-coll-icon"><Icon icon={coll.icon || '#'} /></span>
 															<span class="access-coll-name">{coll.name}</span>
-															<Chip size="sm" color="var(--accent-gray)">system</Chip>
+															<Badge size="sm" color="var(--accent-gray)">system</Badge>
 														</label>
 													{/each}
 													{#if systemCollections.length > 0}
@@ -1260,7 +1260,7 @@
 												</div>
 											{/if}
 											<div class="access-actions">
-												<Button variant="primary" size="sm" onclick={saveCollectionAccess} disabled={accessSaving}>
+												<Button variant="default" size="sm" onclick={saveCollectionAccess} disabled={accessSaving}>
 													{accessSaving ? 'Saving...' : 'Save'}
 												</Button>
 												<Button variant="secondary" size="sm" onclick={() => setAccessPanel(null)}>
@@ -1288,7 +1288,7 @@
 						{#each workspaceApps as app (app.id)}
 							<div class="app-row">
 								<bdi class="app-name">{app.app_name || app.display_name}</bdi>
-								<Chip size="sm" color="var(--accent-gray)">{app.role}</Chip>
+								<Badge size="sm" color="var(--accent-gray)">{app.role}</Badge>
 							</div>
 						{/each}
 					</div>
@@ -1300,7 +1300,7 @@
 						{#each invitations as inv (inv.id)}
 							<div class="card invitation-row">
 								<span class="inv-email">{inv.email}</span>
-								<Chip color="var(--accent-gray)">{inv.role}</Chip>
+								<Badge color="var(--accent-gray)">{inv.role}</Badge>
 								{#if inv.join_url || inv.code}
 									<button class="btn btn-small copy-link-btn" onclick={async () => { if (!pageIdentityHeld()) return; const url = inv.join_url || `${window.location.origin}/join/${inv.code}`; const ok = await copyToClipboard(url); if (!pageIdentityHeld()) return; toastStore.show(ok ? 'Link copied!' : 'Failed to copy link', ok ? 'success' : 'error'); }}>
 										Copy invite link
@@ -1309,7 +1309,7 @@
 									<span class="inv-sent-label">Sent via email</span>
 								{/if}
 								{#if isOwner}
-									<Button variant="danger" size="sm" onclick={() => handleCancelInvitation(inv.id, inv.email)}>
+									<Button variant="destructive" size="sm" onclick={() => handleCancelInvitation(inv.id, inv.email)}>
 										Cancel
 									</Button>
 								{/if}
@@ -1334,7 +1334,7 @@
 								<option value="viewer">Viewer</option>
 								<option value="owner">Owner</option>
 							</select>
-							<Button variant="primary" size="sm" onclick={handleInvite} disabled={inviting || !inviteEmail.trim()}>
+							<Button variant="default" size="sm" onclick={handleInvite} disabled={inviting || !inviteEmail.trim()}>
 								{inviting ? 'Inviting...' : 'Invite'}
 							</Button>
 						</div>
@@ -1370,7 +1370,7 @@
 									<span class="coll-slug mono">/{coll.slug}</span>
 									<span class="coll-count">{coll.item_count ?? 0} items</span>
 									{#if coll.is_default}
-										<Chip size="sm" color="var(--status-blue)">default</Chip>
+										<Badge size="sm" color="var(--status-blue)">default</Badge>
 									{/if}
 									{#if isOwner}
 										<span class="edit-hint">Edit</span>
@@ -1379,7 +1379,7 @@
 								{#if schema.fields.length > 0}
 									<div class="field-tags">
 										{#each schema.fields as field (field.key)}
-											<Chip size="sm" color="var(--accent-gray)"><span class="field-tag">{field.key}: {field.type}</span></Chip>
+											<Badge size="sm" color="var(--accent-gray)"><span class="field-tag">{field.key}: {field.type}</span></Badge>
 										{/each}
 									</div>
 								{/if}
@@ -1472,7 +1472,7 @@
 								<strong>Delete this workspace</strong>
 								<p>This immediately hides the workspace and everything in it — collections, items, documents, and attachments — and permanently deletes it 30 days later. You can restore it any time within those 30 days — from the Undo prompt right after deleting, the workspace switcher's Recently deleted section, or the Deleted workspaces page.</p>
 							</div>
-							<Button variant="danger" onclick={() => confirmDelete = true}>
+							<Button variant="destructive" onclick={() => confirmDelete = true}>
 								Delete workspace
 							</Button>
 						</div>
@@ -1490,7 +1490,7 @@
 								/>
 							</div>
 							<div class="danger-actions">
-								<Button variant="danger" onclick={handleDeleteWorkspace} disabled={deleteInput !== wsSlug || deleting}>
+								<Button variant="destructive" onclick={handleDeleteWorkspace} disabled={deleteInput !== wsSlug || deleting}>
 									{deleting ? 'Deleting...' : 'Delete this workspace'}
 								</Button>
 								<Button variant="secondary" onclick={() => { confirmDelete = false; deleteInput = ''; }}>Cancel</Button>

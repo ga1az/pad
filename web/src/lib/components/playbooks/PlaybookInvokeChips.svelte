@@ -4,7 +4,7 @@
 	// workspace's own Playbooks list did not, so telling which of your own
 	// playbooks you can call meant opening each one (TASK-2256, audit C65).
 	// One component so the two pages say the same thing.
-	import Chip from '$lib/components/common/Chip.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 
 	interface Props {
 		slug?: string | null;
@@ -15,14 +15,14 @@
 </script>
 
 {#if slug}
-	<Chip
+	<Badge
 		size="sm"
 		color="var(--accent-green)"
 		title={`Run it by saying "run the ${slug} playbook" — or the shortcut for your agent: /pad ${slug} (Claude Code), $pad ${slug} (Codex), pad_playbook action=run ref=${slug} (MCP)`}
-	><span class="sr-only">{'Invocation: '}</span><span class="slug-text">▶ {slug}</span></Chip>
+	><span class="sr-only">{'Invocation: '}</span><span class="slug-text">▶ {slug}</span></Badge>
 {/if}
 {#if argCount > 0}
-	<Chip size="sm" color="var(--accent-amber)" title="Accepts {argCount} argument{argCount === 1 ? '' : 's'}">{argCount} arg{argCount === 1 ? '' : 's'}</Chip>
+	<Badge size="sm" color="var(--accent-amber)" title="Accepts {argCount} argument{argCount === 1 ? '' : 's'}">{argCount} arg{argCount === 1 ? '' : 's'}</Badge>
 {/if}
 
 <style>
