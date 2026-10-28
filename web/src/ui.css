@@ -8,8 +8,11 @@
    What is deliberately NOT here yet:
    - Preflight. Tailwind's reset restyles headings, lists, buttons, borders
      and margins, and ~200 components still rely on the browser defaults that
-     app.css leaves in place. TASK-32 (cleanup) turns it on once the old
-     styles are gone.
+     app.css leaves in place. TASK-32 tried it and left it off: stock Preflight
+     moves legacy layout by 2-4px (its form-control `font: inherit`), and a
+     variant without that rule still needs an audit of the lists that rely on
+     browser bullets. The measurements and the recipe are in
+     lib/components/ui/README.md ("Tailwind Preflight").
    - Theme variables in :root. `theme(inline)` writes Tailwind's own scale
      (spacing, text sizes, radii, shadows) into each utility instead of
      emitting `--text-sm`, `--radius-md`, `--shadow-sm`, `--font-sans` ...
