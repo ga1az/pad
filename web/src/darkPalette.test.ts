@@ -124,3 +124,16 @@ describe('chip text contrast (dark)', () => {
 		});
 	}
 });
+
+describe('field focus indicator (dark)', () => {
+	// WCAG 1.4.11: the indicator needs 3:1 against the surface it sits on. A
+	// field in a dialog sits on the raised one, the lightest of the three.
+	const ring = oklch(ui.get('--ui-ring')!);
+	it.each([
+		['panel', '--bg-primary'],
+		['card', '--card-bg'],
+		['raised', '--bg-raised']
+	])('--ui-ring holds 3:1 on the %s surface', (_name, surface) => {
+		expect(contrast(ring, hex(app.get(surface)!))).toBeGreaterThanOrEqual(3);
+	});
+});

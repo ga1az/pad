@@ -3,7 +3,8 @@
    < panel (#1f2023) <= column < card (#28292c) < raised (#2e2f33). Hex, not
    var(--ui-*): computed colours stay rgb(), which the e2e contrast
    measurements parse. ui.css owns the same palette as oklch for the shadcn
-   components; the two stay in step by hand (uiTokens.test.ts checks it). */
+   components; the two stay in step by hand (darkPalette.test.ts checks the
+   surfaces, the border and the text). */
 :root {
 	--bg-primary: #1f2023;
 	--bg-secondary: #1f2023;
@@ -138,10 +139,16 @@ body:has(.auth-header) :is(.login-page, .register-page, .setup-page, .join-page,
 }
 /* The auth forms' fields are the roomy size (Linear's sign-in is 40px, not the
    32px of an in-app field). Keyed on the same shell, above a utility's
-   specificity. */
+   specificity. The 14px stays off phones: the field is 16px under 768px
+   (Tailwind's md, `max-md:text-[16px]`) so iOS does not zoom on focus, and
+   this rule outranks that utility. */
 body:has(.auth-header) input[data-slot="input"] {
 	height: 40px;
-	font-size: 14px;
+}
+@media (min-width: 768px) {
+	body:has(.auth-header) input[data-slot="input"] {
+		font-size: 14px;
+	}
 }
 body:has(.auth-header) h1.logo {
 	display: none;
