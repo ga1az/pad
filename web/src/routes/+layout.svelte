@@ -594,7 +594,11 @@
 		the steps read frame < panel <= column < card instead of a near-black
 		page inside a lighter frame. Hex, not var(--ui-*): computed colours stay
 		rgb(), which the e2e contrast measurements parse. Text colours keep
-		their legacy values.
+		their legacy values. The board and its cards (TASK-28) read --ui-*
+		directly now, but no line here was the board's alone: --bg-secondary,
+		--border and --bg-hover have over a hundred other readers, and
+		--card-bg / --card-border are still read by the activity feed
+		(EpisodeFeed). Drop each line as its last reader migrates.
 	*/
 	@media not print {
 		:global([data-theme='dark']) .content-panel.desktop {

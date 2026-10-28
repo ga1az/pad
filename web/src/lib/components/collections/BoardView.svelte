@@ -32,6 +32,9 @@
 	import ItemCard from './ItemCard.svelte';
 	import EmptyState from '../common/EmptyState.svelte';
 	import LaneActionsMenu from './LaneActionsMenu.svelte';
+	import StatusIcon from '$lib/components/status/StatusIcon.svelte';
+	import PriorityIcon from '$lib/components/status/PriorityIcon.svelte';
+	import { priorityLevel, statusCategory } from '$lib/components/status/statusCategory';
 	import { viewport } from '$lib/stores/breakpoint.svelte';
 	import { clickOutside } from '$lib/utils/clickOutside';
 	import { draftKey, lostLaneLabel, type DraftSaveTarget } from '$lib/collections/laneDrafts';
@@ -203,9 +206,14 @@
 	// this component) — the page also owns the leave guard + dialog. Blur
 	// keeps the card; Escape hides it but retains text (page state).
 	let draftInputs: Record<string, HTMLTextAreaElement | undefined> = {};
+	// Which lanes' drafts were opened from the `+` at the bottom of the lane
+	// (TASK-28), and so render there, next to it, rather than under the header.
+	// Presentation only: the draft itself is the page's.
+	let draftAtBottom = $state<Record<string, boolean>>({});
 
-	function openDraft(col: string) {
+	function openDraft(col: string, atBottom = false) {
 		if (!onCreateInColumn) return;
+		draftAtBottom[col] = atBottom;
 		draftOpen[col] = true;
 		requestAnimationFrame(() => draftInputs[col]?.focus());
 	}
@@ -266,6 +274,18 @@
 	// ANYWHERE in the workspace and label lanes with whatever it found. The
 	// filter UI already requires it; the board did not.
 	let isRelationGroup = $derived(field?.type === 'relation' && !!field?.collection);
+	/**
+	 * The icon in a lane header (TASK-28): the status shape when the board is
+	 * grouped by a workflow field (`status`, or a select that declares
+	 * terminal options), the priority bars when grouped by `priority`, and
+	 * nothing for any other grouping (a relation, a tag-like select, a text).
+	 */
+	let laneIcon = $derived.by((): 'status' | 'priority' | null => {
+		if (field?.type !== 'select') return null;
+		if (groupField === 'priority') return 'priority';
+		if (groupField === 'status' || (Array.isArray(field.terminal_options) && field.terminal_options.length > 0)) return 'status';
+		return null;
+	});
 	/**
 	 * Why grouping is refused for this field, or null (U4).
 	 *
@@ -962,12 +982,17 @@
 				{#if colDraggable}
 					<span class="column-drag-handle" title="Drag to reorder">⠿</span>
 				{/if}
+				{#if laneIcon === 'status' && !isUncategorized}
+					<StatusIcon category={statusCategory(colValue, field)} />
+				{:else if laneIcon === 'priority' && !isUncategorized}
+					<PriorityIcon level={priorityLevel(colValue)} />
+				{/if}
 				<span class="column-name">
 					{#if laneRef}<span class="lane-ref">{laneRef}</span>{/if}{laneName}
 					{#if relLane?.state === 'deleted'}<span class="lane-note" title="This item has been deleted.">(deleted)</span>{/if}
 				</span>
+				<span class="column-count">{colItems.length}</span>
 				<div class="column-actions">
-					<span class="column-count">{colItems.length}</span>
 					<!-- Affordance visibility is driven purely by callback
 					     presence — each callback already encodes its own
 					     permission (the `+` create is grant-aware; the bulk
@@ -978,23 +1003,6 @@
 					     UNCATEGORIZED lane hides "add" (creating an explicitly
 					     uncategorized item makes no sense) but keeps the bulk
 					     ⋯ menu — "move/tag/assign all" is useful for triage. -->
-					<!--
-						AND NOT WHEN GROUPING IS REFUSED (codex round 7). A
-						multi_relation that retained `options` produces NAMED
-						lanes, so neither `isUncategorized` nor `isRelationGroup`
-						withheld this: creating in one sent the lane string as
-						the relation value, which the write door refuses. Same
-						class as the drag and the status chip — every affordance
-						that writes the GROUP VALUE has to ask the refusal.
-					-->
-					{#if onCreateInColumn && !isUncategorized && !isRelationGroup && !groupingRefusal}
-						<button
-							class="lane-btn lane-add-btn"
-							title="Add item to {formatLaneLabel(colValue).toLowerCase()}"
-							aria-label="Add item to {formatLaneLabel(colValue)}"
-							onclick={() => openDraft(draftKey(groupField, colValue))}
-						>+</button>
-					{/if}
 					<!-- Kebab shows for create OR any non-empty lane (sort is
 					     always available, even to viewers — TASK-1673). -->
 					{#if onCreateInColumn || colItems.length > 0}
@@ -1045,11 +1053,29 @@
 							{/if}
 						</div>
 					{/if}
+					<!--
+						AND NOT WHEN GROUPING IS REFUSED (codex round 7). A
+						multi_relation that retained `options` produces NAMED
+						lanes, so neither `isUncategorized` nor `isRelationGroup`
+						withheld this: creating in one sent the lane string as
+						the relation value, which the write door refuses. Same
+						class as the drag and the status chip — every affordance
+						that writes the GROUP VALUE has to ask the refusal.
+					-->
+					{#if onCreateInColumn && !isUncategorized && !isRelationGroup && !groupingRefusal}
+						<button
+							class="lane-btn lane-add-btn"
+							title="Add item to {formatLaneLabel(colValue).toLowerCase()}"
+							aria-label="Add item to {formatLaneLabel(colValue)}"
+							onclick={() => openDraft(draftKey(groupField, colValue))}
+						>+</button>
+					{/if}
 				</div>
 			</div>
-			{#if draftOpen[draftKey(groupField, colValue)]}
-				<!-- Inline draft card (TASK-1676). Lives ABOVE the dndzone so
-				     it isn't draggable and isn't a real item until saved. -->
+			{#if draftOpen[draftKey(groupField, colValue)] && !draftAtBottom[draftKey(groupField, colValue)]}
+				<!-- Inline draft card (TASK-1676). Lives OUTSIDE the dndzone so
+				     it isn't draggable and isn't a real item until saved: above it
+				     when opened from the header, below it from the bottom `+`. -->
 				{@render draftCard(draftKey(groupField, colValue), null)}
 			{/if}
 			{#if isUncategorized && onCreateInColumn}
@@ -1128,6 +1154,21 @@
 					onclick={() => expandLane(colValue)}
 				>Show all {colItems.length} ({colItems.length - shown.length} more)</button>
 			{/if}
+			{#if onCreateInColumn && !isUncategorized && !isRelationGroup && !groupingRefusal}
+				<!-- Linear's `+` at the end of the lane (TASK-28): the header's `+`,
+				     under the same gate, with the draft opening beside it. -->
+				{#if draftOpen[draftKey(groupField, colValue)] && draftAtBottom[draftKey(groupField, colValue)]}
+					{@render draftCard(draftKey(groupField, colValue), null)}
+				{:else}
+					<button
+						type="button"
+						class="lane-add-bottom"
+						title="Add item to {formatLaneLabel(colValue).toLowerCase()}"
+						aria-label="Add item at the end of {formatLaneLabel(colValue)}"
+						onclick={() => openDraft(draftKey(groupField, colValue), true)}
+					>+</button>
+				{/if}
+			{/if}
 		</div>
 	{/each}
 </div>
@@ -1147,9 +1188,13 @@
 		line-height: 1.4;
 	}
 
+	/* Linear's board, measured at 1:1 (TASK-28): 340px lanes 8px apart, each a
+	   band one step below the panel with no border, a 46px header with no
+	   box (status icon, name, count, then the ⋯ and the +), and a thin
+	   horizontal scrollbar. */
 	.board-view {
 		display: flex;
-		gap: var(--space-4);
+		gap: 8px;
 		flex: 1;
 		min-height: 0;
 		overflow-x: auto;
@@ -1162,26 +1207,26 @@
 		   scrollbar in BUG-2127). Clipping any vertical overflow keeps the
 		   horizontal scrollbar snug at the bottom of the columns. */
 		overflow-y: hidden;
+		scrollbar-width: thin;
+		scrollbar-color: var(--ui-accent) transparent;
 	}
 
 	.kanban-column {
 		display: flex;
 		flex-direction: column;
-		/* Lanes have a fixed 220px FLOOR and do NOT shrink (flex-shrink 0).
-		   flex-grow 1 + basis 0 lets a few lanes GROW to fill a wide board, but
-		   when the lanes don't all fit — many statuses, a narrow window, or the
-		   detail pane open — they hold 220px each and the board SCROLLS
-		   HORIZONTALLY (.board-view overflow-x: auto). That horizontal scroll is
-		   the INTENDED behavior of a kanban board, NOT a bug.
+		/* Lanes are a fixed 340px (Linear's) and do NOT shrink (flex-shrink 0).
+		   When the lanes don't all fit — many statuses, a narrow window, or the
+		   detail pane open — the board SCROLLS HORIZONTALLY (.board-view
+		   overflow-x: auto). That horizontal scroll is the INTENDED behavior of
+		   a kanban board, NOT a bug.
 		   DO NOT change this to flex-shrink 1 / min-width 0 to make the lanes
 		   "fill" a narrow board — that removes the scroll and crams the lanes
 		   (PR #946 / BUG-2127 did exactly that and it was reverted at the
 		   owner's request). The mobile @media below uses fixed 75vw lanes. */
-		flex: 1 0 0;
-		min-width: 220px;
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
+		flex: 0 0 340px;
+		min-width: 340px;
+		background: var(--ui-muted);
+		border-radius: 8px;
 		transition: transform 0.15s ease;
 	}
 
@@ -1190,20 +1235,26 @@
 	}
 
 	.kanban-column.drag-over-left {
-		box-shadow: -3px 0 0 0 var(--accent-blue);
+		box-shadow: -3px 0 0 0 var(--ui-primary);
 	}
 
 	.column-header {
+		position: relative;
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
-		padding: var(--space-3) var(--space-4);
-		border-bottom: 2px solid var(--text-secondary);
-		border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-		font-weight: 700;
-		font-size: 0.9em;
+		gap: 8px;
+		/* 46px plus the cards' 6px top padding: Linear's first card sits 52px
+		   below the lane's top edge. */
+		height: 46px;
+		padding: 0 8px 0 13px;
+		font-size: 13px;
+		font-weight: 500;
 		cursor: grab;
 		flex-shrink: 0;
+	}
+	.column-header > :global(.status-icon),
+	.column-header > :global(.priority-icon) {
+		margin-right: 2px;
 	}
 
 	.column-header:active {
@@ -1214,72 +1265,58 @@
 		display: flex;
 		flex: 0 0 auto;
 		align-items: center;
-		gap: var(--space-1);
-	}
-
-	.column-header.col-open {
-		border-bottom-color: var(--status-blue);
-	}
-
-	.column-header.col-in-progress {
-		border-bottom-color: var(--accent-amber);
-	}
-
-	.column-header.col-done {
-		border-bottom-color: var(--accent-green);
-	}
-
-	.column-header.col-blocked {
-		border-bottom-color: var(--accent-orange);
+		gap: 2px;
+		margin-left: auto;
 	}
 
 	/* The pinned Uncategorized lane (IDEA-2275) — a triage bucket for items
 	   with no valid group value. It isn't draggable/reorderable, so drop the
-	   grab cursor, and a dashed muted accent distinguishes it from the real
-	   status columns. */
+	   grab cursor, and its muted name sets it apart from the real lanes. */
 	.uncategorized-column .column-header {
 		cursor: default;
-		border-bottom-style: dashed;
-		border-bottom-color: var(--text-muted);
-		color: var(--text-secondary);
+	}
+	.uncategorized-column .column-name {
+		color: var(--ui-muted-foreground);
 	}
 
+	/* In the header's left padding, so showing it moves nothing. */
 	.column-drag-handle {
-		color: var(--text-muted);
-		font-size: 0.75em;
+		position: absolute;
+		left: 2px;
+		top: 50%;
+		transform: translateY(-50%);
+		color: var(--ui-subtle-foreground);
+		font-size: 10px;
 		cursor: grab;
 		opacity: 0;
 		transition: opacity 0.15s;
 		user-select: none;
-		margin-right: var(--space-1);
 	}
 
 	.column-header:hover .column-drag-handle {
-		opacity: 0.5;
+		opacity: 1;
 	}
 
 	.column-drag-handle:active {
-		opacity: 1;
 		cursor: grabbing;
 	}
 
 	.lane-ref {
-		font-family: var(--font-mono, ui-monospace, monospace);
-		font-size: 0.85em;
-		opacity: 0.7;
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
 		margin-right: 0.35em;
 	}
 
 	.lane-note {
-		font-size: 0.85em;
-		opacity: 0.7;
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
 		margin-left: 0.35em;
 		font-style: italic;
 	}
 
 	.column-name {
-		color: var(--text-primary);
-		flex: 1;
+		color: var(--ui-foreground);
+		flex: 0 1 auto;
 		min-width: 0;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -1291,59 +1328,54 @@
 	.lane-show-all {
 		display: block;
 		flex: none;
-		margin: var(--space-2) var(--space-2) var(--space-2);
-		width: calc(100% - 2 * var(--space-2));
-		padding: var(--space-2);
-		border: 1px dashed var(--border);
+		margin: 0 6px 8px 8px;
+		padding: 8px;
+		border: 1px dashed var(--ui-border);
 		border-radius: 6px;
 		background: transparent;
-		color: var(--text-secondary);
-		font-size: 0.85em;
+		color: var(--ui-muted-foreground);
+		font-size: 12px;
 		cursor: pointer;
 	}
 	.lane-show-all:hover {
-		color: var(--text-primary);
-		background: var(--bg-hover, rgba(127, 127, 127, 0.08));
+		color: var(--ui-foreground);
+		background: color-mix(in oklch, var(--ui-foreground) 4%, transparent);
 	}
 
 	.column-count {
-		font-size: 0.8em;
+		font-size: 13px;
 		font-weight: 400;
-		color: var(--text-muted);
-		background: var(--bg-tertiary);
-		padding: 1px 8px;
-		border-radius: 10px;
+		color: var(--ui-muted-foreground);
 	}
 
-	/* Lane-header affordances (TASK-1671): a `+` add-into-lane button and
-	   a ⋯ kebab that opens the lane menu. Unlike the old hover-only
-	   archive button these are always visible with real (≥28px, ≥32px on
-	   touch) tap targets. */
+	/* Lane-header affordances (TASK-1671): the ⋯ lane menu and the `+`
+	   add-into-lane, always visible, as Linear's bare 24px gray icon buttons
+	   (44px on touch, below). */
 	.lane-btn {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		min-width: 28px;
-		height: 28px;
-		padding: 0 4px;
+		min-width: 24px;
+		height: 24px;
+		padding: 0;
 		background: none;
 		border: none;
-		color: var(--text-muted);
-		font-size: 1em;
+		color: var(--ui-muted-foreground);
+		font-size: 16px;
 		line-height: 1;
 		cursor: pointer;
-		border-radius: var(--radius-sm);
+		border-radius: 6px;
 		transition: color 0.15s, background 0.15s;
 	}
 
 	.lane-add-btn {
-		font-size: 1.15em;
-		font-weight: 600;
+		font-size: 18px;
+		font-weight: 300;
 	}
 
 	.lane-btn:hover {
-		color: var(--text-primary);
-		background: var(--bg-hover);
+		color: var(--ui-foreground);
+		background: color-mix(in oklch, var(--ui-foreground) 6%, transparent);
 	}
 
 	.lane-menu-wrap {
@@ -1368,15 +1400,46 @@
 		display: flex;
 		flex-direction: column;
 		flex: 1;
-		gap: var(--space-2);
-		padding: var(--space-2);
+		gap: 8px;
+		padding: 6px 6px 8px 8px;
 		transition: background 0.15s ease;
 		overflow-y: auto;
 		min-height: 0;
+		scrollbar-width: thin;
+		scrollbar-color: var(--ui-accent) transparent;
 	}
 
 	.column-cards:global(.drop-target) {
-		background: color-mix(in srgb, var(--accent-blue) 6%, transparent);
+		background: color-mix(in srgb, var(--ui-primary) 6%, transparent);
+	}
+
+	/* Linear's `+` at the end of a lane (TASK-28): full width, a subtle fill. */
+	.lane-add-bottom {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex: none;
+		height: 36px;
+		margin: 0 6px 8px 8px;
+		padding: 0;
+		border: none;
+		border-radius: 6px;
+		background: color-mix(in oklch, var(--ui-foreground) 3%, transparent);
+		color: var(--ui-muted-foreground);
+		font-size: 18px;
+		font-weight: 300;
+		line-height: 1;
+		cursor: pointer;
+		transition: color 0.15s, background 0.15s;
+	}
+	.lane-add-bottom:hover {
+		color: var(--ui-foreground);
+		background: color-mix(in oklch, var(--ui-foreground) 6%, transparent);
+	}
+	@media (max-width: 768px) {
+		.lane-add-bottom {
+			height: 44px;
+		}
 	}
 
 	.card-wrapper {
@@ -1401,27 +1464,21 @@
 		 * `.column-cards` is the scrolling ancestor here (overflow-y:
 		 * auto), so content-visibility's near-viewport check uses the
 		 * column as its frame — exactly what per-column virtualization
-		 * needs. `contain-intrinsic-size: auto 80px` is slightly taller
-		 * than the ListView placeholder because board cards render in
-		 * compact mode with status + tags stacked, and the `auto`
-		 * keyword caches the real measured height after first paint so
-		 * later scrolls back to that card don't reflow.
+		 * needs. `contain-intrinsic-size: auto 116px` is the height of a
+		 * Linear-style card with one chip row (TASK-28; it was 80px for
+		 * the older, shorter card), and the `auto` keyword caches the
+		 * real measured height after first paint so later scrolls back
+		 * to that card don't reflow.
 		 *
-		 * `overflow-clip-margin: 12px` is the fix for ItemCard's
-		 * `.pr-badge`, which positions itself at `right: -6px` and
-		 * deliberately protrudes past the card's right edge. CSS
-		 * Containment L2 §3.4 / §4 specifies that `content-visibility:
-		 * auto` applies paint containment continuously — including
-		 * on-screen — and paint containment clips ink overflow. Without
-		 * `overflow-clip-margin`, the badge would be clipped flush at
-		 * the wrapper's content box. The margin budget:
-		 *   - 6px for the badge's outward offset (`right: -6px`)
-		 *   - ~3px for the badge's `box-shadow: 0 1px 3px` blur radius
-		 *   - ~2px for the hover `transform: scale(1.05)` growth at
-		 *     the typical 25-40px badge width
-		 * 12px covers all three with a small safety margin. Codex
-		 * rounds 2 + 3 on PR #489 walked through the spec misreading
-		 * in round 1 and then the under-sized margin in round 2.
+		 * `overflow-clip-margin: 12px` keeps the card's ink that falls
+		 * outside it from being clipped. CSS Containment L2 §3.4 / §4
+		 * specifies that `content-visibility: auto` applies paint
+		 * containment continuously — including on-screen — and paint
+		 * containment clips ink overflow. It was sized (Codex rounds 2 +
+		 * 3 on PR #489) for a PR badge that protruded 6px past the
+		 * card's right edge; since TASK-28 the PR is a chip inside the
+		 * card, and what still overflows is the keyboard focus ring
+		 * (2px outline at a 2px offset) and the selected card's glow.
 		 *
 		 * Browser support for `overflow-clip-margin`: Chrome 90+,
 		 * Firefox 102+, Safari 16.4+ — all browsers that ship
@@ -1430,13 +1487,13 @@
 		 * (no-clip) behavior, which is also correct.
 		 */
 		content-visibility: auto;
-		contain-intrinsic-size: auto 80px;
+		contain-intrinsic-size: auto 116px;
 		overflow-clip-margin: 12px;
 		/*
 		 * BUG-3553: never shrink. `.column-cards` is a height-constrained
 		 * flex column that scrolls, and with the default `flex-shrink: 1`
 		 * flex layout shrank every SKIPPED card to 0px (size containment
-		 * leaves it no content height to defend), so the 80px placeholder
+		 * leaves it no content height to defend), so the placeholder
 		 * above never applied. A 200-card lane measured 178 cards at 0px,
 		 * and scrolling to a far card aimed at that false geometry: the
 		 * column stopped at scrollTop ~2900 instead of ~24500, and a click
@@ -1460,9 +1517,9 @@
 
 	.column-empty {
 		text-align: center;
-		padding: var(--space-4);
-		color: var(--text-muted);
-		font-size: 0.82em;
+		padding: 16px;
+		color: var(--ui-subtle-foreground);
+		font-size: 12px;
 	}
 
 	@media (max-width: 768px) {
@@ -1476,6 +1533,7 @@
 		}
 
 		.kanban-column {
+			flex-basis: 75vw;
 			min-width: 75vw;
 			max-width: 75vw;
 			scroll-snap-align: center;
@@ -1495,13 +1553,13 @@
 	.lane-draft {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-2);
-		margin: var(--space-2) var(--space-2) 0;
-		padding: var(--space-2);
-		background: var(--bg-primary);
-		border: 1px solid var(--accent-blue);
-		border-radius: var(--radius-md);
-		box-shadow: var(--shadow-sm);
+		gap: 8px;
+		flex: none;
+		margin: 0 6px 8px 8px;
+		padding: 8px;
+		background: var(--ui-card);
+		border: 1px solid color-mix(in oklch, var(--ui-primary) 70%, transparent);
+		border-radius: 6px;
 	}
 
 	.lane-draft-rehomed {
@@ -1510,8 +1568,8 @@
 
 	.lane-draft-moved {
 		margin: 0;
-		font-size: 0.75em;
-		color: var(--text-secondary);
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
 	}
 
 	.board-draft-blocked {
@@ -1535,12 +1593,12 @@
 		width: 100%;
 		resize: vertical;
 		min-height: 2.4em;
-		padding: var(--space-2);
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-sm);
-		color: var(--text-primary);
-		font-size: 0.875em;
+		padding: 6px 8px;
+		background: var(--ui-background);
+		border: 1px solid var(--ui-border);
+		border-radius: 4px;
+		color: var(--ui-foreground);
+		font-size: 13px;
 		font-family: inherit;
 		line-height: 1.4;
 	}
@@ -1552,11 +1610,11 @@
 
 	.lane-draft-add {
 		padding: 5px 12px;
-		background: var(--accent-blue);
+		background: var(--ui-primary);
 		border: none;
-		border-radius: var(--radius-sm);
-		color: #fff;
-		font-size: 0.8125em;
+		border-radius: 6px;
+		color: var(--ui-primary-foreground);
+		font-size: 12px;
 		font-weight: 600;
 		cursor: pointer;
 	}
@@ -1569,14 +1627,14 @@
 		padding: 5px 10px;
 		background: none;
 		border: none;
-		border-radius: var(--radius-sm);
-		color: var(--text-muted);
-		font-size: 0.8125em;
+		border-radius: 6px;
+		color: var(--ui-muted-foreground);
+		font-size: 12px;
 		cursor: pointer;
 	}
 	.lane-draft-close:hover {
-		color: var(--text-primary);
-		background: var(--bg-hover);
+		color: var(--ui-foreground);
+		background: color-mix(in oklch, var(--ui-foreground) 6%, transparent);
 	}
 
 </style>
