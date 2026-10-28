@@ -60,7 +60,7 @@
 	}
 
 	let {
-		options,
+		options: allOptions,
 		value = '',
 		values = [],
 		multi = false,
@@ -74,6 +74,10 @@
 		triggerClass = '',
 		readonly = false
 	}: Props = $props();
+
+	// Each value once: the rows are keyed by it, and a keyed each throws on a
+	// repeat (TASK-3539). A caller's list is not trusted to have none.
+	const options = $derived(allOptions.filter((o, i) => allOptions.findIndex((x) => x.value === o.value) === i));
 
 	let open = $state(false);
 	let triggerEl = $state<HTMLElement | null>(null);
@@ -174,7 +178,7 @@
 									{#if !value}<HugeiconsIcon icon={Tick02Icon} strokeWidth={2} />{/if}
 								</Command.Item>
 							{/if}
-							{#each grouped as g (g.heading ?? '')}
+							{#each grouped as g, gi (gi)}
 								{#snippet rows()}
 									{#each g.rows as option (option.value)}
 										<Command.Item

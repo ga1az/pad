@@ -82,6 +82,18 @@ describe('PropertyPicker (single)', () => {
 		expect(groups.map((g) => g.querySelector('[data-command-group-heading]')?.textContent?.trim())).toEqual(['People', 'Agents']);
 	});
 
+	it('a repeated value shows once and a heading that recurs does not break the list', async () => {
+		const dup = [
+			{ value: 'a', label: 'A', group: 'People' },
+			{ value: 'a', label: 'A again', group: 'People' },
+			{ value: 'b', label: 'B', group: 'Agents' },
+			{ value: 'c', label: 'C', group: 'People' }
+		];
+		const r = render(PropertyPicker, { props: { options: dup, value: '', placeholder: 'Assign', label: 'Assigned to', onselect: vi.fn() } });
+		await open(r.container);
+		expect(rows().map(label)).toEqual(['A', 'B', 'C']);
+	});
+
 	it('a second click on the trigger closes it without writing', async () => {
 		const onselect = vi.fn();
 		const r = render(PropertyPicker, { props: { options: OPTIONS, value: 'web', placeholder: 'Set area', label: 'Area', onselect } });
