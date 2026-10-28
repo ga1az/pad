@@ -111,7 +111,7 @@
 				bind:value={inputValue}
 				class="tag-entry"
 				type="text"
-				placeholder={tags.length === 0 ? 'Add tags…' : ''}
+				placeholder={tags.length === 0 ? 'Add label…' : ''}
 				role="combobox"
 				aria-expanded={listOpen}
 				aria-label="Add tag"
@@ -162,15 +162,16 @@
 		gap: var(--space-1, 0.25rem);
 		align-items: center;
 	}
+	/* Linear's label: a hairline pill, 22px tall. */
 	.tag-chip {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.25em;
-		padding: 0.1em 0.5em;
-		font-size: var(--text-xs, 0.75rem);
-		line-height: 1.5;
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
+		height: 22px;
+		padding: 0 8px;
+		font-size: 12px;
+		background: transparent;
+		border: 1px solid var(--ui-border);
 		border-radius: 999px;
 		color: var(--text-primary);
 		white-space: nowrap;
@@ -203,9 +204,12 @@
 		border: none;
 		background: transparent;
 		color: var(--text-primary);
-		font-size: var(--text-sm, 0.875rem);
+		font-size: 13px;
 		padding: 0.15em 0.1em;
 		outline: none;
+	}
+	.tag-entry::placeholder {
+		color: var(--ui-muted-foreground);
 	}
 	.tag-empty {
 		font-size: var(--text-xs, 0.75rem);

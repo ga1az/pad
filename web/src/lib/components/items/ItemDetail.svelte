@@ -93,12 +93,16 @@
 	// Agents in the assignee picker (SPEC-15, TASK-20). Their own statements, so
 	// units that only use the imports above keep their reviewed hash.
 	import type { WorkspaceAgent } from '$lib/types';
-	import { BotIcon } from '@hugeicons/core-free-icons';
+	import { BotIcon, UserIcon } from '@hugeicons/core-free-icons';
 	import { assigneeGroups, assigneeName } from '$lib/agent/joinedAgents';
 	import { listAssignableAgents } from '$lib/agent/assignableAgents';
 	// The Summary of the filled fields (TASK-22), in their own statements so
 	// units that only use the imports above keep their reviewed hash.
 	import ItemFieldSummary from './ItemFieldSummary.svelte';
+	// The properties column's pickers (SPEC-24 / TASK-31), in their own
+	// statements so units that only use the imports above keep their hash.
+	import StatusPicker from '$lib/components/collections/StatusPicker.svelte';
+	import PropertyPicker from '$lib/components/fields/PropertyPicker.svelte';
 	import { buildFieldSummary } from '$lib/items/fieldSummary';
 	import { parseFields, parseSchema, parseSettings, parseTags, formatItemRef, itemUrlId, type ItemIndexRow } from '$lib/types';
 	import ItemPicker from './ItemPicker.svelte';
@@ -7295,24 +7299,40 @@
 						<div class="field-row" class:print-empty={isFieldEmpty}>
 							<span class="field-label">{field.label}</span>
 							<div class="field-value">
-								<FieldEditor
-									{field}
-									value={rawFieldValue}
-									onchange={(v) => updateField(field.key, v)}
-									readonly={!canEdit}
-									{wsSlug}
-									{username}
-									onOpenTarget={paneOpenTarget}
-									itemId={item?.id}
-								/>
+								{#if canEdit && field.type === 'select' && (field.key === 'status' || field.key === 'priority') && field.options && field.options.length > 0 && (rawFieldValue == null || typeof rawFieldValue === 'string')}
+									<!-- Status and priority are the TASK-30 picker, as a row's
+									     value: the icon and the name. A stored value that is not
+									     text (a shape mismatch) stays with FieldEditor, which
+									     says so and offers Replace. -->
+									<StatusPicker
+										kind={field.key === 'priority' ? 'priority' : 'status'}
+										appearance="row"
+										value={typeof rawFieldValue === 'string' ? rawFieldValue : ''}
+										options={field.options}
+										{field}
+										onselect={(v) => updateField(field.key, v)}
+									/>
+								{:else}
+									<FieldEditor
+										{field}
+										value={rawFieldValue}
+										onchange={(v) => updateField(field.key, v)}
+										readonly={!canEdit}
+										{wsSlug}
+										{username}
+										onOpenTarget={paneOpenTarget}
+										itemId={item?.id}
+										appearance="property"
+									/>
+								{/if}
 							</div>
 						</div>
 					{/if}
 				{/each}
 
-				<!-- Tags (item.tags — spans collections, not a schema field) -->
-				<div class="field-row">
-					<span class="field-label">Tags</span>
+				<!-- Labels (item.tags — spans collections, not a schema field) -->
+				<div class="fields-header">Labels</div>
+				<div class="field-row field-row-labels">
 					<div class="field-value">
 						<TagInput
 							{tags}
@@ -7325,46 +7345,46 @@
 
 				<!-- Assignment: user + role -->
 				{#if workspaceMembers.length > 0 || workspaceAgents.length > 0 || agentRoles.length > 0}
-					<div class="fields-header" style="margin-top: var(--space-4)">Assignment</div>
+					<div class="fields-header">Assignment</div>
 				{/if}
 				{#if workspaceMembers.length > 0 || workspaceAgents.length > 0}
 					<div class="field-row">
 						<span class="field-label">Assigned to</span>
 						<div class="field-value">
 							{#if canEdit}
-								<select aria-label="Assigned to"
-									class="assignment-select"
+								<!-- People are listed as they always were; only when agents
+								     joined (SPEC-15, TASK-20) do the two get their own groups. -->
+								{@const grouped = assignees.agents.length > 0}
+								{@const assigneeOptions = [
+									...(assignees.other ? [{ value: assignees.other.user_id, label: assignees.other.name }] : []),
+									...assignees.people.map((m) => ({ value: m.user_id, label: m.name, group: grouped ? 'People' : undefined })),
+									...assignees.agents.map((a) => ({ value: a.user_id, label: `${a.name} (agent)`, group: 'Agents' }))
+								]}
+								<!-- The assignee: an avatar and a name, "Assign" in gray while
+								     nobody is. Agents (SPEC-15, TASK-20) show the bot glyph and
+								     keep their "(agent)" suffix in the list. -->
+								<PropertyPicker
+									options={assigneeOptions}
 									value={item.assigned_user_id ?? ''}
-									onchange={(e) => {
-										const val = (e.target as HTMLSelectElement).value;
-										updateAssignedUser(val || null);
-									}}
+									placeholder="Assign"
+									noneLabel="Unassigned"
+									label="Assigned to"
+									searchPlaceholder="Assign to…"
+									triggerClass="assignment-select"
+									onselect={(v) => updateAssignedUser(v || null)}
 								>
-									<option value="">Unassigned</option>
-									{#if assignees.other}
-										<option value={assignees.other.user_id}>{assignees.other.name}</option>
-									{/if}
-									{#snippet peopleOptions()}
-										{#each assignees.people as member (member.user_id)}
-											<option value={member.user_id}>{member.name}</option>
-										{/each}
+									{#snippet lead(v)}
+										<span class="avatar" class:avatar-empty={!v} aria-hidden="true">
+											{#if !v}
+												<Icon icon={UserIcon} />
+											{:else if assignees.agents.some((a) => a.user_id === v)}
+												<Icon icon={BotIcon} />
+											{:else}
+												{(assigneeName(assignees, v) ?? '?').slice(0, 1).toUpperCase()}
+											{/if}
+										</span>
 									{/snippet}
-									<!-- People are listed as they always were; only when agents
-									     joined (SPEC-15, TASK-20) do the two get their own groups. -->
-									{#if assignees.agents.length > 0}
-										<optgroup label="People">{@render peopleOptions()}</optgroup>
-										<optgroup label="Agents">
-											{#each assignees.agents as agent (agent.user_id)}
-												<option value={agent.user_id}>{agent.name} (agent)</option>
-											{/each}
-										</optgroup>
-									{:else}
-										{@render peopleOptions()}
-									{/if}
-								</select>
-								{#if assignedToAgent}
-									<span class="assignment-agent" title="Assigned to an agent"><Icon icon={BotIcon} /></span>
-								{/if}
+								</PropertyPicker>
 							{:else}
 								<!-- Read-only display (PLAN-1100 / TASK-1105). Assignment
 								     mutations go through api.items.update which is
@@ -7386,19 +7406,16 @@
 						<span class="field-label">Role</span>
 						<div class="field-value">
 							{#if canEdit}
-								<select aria-label="Agent role"
-									class="assignment-select"
+								<PropertyPicker
+									options={agentRoles.map((r) => ({ value: r.id, label: r.name }))}
 									value={item.agent_role_id ?? ''}
-									onchange={(e) => {
-										const val = (e.target as HTMLSelectElement).value;
-										updateAgentRole(val || null);
-									}}
-								>
-									<option value="">No role</option>
-									{#each agentRoles as role (role.id)}
-										<option value={role.id}>{role.name}</option>
-									{/each}
-								</select>
+									placeholder="Set role"
+									noneLabel="No role"
+									label="Agent role"
+									searchPlaceholder="Set role…"
+									triggerClass="assignment-select"
+									onselect={(v) => updateAgentRole(v || null)}
+								/>
 							{:else}
 								<span class="assignment-readonly">
 									{#if item?.agent_role_id}
@@ -9166,28 +9183,26 @@
 		font-size: 0.88em;
 		color: var(--text-secondary);
 	}
-	.assignment-select {
-		width: 100%;
-		padding: 5px 8px;
-		font-size: 0.88em;
-		font-family: inherit;
-		color: var(--text-primary);
-		background: var(--bg-tertiary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-sm);
-		cursor: pointer;
-		appearance: auto;
+	/* The assignee's avatar: the person's initial in a 18px disc, the bot glyph
+	   for an agent, a dashed outline while nobody is assigned. */
+	.avatar {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		flex: none;
+		width: 18px;
+		height: 18px;
+		border-radius: 50%;
+		background: var(--accent-primary-strong);
+		color: var(--text-on-accent);
+		font-size: 10px;
+		font-weight: 600;
+		line-height: 1;
 	}
-	.assignment-select:hover {
-		border-color: var(--accent-blue);
-	}
-	.assignment-agent {
-		margin-left: var(--space-1);
-		color: var(--text-secondary);
-	}
-	.assignment-select:focus {
-		outline: 2px solid var(--accent-blue);
-		outline-offset: -1px;
+	.avatar-empty {
+		background: transparent;
+		border: 1px dashed var(--ui-muted-foreground);
+		color: var(--ui-muted-foreground);
 	}
 	.progress-bar {
 		position: relative;
@@ -10009,24 +10024,9 @@
 		}
 
 		/* Form-widget strip rules for .field-value are in app.css
-		   (global) because most of those controls render inside the
-		   FieldEditor child component and Svelte scoped selectors
-		   from this file don't cross component boundaries. Keep the
-		   assignment-select rule here since those selects are inline
-		   in this template. */
-		.assignment-select {
-			appearance: none !important;
-			-webkit-appearance: none !important;
-			background: transparent !important;
-			border: none !important;
-			padding: 0 !important;
-			margin: 0 !important;
-			color: #000 !important;
-			font: inherit !important;
-			cursor: default !important;
-			pointer-events: none;
-			box-shadow: none !important;
-		}
+		   (global) because the controls render inside child components
+		   (FieldEditor, PropertyPicker) and Svelte scoped selectors from this
+		   file don't cross component boundaries. */
 
 		/* Progress bar → compact text percentage. */
 		.progress-bar {

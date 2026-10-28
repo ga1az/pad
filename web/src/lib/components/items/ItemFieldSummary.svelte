@@ -46,12 +46,10 @@
 {/if}
 
 <style>
+	/* Quiet (SPEC-24 / TASK-31): no card, no box. A gray label, then each
+	   field as a small gray name over its full text. */
 	.field-summary {
-		margin-bottom: var(--space-4);
-		padding: var(--space-3);
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
+		margin-bottom: var(--space-5);
 	}
 	.field-summary-head {
 		display: flex;
@@ -64,24 +62,23 @@
 		display: none;
 	}
 	.field-summary-title {
-		font-size: 0.75em;
-		font-weight: 600;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--text-muted);
+		font-size: 13px;
+		font-weight: 500;
+		color: var(--ui-muted-foreground);
 	}
 	.field-summary-copy {
 		display: inline-flex;
 		align-items: center;
 		gap: var(--space-1);
-		padding: 2px var(--space-2);
-		font-size: 0.8em;
-		color: var(--text-secondary);
-		border-radius: var(--radius-sm);
+		height: 24px;
+		padding: 0 8px;
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
+		border-radius: 6px;
 	}
 	.field-summary-copy:hover {
-		background: var(--bg-hover);
-		color: var(--text-primary);
+		background: color-mix(in oklab, var(--ui-foreground) 4%, transparent);
+		color: var(--ui-foreground);
 	}
 	.field-summary-list {
 		margin: var(--space-2) 0 0;
@@ -89,16 +86,13 @@
 	.field-summary-row {
 		padding: var(--space-1) 0;
 	}
-	.field-summary-row + .field-summary-row {
-		border-top: 1px solid var(--border-subtle, var(--border));
-	}
 	dt {
-		font-size: 0.78em;
-		color: var(--text-muted);
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
 	}
 	dd {
 		margin: 2px 0 0;
-		font-size: 0.9em;
+		font-size: 14px;
 		color: var(--text-primary);
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;

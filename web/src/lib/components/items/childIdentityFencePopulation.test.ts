@@ -211,6 +211,11 @@ const POPULATION: string[] = [
 	// only flips its OWN "Copied" flag or shows a toast. ItemDetail remounts it
 	// per item.
 	'lib/components/items/ItemLinkCopyButton.svelte',
+	// TASK-31: the properties column's pickers. Neither makes a request or
+	// awaits: a choice goes out through the parent's callback (updateField,
+	// updateAssignedUser), which owns the fence.
+	'lib/components/collections/StatusPicker.svelte',
+	'lib/components/fields/PropertyPicker.svelte',
 ];
 
 /**

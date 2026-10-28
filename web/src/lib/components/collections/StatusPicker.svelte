@@ -30,6 +30,10 @@
 	`appearance="icon"` (TASK-28) draws the trigger as the value's icon, the
 	Linear card's status shape or priority bars, instead of a text chip. Same
 	menu, same title and ARIA; the value's name moves into the button's label.
+
+	`appearance="row"` (TASK-31) is the item page's property value: the icon
+	and the name side by side as a borderless text action, "Set priority" in
+	gray when nothing is chosen.
 -->
 <script lang="ts">
 	import { Badge } from '$lib/components/ui/badge';
@@ -55,8 +59,9 @@
 		onselect: (status: string) => void;
 		/** Which field the chip is: the priority chip is the same picker (TASK-2214). */
 		kind?: 'status' | 'priority';
-		/** A text chip (the default), or the value's icon (TASK-28). */
-		appearance?: 'chip' | 'icon';
+		/** A text chip (the default), the value's icon (TASK-28), or a property
+		 *  row's value (TASK-31): the icon, then the name, a text action. */
+		appearance?: 'chip' | 'icon' | 'row';
 		/** The field, for the status icon's terminal and abandoned options. */
 		field?: FieldDef;
 	}
@@ -125,6 +130,25 @@
 			<StatusIcon category={statusCategory(value, field)} />
 		{/if}
 		<span class="picker-icon-name">{value ? `${noun}: ${formatLabel(value)}` : `No ${noun.toLowerCase()}`}</span>
+	</button>
+{:else if appearance === 'row'}
+	<button
+		type="button"
+		class="picker-row"
+		data-kind={kind}
+		onclick={(e) => { e.preventDefault(); toggle(e); }}
+		bind:this={triggerEl}
+		aria-haspopup="dialog"
+		aria-expanded={open}
+		aria-label="{noun}: {value ? formatLabel(value) : 'not set'}"
+		title="Change {noun.toLowerCase()}"
+	>
+		{#if kind === 'priority'}
+			<PriorityIcon level={priorityLevel(value)} />
+		{:else}
+			<StatusIcon category={statusCategory(value, field)} />
+		{/if}
+		<span class="picker-row-text" class:picker-row-empty={!value}>{value ? formatLabel(value) : `Set ${noun.toLowerCase()}`}</span>
 	</button>
 {:else}
 	<Badge
@@ -221,6 +245,41 @@
 	.picker-icon:focus-visible {
 		outline: 2px solid var(--ui-ring);
 		outline-offset: 1px;
+	}
+	/* The property row's value: a text action, no box until it is pointed at. */
+	.picker-row {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		max-width: 100%;
+		min-height: 28px;
+		padding: 0 6px;
+		margin-left: -6px;
+		border: none;
+		border-radius: 6px;
+		background: transparent;
+		color: var(--ui-foreground);
+		font: inherit;
+		font-size: 13px;
+		cursor: pointer;
+		transition: background 0.12s;
+	}
+	.picker-row:hover,
+	.picker-row[aria-expanded='true'] {
+		background: color-mix(in oklab, var(--ui-foreground) 4%, transparent);
+	}
+	.picker-row:focus-visible {
+		outline: 2px solid var(--ui-ring);
+		outline-offset: 1px;
+	}
+	.picker-row-text {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.picker-row-empty {
+		color: var(--ui-muted-foreground);
 	}
 	/* The value's name, for assistive tech (and any reader of the text). */
 	.picker-icon-name {

@@ -39,6 +39,7 @@ handlers — onchange is never called.
 	import BottomSheet from '$lib/components/common/BottomSheet.svelte';
 	import { viewport } from '$lib/stores/breakpoint.svelte';
 	import { clickOutside } from '$lib/utils/clickOutside';
+	import PropertyPicker from './PropertyPicker.svelte';
 	import { canonicalValueColor, formatFieldLabel as formatLabel } from '$lib/utils/fieldColors';
 
 	interface Props {
@@ -107,9 +108,18 @@ handlers — onchange is never called.
 		 * belongs to) and is asked on a path with no debounce.
 		 */
 		itemId?: string;
+		/**
+		 * `property` is the item page's properties column (SPEC-24 / TASK-31):
+		 * each value is a borderless text action that opens a picker, an inline
+		 * input that reads as text until it is focused, with a gray placeholder
+		 * ("Set due date") when empty. A select and a multi_select open a
+		 * Popover + Command (`PropertyPicker`). The default, `form`, is the
+		 * boxed control the copy dialog's needs-a-value rows still use.
+		 */
+		appearance?: 'form' | 'property';
 	}
 
-	let { field, value: storedValue, onchange, readonly = false, ariaLabel, wsSlug, username = '', onOpenTarget, itemId }: Props = $props();
+	let { field, value: storedValue, onchange, readonly = false, ariaLabel, wsSlug, username = '', onOpenTarget, itemId, appearance = 'form' }: Props = $props();
 	// Stable per-instance id for the ARIA links below (TASK-2216).
 	const fieldId = $props.id();
 
@@ -903,6 +913,10 @@ handlers — onchange is never called.
 		]),
 	);
 
+	/** The rows `PropertyPicker` shows: the value, and the name it reads as. */
+	let pickerOptions = $derived(optionList.map((o) => ({ value: o, label: formatLabel(o) })));
+	let multiPickerOptions = $derived(multiChoices.map((o) => ({ value: o, label: formatLabel(o) })));
+
 	function toggleMultiOption(opt: string) {
 		// Toggle what the user last SAW, not the prop (the BUG-3047 rule the
 		// checkbox follows): the prop lags every write until its round trip
@@ -1518,6 +1532,7 @@ handlers — onchange is never called.
 	{/if}
 {/snippet}
 
+<div class="fe" class:fe-property={appearance === 'property'}>
 {#if !shape.ok && !replacing}
 	<div class="field-mismatch">
 		<span class="mismatch-raw">{rawText(storedValue)}</span>
@@ -1577,6 +1592,33 @@ handlers — onchange is never called.
 			<span>{value ?? '—'}</span>
 		</div>
 	{/if}
+
+{:else if appearance === 'property' && field.type === 'select' && field.options}
+	<PropertyPicker
+		options={pickerOptions}
+		value={typeof value === 'string' ? value : ''}
+		placeholder="Set {field.label.toLowerCase()}"
+		label={ariaLabel ?? field.label}
+		triggerClass="select-trigger"
+		onselect={(v) => onchange(v)}
+	>
+		{#snippet lead(v)}
+			{#if v && getStatusColor(v)}
+				<span class="color-dot" style:background={getStatusColor(v)}></span>
+			{/if}
+		{/snippet}
+	</PropertyPicker>
+
+{:else if appearance === 'property' && field.type === 'multi_select'}
+	<PropertyPicker
+		multi
+		options={multiPickerOptions}
+		values={shownSelection}
+		placeholder="Set {field.label.toLowerCase()}"
+		label={ariaLabel ?? field.label}
+		triggerClass="select-trigger"
+		ontoggle={toggleMultiOption}
+	/>
 
 {:else if field.type === 'select'}
 	{#snippet selectOptions()}
@@ -1688,7 +1730,7 @@ handlers — onchange is never called.
 			{#if value}
 				<span class="date-label">{formatDate(value)}</span>
 			{:else}
-				<span class="date-placeholder">Pick a date...</span>
+				<span class="date-placeholder">{appearance === 'property' ? `Set ${field.label.toLowerCase()}` : 'Pick a date...'}</span>
 			{/if}
 			<svg class="select-chevron" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
 				<rect x="2" y="3" width="10" height="9" rx="1.5" stroke="currentColor" stroke-width="1.2" />
@@ -2010,6 +2052,7 @@ handlers — onchange is never called.
 {#if replacing}
 	<button type="button" class="mismatch-action" onclick={() => (replacingKey = null)}>Keep the stored value</button>
 {/if}
+</div>
 
 <style>
 	/* TASK-2216: a number that does not parse is marked, and says so. */
@@ -2520,5 +2563,145 @@ handlers — onchange is never called.
 
 	.url-open:hover {
 		color: var(--accent-blue);
+	}
+
+	/* ── Property appearance (SPEC-24 / TASK-31) ─────────────────────────
+	   The wrapper is `display: contents`, so it only carries the selector. A
+	   value is a text action or an inline input that reads as text until it is
+	   focused, 28px tall inside the properties column's 32px row. The select
+	   and multi_select are `PropertyPicker`, which styles itself. */
+	.fe {
+		display: contents;
+	}
+	.fe-property .date-wrapper {
+		width: auto;
+		max-width: 100%;
+	}
+	.fe-property .select-trigger {
+		width: auto;
+		max-width: 100%;
+		min-height: 28px;
+		margin-left: -6px;
+		padding: 0 6px;
+		gap: 8px;
+		font-size: 13px;
+		color: var(--ui-foreground);
+		background: transparent;
+		border: none;
+		border-radius: 6px;
+		transition: background 0.12s;
+	}
+	.fe-property .select-trigger:hover {
+		background: color-mix(in oklab, var(--ui-foreground) 4%, transparent);
+	}
+	.fe-property .select-trigger:focus-visible {
+		outline: 2px solid var(--ui-ring);
+		outline-offset: 1px;
+	}
+	.fe-property .select-chevron {
+		display: none;
+	}
+	.fe-property .date-label {
+		flex: none;
+	}
+	.fe-property .date-placeholder {
+		flex: none;
+		color: var(--ui-muted-foreground);
+	}
+	.fe-property .date-clear {
+		opacity: 0;
+		transition: opacity 0.12s;
+	}
+	.fe-property .date-wrapper:hover .date-clear,
+	.fe-property .date-clear:focus-visible {
+		opacity: 1;
+	}
+	/* Inline inputs: text until pointed at, then a quiet fill, then a ring. */
+	.fe-property .field-input {
+		margin-left: -6px;
+		width: calc(100% + 6px);
+		min-height: 28px;
+		padding: 4px 6px;
+		font-size: 13px;
+		background: transparent;
+		border: 1px solid transparent;
+		border-radius: 6px;
+	}
+	.fe-property .field-input:hover {
+		border-color: transparent;
+		background: color-mix(in oklab, var(--ui-foreground) 4%, transparent);
+	}
+	.fe-property .field-input:focus {
+		border-color: var(--ui-ring);
+		background: transparent;
+	}
+	.fe-property .field-input::placeholder {
+		color: var(--ui-muted-foreground);
+	}
+	.fe-property .url-input {
+		padding-right: 26px;
+	}
+	.fe-property .url-open {
+		right: 6px;
+	}
+	.fe-property .number-wrapper {
+		width: auto;
+		margin-left: -6px;
+		background: transparent;
+		border-radius: 6px;
+		overflow: visible;
+	}
+	.fe-property .number-wrapper:hover {
+		border-color: transparent;
+		background: color-mix(in oklab, var(--ui-foreground) 4%, transparent);
+	}
+	.fe-property .number-wrapper:focus-within {
+		border-color: var(--ui-ring);
+		background: transparent;
+	}
+	.fe-property .number-btn {
+		width: 22px;
+		min-height: 26px;
+		opacity: 0;
+		transition: opacity 0.12s, color 0.1s, background 0.1s;
+	}
+	.fe-property .number-wrapper:hover .number-btn,
+	.fe-property .number-wrapper:focus-within .number-btn {
+		opacity: 1;
+	}
+	.fe-property .number-input {
+		flex: none;
+		width: 6ch;
+		padding: 4px 6px;
+		font-size: 13px;
+		text-align: left;
+	}
+	.fe-property .number-suffix {
+		padding-right: 6px;
+		font-size: 13px;
+	}
+	.fe-property .readonly-display,
+	.fe-property .field-mismatch {
+		min-height: 28px;
+		padding: 0;
+		font-size: 13px;
+	}
+	.fe-property .relation-editor {
+		font-size: 13px;
+		gap: 2px;
+	}
+	.fe-property .relation-chip {
+		margin-left: -6px;
+		padding: 3px 6px;
+		border-radius: 6px;
+		background: transparent;
+		font-size: 13px;
+	}
+	.fe-property a.relation-chip:hover {
+		background: color-mix(in oklab, var(--ui-foreground) 4%, transparent);
+		text-decoration: none;
+	}
+	.fe-property .relation-action {
+		font-size: 12px;
 	}
 </style>

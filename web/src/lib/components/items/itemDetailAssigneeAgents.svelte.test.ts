@@ -132,24 +132,42 @@ async function settle() {
 	await tick();
 }
 
+/** The picker's trigger (a button now, where it was a native select). */
+const TRIGGER = 'button[aria-label^="Assigned to"]';
+const ROW = '[data-slot="popover-content"] [role="option"]';
+
 async function mountPicker() {
 	const r = render(ItemDetail, { props: { username: 'u', wsSlug: 'ws', collSlug: 'tasks', ref: 'i1' } });
 	await settle();
 	finishBootstrap();
 	await settle();
-	let select: HTMLSelectElement | null = null;
+	let trigger: HTMLButtonElement | null = null;
 	await waitFor(() => {
-		select = r.container.querySelector<HTMLSelectElement>('select[aria-label="Assigned to"]');
-		expect(select).not.toBeNull();
+		trigger = r.container.querySelector<HTMLButtonElement>(TRIGGER);
+		expect(trigger).not.toBeNull();
 	});
-	return { r, select: select! };
+	return { r, trigger: trigger! };
 }
 
-function groups(select: HTMLSelectElement) {
-	return [...select.querySelectorAll('optgroup')].map((g) => ({
-		label: g.label,
-		options: [...g.querySelectorAll('option')].map((o) => [o.value, o.textContent?.trim()]),
-	}));
+/** Open the picker; its rows live in a portal under <body>. */
+async function open(trigger: HTMLButtonElement) {
+	await fireEvent.click(trigger);
+	await tick();
+}
+
+const label = (row: Element) => row.querySelector('[data-option-label]')?.textContent?.trim() ?? row.textContent?.trim();
+const rows = () => [...document.body.querySelectorAll<HTMLElement>(ROW)];
+
+/** The open picker's rows by heading: [heading | null, [value, label][]]. */
+function groups() {
+	const out: { label: string | null; options: (string | undefined)[][] }[] = [];
+	for (const g of document.body.querySelectorAll('[data-slot="popover-content"] [data-slot="command-group"]')) {
+		out.push({
+			label: g.querySelector('[data-command-group-heading]')?.textContent?.trim() ?? null,
+			options: [...g.querySelectorAll('[role="option"]')].map((o) => [o.getAttribute('data-value') ?? undefined, label(o)])
+		});
+	}
+	return out;
 }
 
 beforeEach(() => {
@@ -162,41 +180,46 @@ afterEach(() => cleanup());
 
 describe('assignee picker lists the joined agents (TASK-20)', () => {
 	it('offers people and live agents in their own groups', async () => {
-		const { select } = await mountPicker();
-		expect(groups(select)).toEqual([
+		const { trigger } = await mountPicker();
+		await open(trigger);
+		expect(groups()).toEqual([
 			{ label: 'People', options: [['u1', 'Dave']] },
 			{ label: 'Agents', options: [['u-bot-1', 'Builder (agent)']] },
 		]);
-		expect(select.options[0].value).toBe('');
+		// The "Unassigned" row leads the list, outside the groups.
+		expect(rows().map(label)).toEqual(['Unassigned', 'Dave', 'Builder (agent)']);
 	});
 
 	it('assigns a task to an agent as its bot user', async () => {
-		const { select } = await mountPicker();
-		await fireEvent.change(select, { target: { value: 'u-bot-1' } });
+		const { trigger } = await mountPicker();
+		await open(trigger);
+		await fireEvent.click(rows().find((r) => label(r) === 'Builder (agent)')!);
 		await waitFor(() => expect(state.update).toEqual([{ assigned_user_id: 'u-bot-1' }]));
 	});
 
 	it('shows an item already assigned to an agent as that agent', async () => {
 		state.assigned = { id: 'u-bot-1', name: 'Builder' };
-		const { r, select } = await mountPicker();
-		await waitFor(() => expect(select.value).toBe('u-bot-1'));
-		expect(r.container.querySelector('.assignment-agent')).not.toBeNull();
+		const { trigger } = await mountPicker();
+		await waitFor(() => expect(trigger.getAttribute('aria-label')).toBe('Assigned to: Builder (agent)'));
+		// The agent's glyph, where the person's initial would be.
+		expect(trigger.querySelector('.avatar')).not.toBeNull();
+		await open(trigger);
+		expect(rows().filter((r) => r.getAttribute('aria-checked') === 'true').map(label)).toEqual(['Builder (agent)']);
 	});
 
 	it('keeps an assignee no group holds (a revoked agent), named from the item', async () => {
 		state.assigned = { id: 'u-bot-2', name: 'Retired' };
-		const { select } = await mountPicker();
-		await waitFor(() => expect(select.value).toBe('u-bot-2'));
-		expect(select.selectedOptions[0].textContent?.trim()).toBe('Retired');
+		const { trigger } = await mountPicker();
+		await waitFor(() => expect(trigger.getAttribute('aria-label')).toBe('Assigned to: Retired'));
+		await open(trigger);
+		expect(rows().filter((r) => r.getAttribute('aria-checked') === 'true').map(label)).toEqual(['Retired']);
 	});
 
 	it('lists the people exactly as before when the agents cannot be read', async () => {
 		state.agentsFail = true;
-		const { select } = await mountPicker();
-		expect(select.querySelectorAll('optgroup')).toHaveLength(0);
-		expect([...select.options].map((o) => [o.value, o.textContent?.trim()])).toEqual([
-			['', 'Unassigned'],
-			['u1', 'Dave'],
-		]);
+		const { trigger } = await mountPicker();
+		await open(trigger);
+		expect(groups()).toEqual([]);
+		expect(rows().map(label)).toEqual(['Unassigned', 'Dave']);
 	});
 });

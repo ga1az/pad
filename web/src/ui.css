@@ -39,6 +39,7 @@
 /* The status/priority picker's popover (TASK-30). Its trigger and mobile sheet
    keep their scoped CSS. */
 @source "./lib/components/collections/StatusPicker.svelte";
+@source "./lib/components/fields/PropertyPicker.svelte";
 /* The desktop icon picker's grid (TASK-30). */
 @source "./lib/components/common/EmojiPickerPanel.svelte";
 /* The desktop app frame (TASK-27). File by file, not the whole layout/
