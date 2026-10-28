@@ -10,11 +10,12 @@ Este es el fork personal [ga1az/pad](https://github.com/ga1az/pad) de [Perpetual
 
 ## Preparar el entorno
 
-Requisitos: Go 1.26.5 o superior (toolchain 1.26.10 en `go.mod`), Node.js para el frontend y `make`. Los scripts del frontend se definen en `web/package.json`.
+Requisitos: Go 1.26.5 o superior (toolchain 1.26.10 en `go.mod`), Node.js 24 (como en CI) para el frontend y `make`. Los scripts del frontend se definen en `web/package.json`.
 
 ```bash
 git clone --branch custom https://github.com/ga1az/pad.git
 cd pad
+git remote add upstream https://github.com/PerpetualSoftware/pad.git
 make build
 ```
 
@@ -24,7 +25,7 @@ Para probar la CLI localmente, `./pad init` prepara la conexión y el workspace;
 
 ## Verificación y despliegue
 
-Ejecuta pruebas focalizadas según el área modificada. Las pruebas Go con SQLite usan datos temporales; las de PostgreSQL necesitan una instancia temporal mediante `PAD_TEST_POSTGRES_URL`. `make test-pg` existe, pero su receta no limita por sí sola el consumo de recursos. En esta máquina, para trabajos pesados usa un solo job a la vez, `GOMAXPROCS=2`, `GOFLAGS=-p=1` y el bloqueo compartido `~/.cache/pad-spec35-heavy.lock`; reparte el presupuesto de 2 CPU y 4 GiB con PostgreSQL si lo arrancas. Las pruebas Go no necesitan GPU. Usa navegador/headless solo cuando la verificación de interfaz lo requiera.
+Ejecuta pruebas focalizadas según el área modificada. Las pruebas Go con SQLite usan datos temporales; las de PostgreSQL necesitan una instancia temporal mediante `PAD_TEST_POSTGRES_URL`. `make test-pg` existe, pero su receta no limita por sí sola el consumo de recursos. En esta máquina, para trabajos pesados usa un solo job a la vez, `GOMAXPROCS=2`, `GOFLAGS=-p=1` y el bloqueo compartido `~/.cache/pad-spec35-heavy.lock`. Estas variables no limitan la memoria: aplica también un cgroup con un presupuesto total de 2 CPU y 4 GiB, incluyendo PostgreSQL si lo arrancas. Ese límite no se activa automáticamente al ejecutar `make` o `go test`. Las pruebas Go no necesitan GPU. Usa navegador/headless solo cuando la verificación de interfaz lo requiera.
 
 `make install` depende del build completo: puede ejecutar `npm ci`, reemplaza el binario instalado y reinicia el servidor. No es un paso rutinario de verificación ni una forma de omitir la web para cambios backend. Despliega localmente solo de forma explícita, tras comprobar a qué servidor afecta.
 

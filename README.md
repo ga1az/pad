@@ -4,13 +4,9 @@ Este repositorio es mi fork de [PerpetualSoftware/pad](https://github.com/Perpet
 
 La rama principal de este fork es **`custom`**. La rama **`main`** se conserva como referencia del upstream. La interfaz usa shadcn-svelte y una estética oscura inspirada en Linear. Incluye agentes por invitación (SPEC-15). Las políticas de aprobación están en desarrollo: **todavía no se aplican en `custom` ni en el servicio local**.
 
-![Interfaz actual del fork Pad en un servidor local, con tema oscuro y navegación de proyectos](docs/screenshots/fork-local.png)
-
-_Captura del 28 de octubre de 2026 en localhost. El archivo de imagen se incorporará junto con la publicación de esta documentación._
-
 ## Compilar y usar localmente
 
-Necesitas Go **1.26.5** como mínimo (el módulo selecciona el toolchain **1.26.10**), Node.js para el frontend y `make`. Los scripts del frontend están en `web/package.json`.
+Necesitas Go **1.26.5** como mínimo, Node.js **24** (la versión usada en CI) y `make`. `go.mod` declara `toolchain go1.26.10`; Go puede conservar un toolchain instalado más nuevo. Para reproducir esa versión exacta, usa `GOTOOLCHAIN=go1.26.10`. Los scripts del frontend están en `web/package.json`.
 
 ```bash
 git clone --branch custom https://github.com/ga1az/pad.git

@@ -4,7 +4,7 @@
 
 Pad is a project management tool for developers and AI agents. This personal fork of PerpetualSoftware/pad develops on `custom`; `main` remains an upstream reference. The single Go binary embeds the SvelteKit web UI and supports SQLite or PostgreSQL storage and multi-agent skills.
 
-**Related repo:** The marketing website (getpad.dev) lives at `../pad-web` — a separate SvelteKit site deployed to Vercel.
+**Upstream website:** getpad.dev belongs to the original project; this fork does not require a sibling `pad-web` checkout.
 
 ## Architecture
 
@@ -43,11 +43,11 @@ Agent sessions take a `git worktree` per task rather than sharing the main check
 
 - **If you find a worktree whose `web/node_modules` is still a symlink (an older one), do not run `npm ci` in it, including via make.** `npm ci` would delete through the symlink into the main checkout's tree and break every session that shares it, with a confusing `vitest: not found`. `npm ci` lives in the `web` target, so every target whose dependency chain reaches it is affected too: currently `web`, `build`, `install`, `serve`, `web-check`, and `check` (via `web-check`). Replace the symlink first: `rm web/node_modules` removes the link only, then run `npm ci`. In a worktree with its own `node_modules`, those targets are safe.
 
-- **Heavy checks on this machine:** Run one heavy job at a time under the shared `~/.cache/pad-spec35-heavy.lock`, with `GOMAXPROCS=2` and `GOFLAGS=-p=1`. The cgroup has 2 CPU and 4 GiB; include any temporary PostgreSQL process in that budget. SQLite tests use temporary data. PostgreSQL tests use `PAD_TEST_POSTGRES_URL` pointing to a temporary instance. `make test-pg` exists but does not apply these CPU and memory limits, so do not use it as this machine's default test profile. Go checks need no GPU; use a browser or headless runner when UI verification requires one. Never point tests at production.
+- **Heavy checks on this machine:** Run one heavy job at a time under the shared `~/.cache/pad-spec35-heavy.lock`, with `GOMAXPROCS=2` and `GOFLAGS=-p=1`. Launch heavy commands in a cgroup capped at a total of 2 CPU and 4 GiB, including any temporary PostgreSQL process. These limits are not automatically applied by `make` or `go test`; `GOMAXPROCS` and `GOFLAGS` alone do not cap memory. SQLite tests use temporary data. PostgreSQL tests use `PAD_TEST_POSTGRES_URL` pointing to a temporary instance. `make test-pg` exists but does not apply these CPU and memory limits, so do not use it as this machine's default test profile. Go checks need no GPU; use a browser or headless runner when UI verification requires one. Never point tests at production.
 
 - **`make test-pg` uses a compose project per worktree**, but overlapping runs inside the same worktree share it; one run can tear down the other's database. Run it alone per worktree when resources permit. Its failure banners distinguish an unreachable or interrupted database from a test failure.
 
-- **Go build caches never go under `/tmp`.** `/tmp` is a 7.3G tmpfs, so every byte written there is RAM. Two ad-hoc `/tmp/docapp*-go-cache` directories created by agent sessions held 3.6G between them and were what the harness's memory reaper was reacting to when it started killing background test runs. Use the default (`~/.cache/go-build`), or `~/.cache/go-build-<worktree>` on disk if you want a per-worktree cache to avoid lock contention on the shared one. `GOTMPDIR` already points at `~/.cache/go-tmp` and stays there.
+- **Go build caches never go under `/tmp`.** `/tmp` is a 7.3G tmpfs, so every byte written there is RAM. Two ad-hoc `/tmp/docapp*-go-cache` directories created by agent sessions held 3.6G between them and were what the harness's memory reaper was reacting to when it started killing background test runs. Use the default (`~/.cache/go-build`), or `~/.cache/go-build-<worktree>` on disk if you want a per-worktree cache to avoid lock contention on the shared one. Create `~/.cache/go-tmp` if needed and explicitly set `GOTMPDIR="$HOME/.cache/go-tmp"` for Go commands; do not assume the current shell has it configured.
 
 `web/vitest.config.ts`'s `server.fs.allow` note covers the other worktree wrinkle (symlink realpaths vs the dev-server file-serving guard) and points back at this section.
 
@@ -410,7 +410,7 @@ Server handlers existed pre-PLAN-1496; these tasks just wired CLI subcommands an
 ## Testing
 
 ```bash
-go test ./internal/store/  # Example focused Go tests (requires embedded web assets)
+go test ./internal/store/  # Focused store tests; no web build required
 cd web && npm run check    # Frontend type check
 cd web && npm run test     # Web unit tests (vitest, run once)
 ```
