@@ -542,25 +542,21 @@
 						<span class="user-dropdown-email">{authStore.user?.email}</span>
 					</div>
 					<div class="dropdown-divider"></div>
-					<a href="/console" class="menu-link" role="menuitem" onclick={closeUserMenu}>
-						Workspaces
-					</a>
+					<!-- Link rows are Dropdown Menu items rendered as real <a>s
+					     (ResponsiveMenuItem href), 28px like every other row (TASK-27). -->
+					<ResponsiveMenuItem href="/console" onclick={closeUserMenu}>Workspaces</ResponsiveMenuItem>
 					<!-- TASK-2255 (C59): not the workspace's ⚙ Settings. -->
-					<a href="/console/settings" class="menu-link" role="menuitem" onclick={closeUserMenu}>
-						Account settings
-					</a>
-					<!-- TASK-4044: no unread dot on the avatar; the count shows here. -->
+					<ResponsiveMenuItem href="/console/settings" onclick={closeUserMenu}>Account settings</ResponsiveMenuItem>
+					<!-- TASK-4044: no unread dot on the avatar; the count shows here.
+					     ChatLink is shared with the You sheet, so it stays its own
+					     anchor; .menu-link below gives it the item row's metrics. -->
 					<ChatLink class="menu-link" role="menuitem" onclick={closeUserMenu} />
 					<!-- Hidden in the mobile apps: no purchase path there (PLAN-3291 DR-3). -->
 					{#if authStore.commerceAllowed}
-						<a href="/console/billing" class="menu-link" role="menuitem" onclick={closeUserMenu}>
-							Billing
-						</a>
+						<ResponsiveMenuItem href="/console/billing" onclick={closeUserMenu}>Billing</ResponsiveMenuItem>
 					{/if}
 					{#if authStore.user?.role === 'admin'}
-						<a href="/console/admin" class="menu-link" role="menuitem" onclick={closeUserMenu}>
-							Admin
-						</a>
+						<ResponsiveMenuItem href="/console/admin" onclick={closeUserMenu}>Admin</ResponsiveMenuItem>
 					{/if}
 					<!--
 						Theme toggle deliberately does NOT close the menu — matches
@@ -878,9 +874,18 @@
 		padding: 0 108px 0 var(--space-3);
 	}
 
+	/* Desktop is part of Linear's frame (TASK-27): the frame colour, no
+	   border, a slimmer row. The content panel below it is what separates. */
+	.topbar:not(.topbar-mobile) {
+		height: 40px;
+		min-height: 40px;
+		background: var(--ui-sidebar);
+		border-bottom: none;
+	}
+
 	/* The logo sits IN the row on desktop, so the first tab starts a fixed
-	   distance after it: the bar's 8px gap plus the tab list's 9px inset
-	   (room for the active tab's flare), about 17px. It was
+	   distance after it: the bar's 8px gap plus the tab list's 2px inset
+	   (a few px for the active pill's rim), about 10px. It was
 	   absolutely placed with the strip at a fixed 72px, so the space was
 	   whatever the wordmark's width left over, which depends on the system
 	   font: about 7px on one machine, about 1px on CI's (TASK-3545). */
@@ -908,7 +913,7 @@
 	.workspace-row {
 		display: flex;
 		align-self: stretch;
-		align-items: flex-end;
+		align-items: center;
 		justify-content: flex-start;
 		flex: 1 1 auto;
 		gap: 4px;
@@ -921,16 +926,11 @@
 		position: relative; /* offsetLeft of a tab is measured from here */
 		display: flex;
 		align-self: stretch;
-		/* The LIST reaches over the bar's 1px bottom border, so the active tab
-		   (and its flares) paint over it and join the page (TASK-3312). A tab's
-		   own negative margin could not: overflow-x: auto makes the list clip
-		   vertically too, so the border always showed under the active tab. */
-		margin-bottom: -1px;
-		/* Room for the active tab's 8px flares at either end: the list clips
-		   what overflows it, so a first or last active tab lost its outer
-		   flare (TASK-3312). */
-		padding: 0 9px;
-		align-items: flex-end;
+		/* The tabs are pills in the frame now (TASK-27): no flares to make
+		   room for, and nothing reaches over a border. A few px at either end
+		   for the active pill's rim. */
+		padding: 0 2px;
+		align-items: center;
 		gap: 2px;
 		min-width: 0;
 		max-width: 100%;
@@ -958,9 +958,9 @@
 	   characters and the X), and past that the list scrolls. The width is a
 	   `width`, not a flex-basis, because a flex container sizes itself from
 	   its items' content: with a basis alone the list took the tabs' content
-	   width and they shrank with room to spare. The active tab takes the
-	   page's background and overlaps the bar's bottom border, so it joins the
-	   content below. The close button shows on hover, on keyboard focus within
+	   width and they shrank with room to spare. A 28px pill in the frame
+	   (TASK-27, Linear's pill tabs): gray text when inactive, a filled pill
+	   when active. The close button shows on hover, on keyboard focus within
 	   the tab, and always on the active tab. */
 	.workspace-tab {
 		position: relative;
@@ -969,12 +969,10 @@
 		flex: 0 1 auto;
 		width: 200px;
 		min-width: 120px;
-		/* 38px in the 44px bar (TASK-3312; 34 read short, with dead space above). */
-		height: 38px;
+		height: 28px;
 		padding: 0 4px 0 2px;
-		border: 1px solid transparent;
-		border-bottom: none;
-		border-radius: 8px 8px 0 0;
+		border: none;
+		border-radius: 6px;
 		transition: background 0.15s, width 0.15s;
 	}
 	/* A frozen tab keeps the width written on it (the close-freeze). */
@@ -1025,75 +1023,17 @@
 		}
 	}
 
-	/* Dividers between inactive tabs (TASK-3312), Chrome's rule: none beside
-	   the hovered or the active tab, and none after the last. The active tab's
-	   pseudo-elements are its flares, so the divider is inactive-only. */
-	.workspace-tab:not(.active)::after {
-		content: '';
-		position: absolute;
-		right: -2px;
-		top: 50%;
-		width: 1px;
-		height: 18px;
-		transform: translateY(-50%);
-		background: var(--border);
-		pointer-events: none;
-	}
-	.workspace-tab:not(.active):hover::after,
-	.workspace-tab:not(.active):has(+ .workspace-tab:hover)::after,
-	.workspace-tab:not(.active):has(+ .workspace-tab.active)::after,
-	.workspace-tab:not(.active):last-child::after {
-		display: none;
-	}
-
-	/* Active-tab flare (TASK-3312): outward curves at the bottom corners, so the
-	   tab flows into the page. Each is an 8px square outside the tab, filled
-	   with the page background and cut by a quarter circle whose rim carries
-	   the border. Tokens, so both themes follow. */
-	.workspace-tab.active::before,
-	.workspace-tab.active::after {
-		content: '';
-		position: absolute;
-		bottom: 0;
-		width: 8px;
-		height: 8px;
-		pointer-events: none;
-	}
-	.workspace-tab.active::before {
-		left: -9px;
-		background: radial-gradient(
-			circle at 0 0,
-			transparent 7.5px,
-			var(--border) 7.5px,
-			var(--border) 8.5px,
-			var(--bg-primary) 8.5px
-		);
-	}
-	.workspace-tab.active::after {
-		right: -9px;
-		background: radial-gradient(
-			circle at 100% 0,
-			transparent 7.5px,
-			var(--border) 7.5px,
-			var(--border) 8.5px,
-			var(--bg-primary) 8.5px
-		);
-	}
 	.workspace-tab:hover {
-		background: var(--bg-hover);
+		background: color-mix(in oklch, var(--ui-foreground) 4%, transparent);
 	}
-	/* The selected tab carries a 2px accent line along its top edge (BUG-3420).
-	   Its background alone could not mark it: the active tab flows into the
-	   page, so it IS the page colour, and that measured 1.07:1 (dark) and
-	   1.09:1 (light) against the strip and its neighbours, with the same text
-	   colour and weight. The line is WCAG non-text contrast against both: in
-	   dark #9268f8 is 4.85:1 on the strip and 5.20:1 on the tab, in light
-	   #7c3aed is 5.70:1 and 5.24:1. Inset, so it follows the rounded corners
-	   and moves nothing. */
+	/* The selected tab: the filled pill, and a rim that carries BUG-3420's
+	   requirement. A fill one step above the frame cannot reach WCAG 1.4.11's
+	   3:1 against the frame and the other tabs, so the indicator is the inset
+	   rim, in --text-muted (hex, so it computes to rgb(): 5.3:1 on the dark
+	   frame, 5.6:1 on the light one). */
 	.workspace-tab.active {
-		background: var(--bg-primary);
-		border-color: var(--border);
-		box-shadow: inset 0 2px 0 var(--accent-primary);
+		background: var(--ui-tab);
+		box-shadow: inset 0 0 0 1px var(--text-muted);
 		z-index: 1;
 	}
 	.workspace-tab-close {
@@ -1125,8 +1065,8 @@
 	}
 	.workspace-tab-close:hover,
 	.workspace-tab-close:focus-visible {
-		background: var(--bg-hover);
-		color: var(--text-primary);
+		background: color-mix(in oklch, var(--ui-foreground) 8%, transparent);
+		color: var(--ui-foreground);
 	}
 	/* An ephemeral tab (opened by a landing, not kept yet) reads italic
 	   (PLAN-3002 Q9). */
@@ -1143,7 +1083,7 @@
 		padding: var(--space-1) 6px;
 		border-radius: var(--radius);
 		text-decoration: none;
-		color: var(--text-secondary);
+		color: var(--ui-muted-foreground);
 		white-space: nowrap;
 		transition: color 0.15s;
 	}
@@ -1153,11 +1093,11 @@
 		cursor: default;
 	}
 	.workspace-item:hover {
-		color: var(--text-primary);
+		color: var(--ui-foreground);
 		text-decoration: none;
 	}
 	.workspace-item.active {
-		color: var(--text-primary);
+		color: var(--ui-foreground);
 	}
 
 	.workspace-icon {
@@ -1182,8 +1122,8 @@
 	   9.74:1 and 4.19:1 at worst), and an active one, on the full colour in
 	   either theme, a fixed dark ink (6.34:1 at worst). */
 	.workspace-tab .workspace-icon {
-		width: 18px;
-		height: 18px;
+		width: 16px;
+		height: 16px;
 		border: none;
 		border-radius: 4px;
 		color: var(--text-primary);
@@ -1194,7 +1134,7 @@
 	}
 
 	.workspace-name {
-		font-size: 0.82em;
+		font-size: 13px;
 		font-weight: 500;
 	}
 	/* A long name ends in an ellipsis inside its tab; the link's title
@@ -1219,9 +1159,9 @@
 		height: 24px;
 		border-radius: 50%;
 		flex-shrink: 0;
-		color: var(--text-muted);
-		border: 2px dashed var(--border);
-		transition: border-color 0.15s, color 0.15s;
+		color: var(--ui-muted-foreground);
+		border: none;
+		transition: background 0.15s, color 0.15s;
 	}
 	/* Pending invitations on "+" (BUG-2136 U2): visible without opening it. */
 	.add-badge {
@@ -1241,8 +1181,8 @@
 		pointer-events: none;
 	}
 	.workspace-add:hover {
-		border-color: var(--text-secondary);
-		color: var(--text-secondary);
+		background: color-mix(in oklch, var(--ui-foreground) 6%, transparent);
+		color: var(--ui-foreground);
 	}
 	.add-icon {
 		font-size: 0.85em;
@@ -1385,6 +1325,12 @@
 		color: #fff;
 	}
 
+	.topbar:not(.topbar-mobile) .user-avatar {
+		width: 24px;
+		height: 24px;
+		font-size: 11px;
+	}
+
 	/* Panel skin/positioning now lives in the Menu primitive. The
 	   .user-dropdown class survives markup-side as a styling hook for
 	   UserMenuResources' :global(.user-dropdown) rules. */
@@ -1409,54 +1355,69 @@
 	}
 
 	.user-info {
-		padding: var(--space-3) var(--space-4);
+		padding: 6px 8px 8px;
 		display: flex;
 		flex-direction: column;
 		gap: 2px;
 	}
 	.user-dropdown-name {
-		font-size: 0.88em;
-		font-weight: 600;
-		color: var(--text-primary);
+		font-size: 13px;
+		font-weight: 500;
+		color: var(--ui-foreground);
 	}
 	.user-dropdown-email {
-		font-size: 0.78em;
-		color: var(--text-muted);
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
 	}
 
-	.dropdown-divider {
+	.dropdown-divider,
+	.user-dropdown :global(.dropdown-divider) {
 		height: 1px;
-		background: var(--border);
+		margin: 4px 0;
+		background: var(--ui-border);
 	}
 
-	/* Anchor rows inside the user Menu. Links stay real <a>s (they
-	   navigate; role="menuitem" keeps them in the primitive's roving
-	   keyboard nav), so they can't be MenuItem buttons — mirror
-	   MenuItem's .mi metrics here so link rows and button rows read
-	   as one set. */
-	.menu-link,
-	.user-dropdown-body :global(.menu-link) {
+	/* The rows inside the user menu that are not ResponsiveMenuItems: the
+	   ChatLink anchor (shared with the You sheet) and UserMenuResources'
+	   links (also restyled by the You sheet, so its markup stays). Both take
+	   the Dropdown Menu item's metrics (TASK-27): a 28px row, 13px, radius 6px,
+	   the +6% highlight. role="menuitem" keeps them in the menu's roving
+	   keyboard nav. */
+	.user-dropdown-body :global(.menu-link),
+	.user-dropdown-body :global(.dropdown-item) {
 		display: flex;
 		align-items: center;
+		gap: 8px;
 		width: 100%;
-		padding: 7px 9px;
-		border-radius: var(--radius-sm);
+		min-height: 28px;
+		padding: 4px 8px;
+		border-radius: 6px;
 		font-size: 13px;
-		color: var(--text-primary);
-		text-decoration: none;
-	}
-	.menu-link:hover,
-	.menu-link:focus-visible,
-	.user-dropdown-body :global(.menu-link:hover),
-	.user-dropdown-body :global(.menu-link:focus-visible) {
-		background: var(--bg-hover);
+		color: var(--ui-foreground);
 		text-decoration: none;
 		outline: none;
+		transition: background-color 0.1s;
+	}
+	.user-dropdown-body :global(.menu-link:hover),
+	.user-dropdown-body :global(.menu-link:focus-visible),
+	.user-dropdown-body :global(.dropdown-item:hover),
+	.user-dropdown-body :global(.dropdown-item:focus-visible) {
+		background: color-mix(in oklch, var(--ui-foreground) 6%, transparent);
+		color: var(--ui-foreground);
+		text-decoration: none;
+	}
+	.user-dropdown-body :global(.resources-label) {
+		padding: 8px 8px 4px;
+		font-size: 12px;
+		font-weight: 500;
+		letter-spacing: 0;
+		text-transform: none;
+		color: var(--ui-muted-foreground);
 	}
 	@media (pointer: coarse) {
-		.menu-link,
-		.user-dropdown-body :global(.menu-link) {
-			padding: 11px 10px;
+		.user-dropdown-body :global(.menu-link),
+		.user-dropdown-body :global(.dropdown-item) {
+			min-height: 40px;
 		}
 	}
 

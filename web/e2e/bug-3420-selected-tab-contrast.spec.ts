@@ -18,11 +18,18 @@ type Ratios = { indicator: string | null; vsInactive: number; vsStrip: number };
 
 async function activeTabIndicator(page: Page): Promise<Ratios> {
 	return page.evaluate(() => {
+		// The first colour in the value (a box-shadow carries one), resolved to
+		// sRGB through a canvas: SPEC-24's --ui-* tokens compute to oklch().
+		const ctx = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!;
 		const parse = (c: string) => {
-			const m = c.match(/rgba?\(([^)]+)\)/);
+			const m = c.match(/(?:rgba?|hsla?|oklch|oklab|lab|lch|color)\([^)]*\)/);
 			if (!m) return null;
-			const p = m[1].split(/[ ,/]+/).filter(Boolean).map(Number);
-			return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 };
+			ctx.clearRect(0, 0, 1, 1);
+			ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+			ctx.fillStyle = m[0];
+			ctx.fillRect(0, 0, 1, 1);
+			const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+			return { r, g, b, a: a / 255 };
 		};
 		type C = NonNullable<ReturnType<typeof parse>>;
 		const lum = ({ r, g, b }: C) => {
