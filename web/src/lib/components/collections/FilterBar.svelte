@@ -524,8 +524,10 @@
 		color: var(--ui-subtle-foreground);
 	}
 
+	/* The ring is a box-shadow on the border (TASK-3461's indicator). */
 	.search-input:focus {
 		outline: none;
 		border-color: var(--ui-ring);
+		box-shadow: 0 0 0 1px var(--ui-ring);
 	}
 </style>
