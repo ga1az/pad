@@ -124,14 +124,36 @@ describe('StatusPicker', () => {
 			expect(statusRows()).toHaveLength(0);
 		});
 
-		it('numbers the rows that are showing, and a digit typed into a search filters instead', async () => {
+		it('shows the digit hints only while the search is empty, and a digit typed into a search types', async () => {
 			const { screen, onselect } = renderPicker('open');
 			await openStatusPicker(screen.container);
+			const hints = () =>
+				statusRows().map((r) => r.querySelector('[data-slot="command-shortcut"]')?.textContent ?? null);
+			expect(hints()).toEqual(['1', '2', '3']);
 			await fireEvent.input(searchInput(), { target: { value: 'd' } });
 			await tick();
-			expect(statusRows().map((r) => r.querySelector('[data-slot="command-shortcut"]')?.textContent)).toEqual(['1']);
-			await fireEvent.keyDown(searchInput(), { key: '1' });
+			expect(statusRows().map(rowLabel)).toEqual(['Done']);
+			expect(hints(), 'no numbers while filtering').toEqual([null]);
+			// Not prevented: the browser types the digit into the field.
+			expect(await fireEvent.keyDown(searchInput(), { key: '1' })).toBe(true);
 			expect(onselect).not.toHaveBeenCalled();
+			expect(statusRows()).toHaveLength(1);
+			// Clearing the search brings them back.
+			await fireEvent.input(searchInput(), { target: { value: '' } });
+			await tick();
+			expect(hints()).toEqual(['1', '2', '3']);
+		});
+
+		it('a digit past the last row is not a shortcut: it types, and nothing closes', async () => {
+			const { screen, onselect } = renderPicker('open');
+			await openStatusPicker(screen.container);
+			await tick();
+			expect(await fireEvent.keyDown(searchInput(), { key: '9' })).toBe(true);
+			expect(onselect).not.toHaveBeenCalled();
+			expect(statusRows()).toHaveLength(OPTIONS.length);
+			// And the shortcut itself IS taken (prevented): control for the above.
+			expect(await fireEvent.keyDown(searchInput(), { key: '2' })).toBe(false);
+			expect(onselect).toHaveBeenCalledWith('in_progress');
 		});
 
 		it('Escape closes without writing and refocuses the chip', async () => {

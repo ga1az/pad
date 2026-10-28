@@ -4,6 +4,10 @@
   AnchoredPopover by EmojiPickerButton. The mobile picker is still the
   EmojiPicker grid in a BottomSheet.
 
+  The current icon is told apart by an inset ring (the highlight is a fill, and
+  at open the current icon IS the highlighted one, so a fill alone, which the
+  highlight outranks, would not show it).
+
   Keys: typing filters (by the icon's name or its group), the four arrows move
   through the grid (bits-ui's `columns` mode), Enter picks, Esc closes and
   refocuses the button. The stored value is the emoji itself, as before.
@@ -45,7 +49,7 @@
 							aria-label={name}
 							aria-checked={emoji === selected}
 							title={name}
-							class="aria-checked:bg-primary/15 size-9 min-h-0 justify-center p-0 text-lg"
+							class="aria-checked:bg-foreground/10 aria-checked:ring-1 aria-checked:ring-inset aria-checked:ring-(color:--command-focus) data-selected:aria-checked:bg-foreground/15 size-9 min-h-0 justify-center p-0 text-lg"
 							onSelect={() => onselect(emoji)}
 						>
 							{emoji}

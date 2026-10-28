@@ -27,7 +27,7 @@
   The content carries role="dialog", which is what the route Escape drivers
   (hasForeignEscapeOwner) and pane focus guards already look for. Popovers
   that must stay inside it portal into [data-slot="dialog-content"]
-  (portalAction, EmojiPickerButton).
+  (portalAction, ResponsiveMenu, AnchoredPopover).
 -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
