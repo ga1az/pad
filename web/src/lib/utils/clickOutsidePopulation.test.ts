@@ -14,7 +14,6 @@ const SRC = resolve(__dirname, '..', '..');
 const POPULATION = [
 	'lib/components/fields/FieldEditor.svelte',
 	'lib/components/collections/BoardView.svelte',
-	'lib/components/common/EmojiPickerButton.svelte',
 	'lib/components/timeline/ReactionPicker.svelte',
 	'routes/console/+layout.svelte',
 ];
@@ -24,7 +23,12 @@ const POPULATION = [
 // is on the shared Menu primitive. It no longer has a menu of its own to
 // dismiss, so it is held to the half of the rule that still applies: no
 // click-based outside closer comes back.
-const RETIRED = ['lib/components/layout/TopBar.svelte'];
+//
+// EmojiPickerButton is held to the same half since TASK-30: its desktop
+// dropdown is a bits-ui Popover, whose dismissable layer decides on the press
+// too (a drag begun inside and released outside is not an outside press), so it
+// no longer needs `clickOutside`. Its mobile sheet is a BottomSheet.
+const RETIRED = ['lib/components/layout/TopBar.svelte', 'lib/components/common/EmojiPickerButton.svelte'];
 
 // A click listener on the window or document: the closer shape this replaced.
 const CLICK_CLOSER = [

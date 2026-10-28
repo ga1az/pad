@@ -1,9 +1,18 @@
+<!--
+	EmojiPickerButton — the icon button of the collection and role editors. On
+	desktop it opens a Popover with a searchable grid (TASK-30,
+	EmojiPickerPanel); at the mobile breakpoint it opens the EmojiPicker grid
+	in a BottomSheet, as before. The popover portals into the nearest dialog
+	(or <body>) and dismisses on a press that starts outside (BUG-3231: bits-ui
+	tracks where the press began). QuickActionsMenu exempts `.epb-dropdown`
+	from its own outside presses.
+-->
 <script lang="ts">
 	import EmojiPicker from '$lib/components/common/EmojiPicker.svelte';
+	import EmojiPickerPanel from '$lib/components/common/EmojiPickerPanel.svelte';
 	import BottomSheet from '$lib/components/common/BottomSheet.svelte';
+	import AnchoredPopover from '$lib/components/ui-adapters/AnchoredPopover.svelte';
 	import { viewport } from '$lib/stores/breakpoint.svelte';
-	import { clickOutside } from '$lib/utils/clickOutside';
-	import { DIALOG_HOST_SELECTOR } from '$lib/utils/portalAction';
 
 	interface Props {
 		value: string;
@@ -15,59 +24,6 @@
 
 	let open = $state(false);
 	let triggerEl = $state<HTMLButtonElement>();
-	let dropdownX = $state(0);
-	let dropdownY = $state(0);
-
-	// Mobile viewport swaps the absolute-positioned portal dropdown for a
-	// BottomSheet that never clips off-screen. Uses the shared breakpoint store
-	// (TASK-2028).
-
-	/**
-	 * Portal into the nearest dialog (a native <dialog> or an app Dialog's
-	 * content: it stays inside the focus trap and escapes overflow children
-	 * like .dialog-body), or document.body if not inside a dialog.
-	 */
-	function portal(node: HTMLElement) {
-		const dialog = triggerEl?.closest<HTMLElement>(DIALOG_HOST_SELECTOR);
-		const target = dialog || document.body;
-		target.appendChild(node);
-
-		// <dialog> has browser-default overflow:auto which clips children.
-		// Temporarily override while the dropdown is mounted.
-		if (dialog) {
-			dialog.style.overflow = 'visible';
-		}
-
-		return {
-			destroy() {
-				node.remove();
-				if (dialog) {
-					dialog.style.overflow = '';
-				}
-			}
-		};
-	}
-
-
-	function toggleOpen() {
-		// Mobile branch skips the positioning math — BottomSheet docks to
-		// the viewport edge and doesn't need trigger-relative coordinates.
-		if (!open && !viewport.isMobile && triggerEl) {
-			const triggerRect = triggerEl.getBoundingClientRect();
-			const dialog = triggerEl.closest<HTMLElement>(DIALOG_HOST_SELECTOR);
-			if (dialog) {
-				// dialog with transform creates a containing block —
-				// position: absolute is relative to it, so offset accordingly
-				const dialogRect = dialog.getBoundingClientRect();
-				dropdownX = triggerRect.left - dialogRect.left;
-				dropdownY = triggerRect.bottom - dialogRect.top + 4;
-			} else {
-				dropdownX = triggerRect.left;
-				dropdownY = triggerRect.bottom + 4;
-			}
-		}
-		open = !open;
-	}
 
 	function handleSelect(emoji: string) {
 		value = emoji;
@@ -83,7 +39,9 @@
 		class="trigger"
 		class:open
 		class:empty={!value}
-		onclick={toggleOpen}
+		aria-haspopup="dialog"
+		aria-expanded={open}
+		onclick={() => (open = !open)}
 	>
 		{value || placeholder}
 	</button>
@@ -94,15 +52,25 @@
 				<EmojiPicker selected={value} onselect={handleSelect} />
 			</div>
 		</BottomSheet>
-	{:else if open}
-		<!-- `clickOutside` dismisses only on a press that STARTS outside (BUG-3231): a drag begun inside and released outside is not an outside click. Desktop only: on mobile the BottomSheet owns dismissal. -->
-		<div
+	{:else}
+		<AnchoredPopover
+			{open}
+			onclose={() => (open = false)}
+			trigger={triggerEl}
+			width={264}
+			ariaLabel="Pick an icon"
 			class="epb-dropdown"
-			use:portal
-			use:clickOutside={{ onOutside: () => (open = false), extra: () => [triggerEl] }}
-			style="position:absolute; z-index:99999; left:{dropdownX}px; top:{dropdownY}px;">
-			<EmojiPicker selected={value} onselect={handleSelect} />
-		</div>
+		>
+			{#snippet children({ close })}
+				<EmojiPickerPanel
+					selected={value}
+					onselect={(emoji) => {
+						handleSelect(emoji);
+						close(true);
+					}}
+				/>
+			{/snippet}
+		</AnchoredPopover>
 	{/if}
 </div>
 

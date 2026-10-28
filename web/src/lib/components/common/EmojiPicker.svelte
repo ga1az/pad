@@ -1,15 +1,10 @@
 <script lang="ts">
+	import { EMOJI_GROUPS } from './emojiGroups';
+
 	interface Props {
 		selected?: string;
 		onselect: (emoji: string) => void;
 	}
-
-	const EMOJI_GROUPS = [
-		{ label: 'Objects', emojis: ['📋', '📝', '📄', '📁', '📂', '📌', '📎', '🔖', '📊', '📈', '📉', '📦'] },
-		{ label: 'Symbols', emojis: ['✓', '✗', '⚡', '🔥', '⭐', '💡', '🎯', '🏷️', '🔔', '💬', '🔗', '🔒'] },
-		{ label: 'People', emojis: ['👤', '👥', '🧑‍💻', '🤝', '💪', '🎉', '👀', '🙌', '🧠', '❤️', '👍', '🚀'] },
-		{ label: 'Nature', emojis: ['🌱', '🌿', '🌍', '☀️', '🌙', '⚙️', '🔧', '🛠️', '🧪', '🔬', '💎', '🏗️'] },
-	];
 
 	let { selected, onselect }: Props = $props();
 </script>
@@ -18,7 +13,7 @@
 	{#each EMOJI_GROUPS as group (group.label)}
 		<div class="category-label">{group.label}</div>
 		<div class="emoji-grid">
-			{#each group.emojis as emoji (emoji)}
+			{#each group.emojis as { emoji } (emoji)}
 				<button
 					class="emoji-btn"
 					class:selected={selected === emoji}
