@@ -80,6 +80,11 @@
 			highlighted = optionList.includes(value) ? value : (optionList[0] ?? '');
 		}
 		open = !open;
+		// A mouse press on a card's chip does not focus it (the board's drag
+		// layer swallows the mousedown), so closing by the chip puts focus back
+		// on it here. AnchoredPopover does the same when the press outlasts
+		// bits-ui's 10ms judgement.
+		if (!open) triggerEl?.focus();
 	}
 
 	function choose(status: string) {
