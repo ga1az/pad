@@ -41,7 +41,12 @@
 		class:empty={!value}
 		aria-haspopup="dialog"
 		aria-expanded={open}
-		onclick={() => (open = !open)}
+		onclick={() => {
+			open = !open;
+			// Closing by the button leaves focus on it, whatever the browser did
+			// on the press (Safari does not focus a button).
+			if (!open) triggerEl?.focus();
+		}}
 	>
 		{value || placeholder}
 	</button>
