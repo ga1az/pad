@@ -63,10 +63,18 @@
 		 * anchor navigation.
 		 */
 		onItemOpen?: (item: Item) => void;
+		/**
+		 * `row` is Linear's list row (SPEC-24 / TASK-29): one 44px line of
+		 * fixed-width columns (priority, ref, status, title, chips, assignee,
+		 * date), so the rows of a list align. ListView passes it; at phone width
+		 * the card renders instead (its 44px touch targets, TASK-2244).
+		 */
+		variant?: 'card' | 'row';
 	}
 
-	let { item, collection, compact = false, focused = false, showCollection = false, statusOptions, onStatusClick, progress = null, progressLabel = 'tasks', onReorderItem, reorderDisabledDirs, onMoveItem, horizontal = false, onItemOpen }: Props = $props();
+	let { item, collection, compact = false, variant = 'card', focused = false, showCollection = false, statusOptions, onStatusClick, progress = null, progressLabel = 'tasks', onReorderItem, reorderDisabledDirs, onMoveItem, horizontal = false, onItemOpen }: Props = $props();
 
+	let isRow = $derived(variant === 'row' && !viewport.isMobile);
 	let wsSlug = $derived(page.params.workspace ?? '');
 	let username = $derived(page.params.username ?? '');
 	function chippable(f: FieldDef | undefined): FieldDef | undefined {
@@ -250,6 +258,163 @@
 	{/if}
 {/snippet}
 
+{#snippet statusIcon()}
+	{#if statusField && typeof fields.status === 'string' && fields.status}
+		{#if statusSettable && statusOptions && onStatusClick}
+			<!-- BUG-3157: a picker, never a one-tap cycle — see StatusPicker. -->
+			<span class="card-status">
+				<StatusPicker
+					value={fields.status}
+					options={statusOptions}
+					appearance="icon"
+					field={statusField}
+					onselect={(next) => onStatusClick(item, next)}
+				/>
+			</span>
+		{:else}
+			<!-- The name is text, not only a label: the card still SHOWS the
+			     status to a reader who cannot change it. -->
+			<span class="card-status" title="Status: {formatLabel(fields.status)}">
+				<StatusIcon category={statusCategory(fields.status, statusField)} />
+				<span class="sr-only">Status: {formatLabel(fields.status)}</span>
+			</span>
+		{/if}
+	{/if}
+{/snippet}
+
+{#snippet priorityIcon()}
+	{#if prioritySettable && writePriority && typeof fields.priority === 'string'}
+		<span class="card-chip card-priority">
+			<StatusPicker
+				kind="priority"
+				value={fields.priority}
+				options={priorityOptions}
+				appearance="icon"
+				onselect={(next) => writePriority(item, next)}
+			/>
+		</span>
+	{:else}
+		<!-- Static (BUG-3041: string-shaped values only). A missing value
+		     is Linear's "no priority" dashes. -->
+		{@const priority = typeof fields.priority === 'string' ? fields.priority : ''}
+		<span class="card-chip card-priority" title={priority ? `Priority: ${formatLabel(priority)}` : 'No priority'}>
+			<PriorityIcon level={priorityLevel(priority)} />
+			<span class="sr-only">{priority ? `Priority: ${formatLabel(priority)}` : 'No priority'}</span>
+		</span>
+	{/if}
+{/snippet}
+
+{#snippet propertyChips()}
+	{#if item.parent_title}
+		{@const parentLabel = item.parent_ref ? `${item.parent_ref}: ${item.parent_title}` : item.parent_title}
+		<span class="card-chip meta-parent" title={parentLabel}>
+			<Icon icon={CubeIcon} size={12} />
+			<span class="chip-text">{item.parent_title}</span>
+		</span>
+	{/if}
+	{#if item.agent_role_name}
+		<span class="card-chip meta-role">
+			{#if item.agent_role_icon}<Icon icon={item.agent_role_icon} size={12} />{/if}
+			<span class="chip-text">{item.agent_role_name}</span>
+		</span>
+	{/if}
+	{#if pullRequest}
+		<button
+			type="button"
+			class="card-chip pr-badge"
+			style:--pr-color={prStateColor(pullRequest.state)}
+			onclick={openPullRequest}
+			title="#{pullRequest.number} {pullRequest.title} ({(pullRequest.state ?? '').toLowerCase()})"
+		>
+			<Icon icon={GitPullRequestIcon} size={12} />
+			<span class="chip-text">#{pullRequest.number}</span>
+		</button>
+	{/if}
+	{#each tags as tag, i (i)}
+		<button type="button" class="card-chip card-tag" onclick={(e) => openTag(e, tag)} title="View items tagged “{tag}”">
+			<span class="tag-dot" aria-hidden="true"></span>
+			<span class="card-tag-text">{tag}</span>
+		</button>
+	{/each}
+{/snippet}
+
+{#if isRow}
+	<!--
+		Linear's list row (SPEC-24 / TASK-29). The same element, classes and
+		controls as the card (`.item-card`, the stretched `.card-link` in
+		`.card-title`, the pickers, star, copy-ref and ⋮), laid out as one line of
+		fixed-width columns: priority, ref, status, title, then chips, the
+		assignee and the created date on the right. The ref column's width comes
+		from ListView (`--list-ref-width`), so every row's title starts at the
+		same x.
+	-->
+	<div class="item-card row" data-item-key={itemUrlId(item)} data-item-slug={item.slug} class:focused class:has-pr={!!pullRequest}>
+		<span class="row-priority">
+			{#if priorityField}{@render priorityIcon()}{/if}
+		</span>
+		<span class="row-ref item-ref-wrap">
+			{#if itemRef}<span class="item-ref">{itemRef}</span>{/if}
+			<span class="sr-only" aria-live="polite">{copied ? `Copied ${itemRef}` : ''}</span>
+		</span>
+		<span class="row-status">{@render statusIcon()}</span>
+		<!-- `.card-title` holds the title alone: tests and e2e read its text. -->
+		<div class="card-title">
+			<a href={itemUrl} class="card-link" onclick={handleCardClick}>{item.title}</a>
+		</div>
+		<span class="row-actions">
+			{#if itemRef}
+				<button
+					type="button"
+					class="copy-ref-btn"
+					class:copied
+					onclick={copyRef}
+					title="Copy item ID"
+					aria-label={copied ? `Copied ${itemRef}` : `Copy item ID ${itemRef}`}
+				>
+					{#if copied}
+						<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+					{:else}
+						<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+					{/if}
+				</button>
+			{/if}
+			<button
+				type="button"
+				class="star-btn"
+				class:starred
+				onclick={toggleStar}
+				title={starred ? 'Unstar' : 'Star'}
+				aria-label={`Star ${item.title}`}
+				aria-pressed={starred}
+			>
+				<span aria-hidden="true">{starred ? '★' : '☆'}</span>
+			</button>
+			{#if onReorderItem}
+				<span class="hover-action">
+					<ItemActionsMenu
+						{item}
+						{horizontal}
+						disabledDirs={reorderDisabledDirs}
+						label={item.title}
+						onReorder={(dir) => onReorderItem?.(item, dir)}
+						onMove={onMoveItem ? (dir) => onMoveItem?.(item, dir) : undefined}
+					/>
+				</span>
+			{/if}
+		</span>
+		<span class="row-meta">
+			{#if progress && progress.total > 0}
+				<span class="card-chip row-progress" title="{progress.done} of {progress.total} {progress.label ?? progressLabel} done">
+					<span class="row-progress-ring" style:--p="{Math.round((progress.done / progress.total) * 100)}%" aria-hidden="true"></span>
+					<span class="card-progress-text">{progress.done}/{progress.total} {progress.label ?? progressLabel}</span>
+				</span>
+			{/if}
+			{@render propertyChips()}
+		</span>
+		{@render assignee()}
+		<span class="meta-age row-date" title={createdAtTitle}>{createdText}</span>
+	</div>
+{:else}
 <div class="item-card" data-item-key={itemUrlId(item)} data-item-slug={item.slug} class:compact class:focused class:has-pr={!!pullRequest}>
 	<div class="card-top-row">
 		{#if showCollection && item.collection_name}
@@ -352,27 +517,7 @@
 			type is deliberate: a type allow-list goes stale the next time a type
 			is added, and this question does not.
 		-->
-		{#if !viewport.isMobile && statusField && typeof fields.status === 'string' && fields.status}
-			{#if statusSettable && statusOptions && onStatusClick}
-				<!-- BUG-3157: a picker, never a one-tap cycle — see StatusPicker. -->
-				<span class="card-status">
-					<StatusPicker
-						value={fields.status}
-						options={statusOptions}
-						appearance="icon"
-						field={statusField}
-						onselect={(next) => onStatusClick(item, next)}
-					/>
-				</span>
-			{:else}
-				<!-- The name is text, not only a label: the card still SHOWS the
-				     status to a reader who cannot change it. -->
-				<span class="card-status" title="Status: {formatLabel(fields.status)}">
-					<StatusIcon category={statusCategory(fields.status, statusField)} />
-					<span class="sr-only">Status: {formatLabel(fields.status)}</span>
-				</span>
-			{/if}
-		{/if}
+		{#if !viewport.isMobile}{@render statusIcon()}{/if}
 		<!-- `.card-title` holds the title alone: tests and e2e read its text. -->
 		<div class="card-title">
 			<a href={itemUrl} class="card-link" onclick={handleCardClick}>{item.title}</a>
@@ -416,57 +561,9 @@
 					{/if}
 				{/if}
 			{:else if priorityField}
-				{#if prioritySettable && writePriority && typeof fields.priority === 'string'}
-					<span class="card-chip card-priority">
-						<StatusPicker
-							kind="priority"
-							value={fields.priority}
-							options={priorityOptions}
-							appearance="icon"
-							onselect={(next) => writePriority(item, next)}
-						/>
-					</span>
-				{:else}
-					<!-- Static (BUG-3041: string-shaped values only). A missing value
-					     is Linear's "no priority" dashes. -->
-					{@const priority = typeof fields.priority === 'string' ? fields.priority : ''}
-					<span class="card-chip card-priority" title={priority ? `Priority: ${formatLabel(priority)}` : 'No priority'}>
-						<PriorityIcon level={priorityLevel(priority)} />
-						<span class="sr-only">{priority ? `Priority: ${formatLabel(priority)}` : 'No priority'}</span>
-					</span>
-				{/if}
+				{@render priorityIcon()}
 			{/if}
-			{#if item.parent_title}
-				{@const parentLabel = item.parent_ref ? `${item.parent_ref}: ${item.parent_title}` : item.parent_title}
-				<span class="card-chip meta-parent" title={parentLabel}>
-					<Icon icon={CubeIcon} size={12} />
-					<span class="chip-text">{item.parent_title}</span>
-				</span>
-			{/if}
-			{#if item.agent_role_name}
-				<span class="card-chip meta-role">
-					{#if item.agent_role_icon}<Icon icon={item.agent_role_icon} size={12} />{/if}
-					<span class="chip-text">{item.agent_role_name}</span>
-				</span>
-			{/if}
-			{#if pullRequest}
-				<button
-					type="button"
-					class="card-chip pr-badge"
-					style:--pr-color={prStateColor(pullRequest.state)}
-					onclick={openPullRequest}
-					title="#{pullRequest.number} {pullRequest.title} ({(pullRequest.state ?? '').toLowerCase()})"
-				>
-					<Icon icon={GitPullRequestIcon} size={12} />
-					<span class="chip-text">#{pullRequest.number}</span>
-				</button>
-			{/if}
-			{#each tags as tag, i (i)}
-				<button type="button" class="card-chip card-tag" onclick={(e) => openTag(e, tag)} title="View items tagged “{tag}”">
-					<span class="tag-dot" aria-hidden="true"></span>
-					<span class="card-tag-text">{tag}</span>
-				</button>
-			{/each}
+			{@render propertyChips()}
 		</div>
 	{/if}
 
@@ -483,6 +580,7 @@
 		<span class="meta-age" title={createdAtTitle}>Created {createdText}</span>
 	{/if}
 </div>
+{/if}
 
 <style>
 	/* Linear's card, measured at 1:1 (TASK-28): one step above the column, a
@@ -954,5 +1052,128 @@
 
 	.star-btn.starred {
 		color: var(--accent-amber);
+	}
+	/* ── Linear's list row (TASK-29) ───────────────────────────────────────
+	   Measured from Linear's list at 1:1: 44px, no border or fill, +4% white
+	   on hover; the priority starts 35px in (Linear keeps that gutter for its
+	   selection checkbox), then a 7px gap to the ref, the 14px status and the
+	   title 8px after it. The right side is the chips, the 18px assignee and
+	   the date in a fixed column 18px from the edge. */
+	.item-card.row {
+		flex-direction: row;
+		align-items: center;
+		gap: 0;
+		height: 44px;
+		padding: 0 18px 0 35px;
+		background: none;
+		border: none;
+		border-radius: 6px;
+		box-shadow: none;
+		font-size: 13px;
+	}
+	.item-card.row:hover {
+		background: color-mix(in oklch, var(--ui-foreground) 4%, transparent);
+	}
+	.item-card.row.focused {
+		background: color-mix(in oklch, var(--ui-foreground) 7%, transparent);
+		box-shadow: inset 2px 0 0 var(--ui-primary);
+	}
+	.item-card.row:has(.card-link:focus-visible) {
+		outline-offset: -2px;
+	}
+	.row-priority {
+		display: inline-flex;
+		flex: none;
+		width: 16px;
+		height: 16px;
+		align-items: center;
+		justify-content: center;
+		margin-right: 7px;
+	}
+	/* No box around the row's priority: Linear draws the bars alone. */
+	.row-priority .card-priority {
+		width: 16px;
+		height: 16px;
+		border: none;
+		border-radius: 4px;
+	}
+	.row-priority .card-priority :global(.picker-icon) {
+		border-radius: 4px;
+	}
+	.row-ref {
+		flex: none;
+		width: var(--list-ref-width, 56px);
+		margin-right: 7px;
+		overflow: hidden;
+	}
+	.row-ref .item-ref {
+		font-variant-numeric: tabular-nums;
+		letter-spacing: 0.02em;
+	}
+	.row-status {
+		display: inline-flex;
+		flex: none;
+		width: 16px;
+		margin-right: 8px;
+		justify-content: center;
+	}
+	.row-status .card-status {
+		height: 16px;
+	}
+	.item-card.row .card-title {
+		flex: 0 1 auto;
+		min-width: 0;
+		line-height: 20px;
+		overflow-wrap: normal;
+	}
+	.item-card.row .card-title .card-link {
+		display: block;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	/* Copy-ref, the star and the ⋮ sit right after the title, shown on hover
+	   or focus as on the card. */
+	.row-actions {
+		display: inline-flex;
+		flex: none;
+		align-items: center;
+		gap: 2px;
+		margin-left: 6px;
+	}
+	.row-meta {
+		display: flex;
+		flex: 1 1 0;
+		min-width: 0;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 4px;
+		margin: 0 12px 0 16px;
+		overflow: hidden;
+	}
+	.row-meta .card-chip {
+		flex: 0 1 auto;
+	}
+	.row-meta .meta-parent,
+	.row-meta .card-tag {
+		max-width: 14rem;
+	}
+	.row-progress-ring {
+		flex: none;
+		width: 12px;
+		height: 12px;
+		border-radius: 50%;
+		background: conic-gradient(var(--ui-status-review) var(--p), var(--ui-tab) 0);
+	}
+	.item-card.row .card-assignee {
+		margin-right: 18px;
+	}
+	.item-card.row .row-date {
+		flex: none;
+		width: 48px;
+		margin: 0;
+		text-align: right;
+		align-self: center;
+		line-height: 20px;
 	}
 </style>

@@ -1,10 +1,14 @@
 <script lang="ts">
 	import Icon from '$lib/icons/Icon.svelte';
-	import { Archive01Icon } from '@hugeicons/core-free-icons';
+	import { Add01Icon, Archive01Icon, MoreHorizontalIcon } from '@hugeicons/core-free-icons';
 	import { viewport } from '$lib/stores/breakpoint.svelte';
 	import { relationGroupingRefusal, relationGroupingRefusalMessage } from '$lib/collections/relationGroups';
 	import type { Item, Collection } from '$lib/types';
-	import { parseSchema, parseFields } from '$lib/types';
+	import { parseSchema, parseFields, formatItemRef } from '$lib/types';
+	import StatusIcon from '$lib/components/status/StatusIcon.svelte';
+	import PriorityIcon from '$lib/components/status/PriorityIcon.svelte';
+	import { priorityLevel, statusCategory } from '$lib/components/status/statusCategory';
+	import { draftKey } from '$lib/collections/laneDrafts';
 	import { itemComparator, type SortMode } from '$lib/collections/itemSort';
 	import { formatLaneLabel, isUngrouped, laneKey, laneValue } from '$lib/collections/boardColumns';
 	import { laneOrderAfterMove, disabledDirections, type ReorderDirection } from '$lib/collections/reorder';
@@ -72,6 +76,16 @@
 		filtered?: boolean;
 		onGroupReorder?: (newOrder: string[]) => void;
 		oncreate?: () => void;
+		/**
+		 * The group header's `+` (TASK-29), the board's per-lane create: the
+		 * page resolves the group value into the item's fields
+		 * (`quickCreateInColumn`). The draft it types into is the page's
+		 * `draftText` / `draftOpen`, shared with the board's lane drafts, so a
+		 * draft survives a list↔board switch and the leave guard covers it.
+		 */
+		onCreateInColumn?: (groupValue: string, title: string, reveal: boolean) => Promise<unknown> | void;
+		draftText?: Record<string, string>;
+		draftOpen?: Record<string, boolean>;
 		itemProgress?: Record<string, { total: number; done: number }>;
 		progressLabel?: string;
 		/**
@@ -150,6 +164,9 @@
 		filtered = false,
 		onGroupReorder,
 		oncreate,
+		onCreateInColumn,
+		draftText = $bindable({}),
+		draftOpen = $bindable({}),
 		itemProgress,
 		progressLabel = 'tasks',
 		canEdit = true,
@@ -178,6 +195,24 @@
 	// the targets, values folded onto a sentinel before bucketing, and the
 	// chip vocabulary for the label.
 	let isRelationGroup = $derived(field?.type === 'relation' && !!field?.collection);
+	/**
+	 * The icon in a group header (TASK-29), the board's lane rule: the status
+	 * shape when grouped by a workflow field (`status`, or a select that
+	 * declares terminal options), the priority bars when grouped by
+	 * `priority`, and nothing for any other grouping.
+	 */
+	let groupIcon = $derived.by((): 'status' | 'priority' | null => {
+		if (field?.type !== 'select') return null;
+		if (groupField === 'priority') return 'priority';
+		if (groupField === 'status' || (Array.isArray(field.terminal_options) && field.terminal_options.length > 0)) return 'status';
+		return null;
+	});
+	// The rows' ref column is as wide as the longest ref in the list, so every
+	// title starts at the same x (Linear's list). Refs are short ASCII, and at
+	// 12px tabular figures a character is about 0.62em.
+	let refWidth = $derived(
+		`${Math.max(4, ...items.map((i) => formatItemRef(i)?.length ?? 0)) * 7.4 + 2}px`,
+	);
 	/**
 	 * Why grouping is refused for this field, or null (U4).
 	 *
@@ -513,6 +548,45 @@
 		if (lane.length > 0) onReorder(lane, item.id);
 	}
 
+	// The group header's `+` (TASK-29): an inline draft row under the header,
+	// the board's draft card in a list's shape. No item exists until Enter;
+	// Escape hides the row and keeps the text (it is the page's).
+	let draftInputs: Record<string, HTMLInputElement | undefined> = {};
+	let savingDraft = $state(false);
+
+	/** Whether a group offers `+`: the board's gate for its lane `+`. */
+	function canAddTo(groupName: string): boolean {
+		return !!onCreateInColumn && !isUngrouped(groupName) && !isRelationGroup && !groupingRefusal;
+	}
+
+	function openDraft(groupName: string) {
+		if (!canAddTo(groupName)) return;
+		collapsedGroups.delete(groupName);
+		const key = draftKey(groupField, groupName);
+		draftOpen[key] = true;
+		requestAnimationFrame(() => draftInputs[key]?.focus());
+	}
+
+	async function submitDraft(key: string) {
+		const title = (draftText[key] ?? '').trim();
+		if (!title || savingDraft || !onCreateInColumn) return;
+		savingDraft = true;
+		// As the board's composer: cleared before the await so the leave guard
+		// never sees an in-flight create as unsaved, restored on failure (the
+		// page toasts the error).
+		const prior = draftText[key];
+		delete draftText[key];
+		draftOpen[key] = false;
+		try {
+			await onCreateInColumn(key, title, true);
+		} catch {
+			draftText[key] = prior;
+			draftOpen[key] = true;
+		} finally {
+			savingDraft = false;
+		}
+	}
+
 	function toggleGroup(groupName: string) {
 		if (collapsedGroups.has(groupName)) {
 			collapsedGroups.delete(groupName);
@@ -542,6 +616,7 @@
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		class="list-view"
+		style:--list-ref-width={refWidth}
 		use:dndzone={{
 			items: groupItems,
 			flipDurationMs,
@@ -588,9 +663,14 @@
 						class="group-toggle"
 						aria-expanded={!collapsedGroups.has(groupName)}
 					>
-					<span class="collapse-icon" class:collapsed={collapsedGroups.has(groupName)}
-						>&#9662;</span
+					<span class="collapse-icon" class:collapsed={collapsedGroups.has(groupName)} aria-hidden="true"
+						><svg width="8" height="8" viewBox="0 0 8 8"><path d="M1 2.25h6L4 6.25z" fill="currentColor" /></svg></span
 					>
+					{#if groupIcon === 'status' && !isUngrouped(groupName)}
+						<StatusIcon category={statusCategory(groupName, field)} />
+					{:else if groupIcon === 'priority' && !isUngrouped(groupName)}
+						<PriorityIcon level={priorityLevel(groupName)} />
+					{/if}
 					<span class="group-title">
 						{#if relationLaneByValue.get(groupName)?.ref}<span class="group-ref"
 							>{relationLaneByValue.get(groupName)?.ref}</span
@@ -603,9 +683,9 @@
 								title="This item has been deleted.">(deleted)</span
 							>{/if}
 					</span>
+					<span class="group-count">{itemCount(grpItems)}</span>
 					</button>
 					<span class="group-actions">
-						<span class="group-count">{itemCount(grpItems)}</span>
 						<!-- Gate on onArchiveGroup alone (not canEdit): archive-all
 						     is owner/editor-gated by the page via the callback, so
 						     an owner/editor without a collection edit grant
@@ -639,7 +719,7 @@
 									aria-haspopup="menu"
 									aria-expanded={openGroupMenu === groupName}
 									onclick={(e) => { e.stopPropagation(); openGroupMenu = openGroupMenu === groupName ? null : groupName; }}
-								>&#8943;</button>
+								><Icon icon={MoreHorizontalIcon} size={14} /></button>
 								{#if openGroupMenu === groupName}
 									<LaneActionsMenu
 										items={grpItems}
@@ -662,8 +742,55 @@
 								{/if}
 							</span>
 						{/if}
+						{#if canAddTo(groupName)}
+							<button
+								type="button"
+								class="group-add-btn"
+								title="Add item to {formatLaneLabel(groupName).toLowerCase()}"
+								aria-label="Add item to {formatLaneLabel(groupName)}"
+								onclick={(e) => { e.stopPropagation(); openDraft(groupName); }}
+							><Icon icon={Add01Icon} size={14} /></button>
+						{/if}
 					</span>
 				</div>
+
+				{#if canAddTo(groupName) && draftOpen[draftKey(groupField, groupName)]}
+					{@const key = draftKey(groupField, groupName)}
+					<!-- The inline draft (TASK-29). Outside the dndzone, so it is not a
+					     row and cannot be dragged; it is not an item until Enter. -->
+					<div class="group-draft">
+						{#if groupIcon === 'status'}
+							<StatusIcon category={statusCategory(groupName, field)} />
+						{:else if groupIcon === 'priority'}
+							<PriorityIcon level={priorityLevel(groupName)} />
+						{/if}
+						<input
+							aria-label="New item title"
+							bind:this={draftInputs[key]}
+							bind:value={draftText[key]}
+							class="group-draft-input"
+							placeholder="Enter a title…"
+							disabled={savingDraft}
+							onkeydown={(e) => {
+								if (e.key === 'Enter') {
+									e.preventDefault();
+									submitDraft(key);
+								} else if (e.key === 'Escape') {
+									e.preventDefault();
+									e.stopPropagation();
+									draftOpen[key] = false;
+								}
+							}}
+						/>
+						<button
+							type="button"
+							class="group-draft-add"
+							disabled={!draftText[key]?.trim() || savingDraft}
+							onclick={() => submitDraft(key)}
+						>Add</button>
+						<button type="button" class="group-draft-close" onclick={() => (draftOpen[key] = false)}>Close</button>
+					</div>
+				{/if}
 
 				{#if !collapsedGroups.has(groupName)}
 					<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -703,6 +830,7 @@
 								<ItemCard
 									{item}
 									{collection}
+									variant="row"
 									compact={false}
 									focused={focusedItemId === item.id}
 									{statusOptions}
@@ -739,23 +867,19 @@
 		line-height: 1.4;
 	}
 
+	/* Linear's list (SPEC-24 / TASK-29), measured at 1:1: each group is a
+	   36px header one step above the panel with 6px corners, then its 44px
+	   rows with no borders between them. At phone width the groups keep their
+	   bordered boxes and the rows their cards (below). */
 	.list-view {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-3);
+		gap: 2px;
 	}
 
 	.item-group {
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		overflow: hidden;
-	}
-
-	/* The group menu is absolutely positioned; an open one must not be clipped
-	   by a short group (TASK-2222). */
-	.item-group.menu-open {
-		overflow: visible;
+		display: flex;
+		flex-direction: column;
 	}
 
 	.group-menu-wrap {
@@ -763,9 +887,12 @@
 		display: inline-flex;
 	}
 
-	/* Always visible, unlike the hover-revealed archive button: the board's ⋯
-	   rule (TASK-1671), 28px, and 44px on touch widths (TASK-3311). */
-	.group-menu-btn {
+	/* The ⋯ and the `+`: bare 28px glyph buttons, 44px on touch widths
+	   (TASK-3311). On desktop the ⋯ shows on the header's hover or focus
+	   (Linear's list header shows only the `+`); a touch device, which cannot
+	   hover, always shows it, the board's rule there (TASK-1671). */
+	.group-menu-btn,
+	.group-add-btn {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -774,20 +901,40 @@
 		padding: 0 4px;
 		background: none;
 		border: none;
-		color: var(--text-muted);
+		color: var(--ui-muted-foreground);
 		font-size: 1em;
 		line-height: 1;
 		cursor: pointer;
-		border-radius: var(--radius-sm);
+		border-radius: 6px;
 	}
 
-	.group-menu-btn:hover {
-		color: var(--text-primary);
-		background: var(--bg-hover);
+	.group-menu-btn:hover,
+	.group-add-btn:hover {
+		color: var(--ui-foreground);
+		background: color-mix(in oklch, var(--ui-foreground) 6%, transparent);
+	}
+
+	@media (min-width: 769px) {
+		.group-menu-btn {
+			opacity: 0;
+		}
+		.group-header:hover .group-menu-btn,
+		.group-header:focus-within .group-menu-btn,
+		.group-menu-btn[aria-expanded='true'] {
+			opacity: 1;
+		}
+	}
+	/* A coarse pointer too, as the card's hover actions: a headless desktop
+	   browser reports `hover: none` with a mouse. */
+	@media (hover: none) and (pointer: coarse) {
+		.group-menu-btn {
+			opacity: 1;
+		}
 	}
 
 	@media (max-width: 768px) {
-		.group-menu-btn {
+		.group-menu-btn,
+		.group-add-btn {
 			min-width: 44px;
 			height: 44px;
 		}
@@ -801,8 +948,11 @@
 		}
 	}
 
+	/* In the header's left gutter, so it does not move the chevron. */
 	.group-drag-handle {
-		color: var(--text-muted);
+		position: absolute;
+		left: 1px;
+		color: var(--ui-subtle-foreground);
 		font-size: 0.75em;
 		opacity: 0;
 		transition: opacity 0.15s;
@@ -810,8 +960,8 @@
 		cursor: grab;
 	}
 
-	.item-group:hover .group-drag-handle {
-		opacity: 0.5;
+	.group-header:hover .group-drag-handle {
+		opacity: 1;
 	}
 
 	.group-drag-handle:active {
@@ -819,27 +969,34 @@
 		cursor: grabbing;
 	}
 
+	/* Sticky while its group scrolls under it; opaque, so rows pass beneath. */
 	.group-header {
+		position: sticky;
+		top: 0;
+		z-index: 2;
 		display: flex;
 		align-items: center;
-		gap: var(--space-2);
+		gap: 8px;
 		width: 100%;
-		padding: var(--space-3) var(--space-4);
-		background: none;
+		height: 36px;
+		padding: 0 8px 0 12px;
+		background: var(--ui-secondary);
 		border: none;
+		border-radius: 6px;
 		cursor: pointer;
 		text-align: left;
-		color: var(--text-primary);
-		font-weight: 600;
-		font-size: 0.9em;
+		color: var(--ui-foreground);
+		font-weight: 500;
+		font-size: 13px;
 	}
 
 	.group-toggle {
 		display: flex;
 		align-items: center;
-		gap: var(--space-2);
+		gap: 9px;
 		flex: 1;
 		min-width: 0;
+		height: 100%;
 		padding: 0;
 		background: none;
 		border: none;
@@ -850,19 +1007,15 @@
 	}
 
 	.group-toggle:focus-visible {
-		outline: 2px solid var(--accent-blue);
+		outline: 2px solid var(--ui-ring);
 		outline-offset: 2px;
-		border-radius: var(--radius-sm);
-	}
-
-	.group-header:hover {
-		background: var(--bg-hover);
+		border-radius: 4px;
 	}
 
 	.group-actions {
 		display: flex;
 		align-items: center;
-		gap: var(--space-1);
+		gap: 2px;
 		flex-shrink: 0;
 	}
 
@@ -889,7 +1042,7 @@
 	.archive-group-btn:focus-visible {
 		opacity: 1;
 	}
-	@media (hover: none) {
+	@media (hover: none) and (pointer: coarse) {
 		.archive-group-btn {
 			opacity: 0.65;
 		}
@@ -954,9 +1107,15 @@
 	}
 
 	.collapse-icon {
-		font-size: 0.7em;
+		display: inline-flex;
+		flex: none;
+		width: 14px;
+		justify-content: center;
 		transition: transform 0.15s ease;
-		color: var(--text-muted);
+		color: var(--ui-subtle-foreground);
+	}
+	.group-header:hover .collapse-icon {
+		color: var(--ui-muted-foreground);
 	}
 
 	.collapse-icon.collapsed {
@@ -978,7 +1137,7 @@
 	}
 
 	.group-title {
-		flex: 1;
+		flex: 0 1 auto;
 		min-width: 0;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -986,29 +1145,76 @@
 	}
 
 	.group-count {
-		font-size: 0.8em;
 		font-weight: 400;
-		color: var(--text-muted);
-		background: var(--bg-tertiary);
-		padding: 1px 8px;
-		border-radius: 10px;
+		color: var(--ui-muted-foreground);
 		flex-shrink: 0;
 	}
 
 	.group-items {
-		border-top: 1px solid var(--border);
 		display: flex;
 		flex-direction: column;
-		min-height: 32px;
+		min-height: 8px;
+		padding: 1px 0;
+		border-radius: 6px;
 		transition: background 0.15s ease;
 	}
 
 	.group-items:global(.drop-target) {
-		background: color-mix(in srgb, var(--accent-blue) 6%, transparent);
+		background: color-mix(in srgb, var(--ui-primary) 6%, transparent);
+	}
+
+	/* The `+`'s inline draft: a row's height and gutter, the title as an input. */
+	.group-draft {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		height: 44px;
+		padding: 0 18px 0 35px;
+		color: var(--ui-muted-foreground);
+	}
+	.group-draft-input {
+		flex: 1;
+		min-width: 0;
+		height: 28px;
+		padding: 0 8px;
+		background: none;
+		border: 1px solid var(--ui-border);
+		border-radius: 6px;
+		color: var(--ui-foreground);
+		font: inherit;
+		font-size: 13px;
+	}
+	.group-draft-input:focus {
+		outline: none;
+		border-color: var(--ui-ring);
+	}
+	.group-draft-add,
+	.group-draft-close {
+		height: 28px;
+		padding: 0 10px;
+		background: none;
+		border: none;
+		border-radius: 6px;
+		color: var(--ui-muted-foreground);
+		font: inherit;
+		font-size: 13px;
+		font-weight: 500;
+		cursor: pointer;
+	}
+	.group-draft-add {
+		background: var(--ui-primary);
+		color: var(--ui-primary-foreground);
+	}
+	.group-draft-add:disabled {
+		opacity: 0.5;
+		cursor: default;
+	}
+	.group-draft-close:hover {
+		color: var(--ui-foreground);
+		background: color-mix(in oklch, var(--ui-foreground) 6%, transparent);
 	}
 
 	.list-row {
-		border-bottom: 1px solid var(--border);
 		cursor: grab;
 		-webkit-touch-callout: none;
 		-webkit-user-select: none;
@@ -1049,7 +1255,7 @@
 		 * rewrite of those three call sites.
 		 */
 		content-visibility: auto;
-		contain-intrinsic-size: auto 60px;
+		contain-intrinsic-size: auto 44px;
 	}
 
 	.list-row:active {
@@ -1062,25 +1268,62 @@
 		cursor: default;
 	}
 
-	.list-row:last-child {
-		border-bottom: none;
-	}
-
-	/* Override ItemCard border-radius and border inside list rows */
-	.list-row :global(.item-card) {
-		border: none;
-		border-radius: 0;
-		background: transparent;
-	}
-
-	.list-row :global(.item-card:hover) {
-		background: var(--bg-hover);
-	}
-
 	.group-empty {
-		text-align: center;
-		padding: var(--space-4);
-		color: var(--text-muted);
-		font-size: 0.82em;
+		padding: 12px 18px 12px 35px;
+		color: var(--ui-muted-foreground);
+		font-size: 13px;
+	}
+
+	/* Phone width keeps the pre-TASK-29 list: a bordered box per group, the
+	   cards as borderless rows with a rule between them (TASK-2244 measured
+	   its touch targets), a 44px header. Not sticky: the mobile chrome is
+	   fixed above it. */
+	@media (max-width: 768px) {
+		.list-view {
+			gap: var(--space-3);
+		}
+		.item-group {
+			background: var(--bg-secondary);
+			border: 1px solid var(--border);
+			border-radius: var(--radius);
+			overflow: hidden;
+		}
+		/* The group menu is absolutely positioned; an open one must not be
+		   clipped by a short group (TASK-2222). */
+		.item-group.menu-open {
+			overflow: visible;
+		}
+		.group-header {
+			position: relative;
+			height: auto;
+			min-height: 44px;
+			padding: 0 var(--space-2) 0 var(--space-4);
+			border-radius: 0;
+		}
+		.group-items {
+			border-top: 1px solid var(--border);
+			min-height: 32px;
+			padding: 0;
+			border-radius: 0;
+		}
+		.list-row {
+			border-bottom: 1px solid var(--border);
+			contain-intrinsic-size: auto 60px;
+		}
+		.list-row:last-child {
+			border-bottom: none;
+		}
+		.list-row :global(.item-card) {
+			border: none;
+			border-radius: 0;
+			background: transparent;
+			box-shadow: none;
+		}
+		.list-row :global(.item-card:hover) {
+			background: var(--bg-hover);
+		}
+		.group-draft {
+			padding: 0 var(--space-3);
+		}
 	}
 </style>
