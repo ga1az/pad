@@ -810,7 +810,7 @@
 										<Button variant="destructive" onclick={disableTOTP} disabled={totpSaving}>
 											{totpSaving ? 'Disabling...' : 'Confirm Disable'}
 										</Button>
-										<Button variant="secondary" onclick={() => { showDisableConfirm = false; disablePassword = ''; totpError = ''; }} disabled={totpSaving}>
+										<Button variant="ghost" onclick={() => { showDisableConfirm = false; disablePassword = ''; totpError = ''; }} disabled={totpSaving}>
 											Cancel
 										</Button>
 									</div>
@@ -869,7 +869,7 @@
 						<Button variant="default" onclick={verifyTOTP} disabled={totpSaving || !totpCode.trim()}>
 							{totpSaving ? 'Verifying...' : 'Verify & Enable'}
 						</Button>
-						<Button variant="secondary" onclick={cancelSetup} disabled={totpSaving}>Cancel</Button>
+						<Button variant="ghost" onclick={cancelSetup} disabled={totpSaving}>Cancel</Button>
 					</div>
 
 				{:else if totpStep === 'recovery'}
@@ -881,8 +881,8 @@
 							{/each}
 						</div>
 						<div class="btn-row">
-							<Button variant="secondary" onclick={copyRecoveryCodes}>Copy</Button>
-							<Button variant="secondary" onclick={downloadRecoveryCodes}>Download</Button>
+							<Button variant="ghost" onclick={copyRecoveryCodes}>Copy</Button>
+							<Button variant="ghost" onclick={downloadRecoveryCodes}>Download</Button>
 						</div>
 						{#if totpMsg}
 							<p class="success">{totpMsg}</p>
@@ -980,7 +980,7 @@
 						{/if}
 						<div class="token-value-row">
 							<code class="token-value">{createdToken.token}</code>
-							<Button variant="secondary" size="sm" onclick={copyCreatedToken}>
+							<Button variant="ghost" size="sm" onclick={copyCreatedToken}>
 								{tokenCopied ? 'Copied' : 'Copy'}
 							</Button>
 						</div>
@@ -1038,7 +1038,7 @@
 									</span>
 								</div>
 								<div class="token-row-actions">
-									<Button variant="secondary" size="sm" onclick={() => askRotateToken(token)}>Rotate</Button>
+									<Button variant="ghost" size="sm" onclick={() => askRotateToken(token)}>Rotate</Button>
 									<Button variant="destructive" size="sm" onclick={() => askDeleteToken(token)}>Delete</Button>
 								</div>
 							</div>
@@ -1163,7 +1163,7 @@
 						{/if}
 						{#if deleteNeedsReauth}
 							<div class="btn-row">
-								<Button variant="secondary" onclick={signInAgainToDelete}>Sign in again</Button>
+								<Button variant="ghost" onclick={signInAgainToDelete}>Sign in again</Button>
 							</div>
 						{/if}
 
@@ -1171,7 +1171,7 @@
 							<Button variant="destructive" onclick={deleteAccount} disabled={deleteSaving}>
 								{deleteSaving ? 'Deleting...' : 'Permanently delete my account'}
 							</Button>
-							<Button variant="secondary" onclick={cancelDelete} disabled={deleteSaving}>Cancel</Button>
+							<Button variant="ghost" onclick={cancelDelete} disabled={deleteSaving}>Cancel</Button>
 						</div>
 					</div>
 				{/if}
@@ -1197,7 +1197,7 @@
 				<p class="modal-error" role="alert">{tokenDeleteError}</p>
 			{/if}
 			<div class="modal-actions">
-				<Button variant="secondary" onclick={closeDeleteToken} disabled={tokenDeleting}>Cancel</Button>
+				<Button variant="ghost" onclick={closeDeleteToken} disabled={tokenDeleting}>Cancel</Button>
 				<Button variant="destructive" onclick={deleteToken} disabled={tokenDeleting}>
 					{tokenDeleting ? 'Deleting…' : 'Delete token'}
 				</Button>
@@ -1224,7 +1224,7 @@
 				<p class="modal-error" role="alert">{tokenRotateError}</p>
 			{/if}
 			<div class="modal-actions">
-				<Button variant="secondary" onclick={closeRotateToken} disabled={tokenRotating}>Cancel</Button>
+				<Button variant="ghost" onclick={closeRotateToken} disabled={tokenRotating}>Cancel</Button>
 				<Button variant="default" onclick={rotateToken} disabled={tokenRotating}>
 					{tokenRotating ? 'Rotating…' : 'Rotate token'}
 				</Button>

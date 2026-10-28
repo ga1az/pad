@@ -454,12 +454,12 @@
 			</div>
 			<div class="header-actions">
 				{#if canEdit}
-					<Button variant="secondary" onclick={cancel}>Cancel</Button>
+					<Button variant="ghost" onclick={cancel}>Cancel</Button>
 				{:else}
 					<span class="view-only">View only</span>
 				{/if}
 				<Button
-					variant="secondary"
+					variant="ghost"
 					disabled={exporting}
 					onclick={handleExport}
 					title="Download this playbook as a .pad.md artifact"
@@ -468,7 +468,7 @@
 				</Button>
 				{#if canEdit}
 					<Button
-						variant="secondary"
+						variant="ghost"
 						disabled={saving || accepting || !title.trim()}
 						onclick={() => save(true)}
 					>

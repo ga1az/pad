@@ -78,7 +78,7 @@
 		<p class="empty-message">{message}</p>
 		{#if oncreate}
 			<div class="create-btn-wrap">
-				<Button variant="default" onclick={oncreate}>
+				<Button variant="ghost" onclick={oncreate}>
 					+ Create {singularName[0].toUpperCase() + singularName.slice(1)}
 				</Button>
 			</div>
@@ -138,7 +138,7 @@
 		gap: var(--space-2);
 	}
 
-	/* Layout-only wrapper — the button itself is the shared <Button variant="secondary"> primitive. */
+	/* Layout-only wrapper — the button itself is the shared <Button variant="ghost"> primitive. */
 	.create-btn-wrap {
 		margin-bottom: var(--space-5);
 	}

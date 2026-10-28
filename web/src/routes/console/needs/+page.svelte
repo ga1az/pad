@@ -267,9 +267,9 @@
 >
 	{#snippet actions()}
 		{#if view === 'hidden'}
-			<Button variant="secondary" onclick={() => (view = 'active')}>Back to needs you</Button>
+			<Button variant="ghost" onclick={() => (view = 'active')}>Back to needs you</Button>
 		{:else}
-			<Button variant="secondary" onclick={() => (view = 'hidden')}>Hidden ({hidden})</Button>
+			<Button variant="ghost" onclick={() => (view = 'hidden')}>Hidden ({hidden})</Button>
 		{/if}
 	{/snippet}
 </PageHeader>
@@ -278,7 +278,7 @@
 	{#each SORTS as s (s.value)}
 		<Button
 			size="sm"
-			variant={sort === s.value ? 'default' : 'ghost'}
+			variant={sort === s.value ? 'secondary' : 'ghost'}
 			aria-pressed={sort === s.value}
 			onclick={() => (sort = s.value)}
 		>
@@ -298,7 +298,7 @@
 	<p class="muted">Loading…</p>
 {:else if loadError}
 	<p class="error" role="alert">{loadError}</p>
-	<Button variant="secondary" onclick={() => load(sort, view)}>Try again</Button>
+	<Button variant="ghost" onclick={() => load(sort, view)}>Try again</Button>
 {:else if groups.length === 0 && !nextCursor}
 	<p class="muted" data-testid="needs-empty">
 		{view === 'hidden' ? 'Nothing is hidden.' : 'Nothing needs you right now.'}
@@ -324,7 +324,7 @@
 		</section>
 	{/each}
 	{#if nextCursor}
-		<Button variant="secondary" disabled={loadingMore} onclick={loadMore}>{loadingMore ? 'Loading…' : 'Load more'}</Button>
+		<Button variant="ghost" disabled={loadingMore} onclick={loadMore}>{loadingMore ? 'Loading…' : 'Load more'}</Button>
 	{/if}
 {/if}
 

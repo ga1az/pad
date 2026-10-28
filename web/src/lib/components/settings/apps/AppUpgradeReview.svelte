@@ -169,7 +169,7 @@
 		{:else}
 			<p>No new drafts.</p>
 		{/if}
-		<Button variant="secondary" size="sm" onclick={onclose}>Done</Button>
+		<Button variant="ghost" size="sm" onclick={onclose}>Done</Button>
 	{:else if preview}
 		<p class="not-reviewed" role="note">{preview.notice}</p>
 		{#if preview.upgrade?.notice}<p class="hint">{preview.upgrade.notice}</p>{/if}
@@ -204,7 +204,7 @@
 					{busy ? 'Upgrading…' : `Upgrade to v${preview.version}`}
 				</Button>
 			{/if}
-			<Button variant="secondary" size="sm" disabled={busy} onclick={cancel}>{entries.length > 0 ? 'Cancel' : 'Close'}</Button>
+			<Button variant="ghost" size="sm" disabled={busy} onclick={cancel}>{entries.length > 0 ? 'Cancel' : 'Close'}</Button>
 		</div>
 	{/if}
 
@@ -213,8 +213,8 @@
 			{error}{#if errorPath}<span class="mono"> ({errorPath})</span>{/if}
 		</p>
 		<div class="row">
-			{#if canRetry}<Button variant="secondary" size="sm" disabled={busy} onclick={load}>Preview again</Button>{/if}
-			{#if !preview}<Button variant="secondary" size="sm" disabled={busy} onclick={onclose}>Back</Button>{/if}
+			{#if canRetry}<Button variant="ghost" size="sm" disabled={busy} onclick={load}>Preview again</Button>{/if}
+			{#if !preview}<Button variant="ghost" size="sm" disabled={busy} onclick={onclose}>Back</Button>{/if}
 		</div>
 	{/if}
 </section>

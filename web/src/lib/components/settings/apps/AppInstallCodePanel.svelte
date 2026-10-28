@@ -39,7 +39,7 @@
 	<p class="notice">{code.notice}</p>
 	<div class="code-row">
 		<code class="code" data-testid="app-install-code">{code.install_code}</code>
-		<Button variant="secondary" size="sm" onclick={copy}>{copied ? 'Copied' : 'Copy'}</Button>
+		<Button variant="ghost" size="sm" onclick={copy}>{copied ? 'Copied' : 'Copy'}</Button>
 	</div>
 	<p class="expires">Expires at {expiresLabel}. It will not be shown again.</p>
 	<Button variant="default" size="sm" onclick={ondone}>Done</Button>

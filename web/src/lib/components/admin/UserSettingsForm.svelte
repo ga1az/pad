@@ -340,7 +340,7 @@
 			{#if editRole !== (user.role || 'member')}
 				{#if !roleConfirm}
 					<Button
-						variant="secondary"
+						variant="ghost"
 						onclick={() => {
 							roleConfirm = true;
 							roleMsg = '';
@@ -386,7 +386,7 @@
 			<div class="msg error">{resetError}</div>
 		{/if}
 		{#if !resetConfirm}
-			<Button variant="secondary" onclick={() => (resetConfirm = true)}>Reset password</Button>
+			<Button variant="ghost" onclick={() => (resetConfirm = true)}>Reset password</Button>
 		{:else}
 			<div class="row">
 				<span>Send a password-reset email or generate a temporary password?</span>
@@ -451,7 +451,7 @@
 				</div>
 			{/if}
 		{:else}
-			<Button variant="secondary" disabled={disableSaving} onclick={toggleDisable}
+			<Button variant="ghost" disabled={disableSaving} onclick={toggleDisable}
 				>{disableSaving ? 'Enabling…' : 'Re-enable account'}</Button
 			>
 		{/if}
@@ -467,7 +467,7 @@
 				This user hasn't confirmed their email. Marking it verified unblocks content
 				mutations and invites for their account.
 			</p>
-			<Button variant="secondary" disabled={verifySaving} onclick={verifyEmail}
+			<Button variant="ghost" disabled={verifySaving} onclick={verifyEmail}
 				>{verifySaving ? 'Verifying…' : 'Mark email verified'}</Button
 			>
 		</div>

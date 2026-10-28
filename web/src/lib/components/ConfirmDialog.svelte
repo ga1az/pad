@@ -32,7 +32,7 @@
 			<AlertDialog.Description>{active.message}</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel variant="secondary">{active.cancelLabel ?? 'Cancel'}</AlertDialog.Cancel>
+			<AlertDialog.Cancel variant="ghost">{active.cancelLabel ?? 'Cancel'}</AlertDialog.Cancel>
 			<AlertDialog.Action
 				variant={active.danger ? 'destructive-solid' : 'default'}
 				onclick={() => confirmDialog.confirm()}

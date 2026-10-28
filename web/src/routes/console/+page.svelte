@@ -77,7 +77,7 @@
 			<div class="section-header">
 				<h2 class="section-title">Your Workspaces</h2>
 				<Button
-					variant="default"
+					variant="ghost"
 					class={uiStore.addWorkspaceHighlighted ? 'add-highlighted' : ''}
 					onclick={() => uiStore.openCreateWorkspace()}
 				>Create Workspace</Button>
@@ -87,7 +87,7 @@
 				<div class="empty-card">
 					<EmptyState message="You don't have any workspaces yet.">
 						{#snippet actions()}
-							<Button variant="secondary" onclick={() => uiStore.openCreateWorkspace()}>
+							<Button variant="ghost" onclick={() => uiStore.openCreateWorkspace()}>
 								Create your first workspace
 							</Button>
 						{/snippet}

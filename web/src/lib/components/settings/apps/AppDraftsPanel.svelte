@@ -90,7 +90,7 @@
 	<p class="sr-only" role="status">{announcement}</p>
 	{#if loadError}
 		<p class="error" role="alert">{loadError}</p>
-		<Button variant="secondary" size="sm" onclick={load}>Try again</Button>
+		<Button variant="ghost" size="sm" onclick={load}>Try again</Button>
 	{:else if artifacts === null}
 		<p class="hint">Loading…</p>
 	{:else if artifacts.length === 0}
@@ -104,7 +104,7 @@
 					<Badge size="sm" color={a.status === 'draft' ? 'var(--accent-amber)' : 'var(--accent-green)'}>{a.status ?? 'unknown'}</Badge>
 					<span class="hint">from v{a.version}</span>
 					{#if a.status === 'draft'}
-						<Button variant="secondary" size="sm" disabled={activating !== null} onclick={(e) => activate(a, e.currentTarget)}>
+						<Button variant="ghost" size="sm" disabled={activating !== null} onclick={(e) => activate(a, e.currentTarget)}>
 							{activating === a.item_id ? 'Activating…' : `Activate ${a.title}`}
 						</Button>
 					{/if}

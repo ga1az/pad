@@ -65,10 +65,10 @@
 		</div>
 		<div class="modal-footer">
 			{#if active.kind === 'stale'}
-				<Button variant="secondary" onclick={() => pendingEditsDialog.reload()}>Reload the stored text</Button>
+				<Button variant="ghost" onclick={() => pendingEditsDialog.reload()}>Reload the stored text</Button>
 				<Button variant="destructive" onclick={() => pendingEditsDialog.overwrite()}>Overwrite with my text</Button>
 			{:else}
-			<Button variant="secondary" onclick={() => pendingEditsDialog.keep()}>
+			<Button variant="ghost" onclick={() => pendingEditsDialog.keep()}>
 				{active.kind === 'save' ? (active.reason === 'set_aside' ? 'Keep those edits' : "Keep the tab's edits") : 'Cancel'}
 			</Button>
 			<Button variant="default" onclick={() => pendingEditsDialog.overwrite()}>

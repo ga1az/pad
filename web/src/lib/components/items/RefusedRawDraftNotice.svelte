@@ -89,13 +89,13 @@
 	{/if}
 	<div class="actions">
 		{#if conflict || cannotApply}
-			<Button variant="default" size="sm" disabled={busy} onclick={oncopy}>Copy it</Button>
+			<Button variant="ghost" size="sm" disabled={busy} onclick={oncopy}>Copy it</Button>
 		{:else if copyLeads}
-			<Button variant="default" size="sm" disabled={busy} onclick={oncopy}>Copy it</Button>
-			<Button variant="secondary" size="sm" disabled={busy || restoreBlocked !== null} onclick={onrestore}>Restore it</Button>
+			<Button variant="ghost" size="sm" disabled={busy} onclick={oncopy}>Copy it</Button>
+			<Button variant="ghost" size="sm" disabled={busy || restoreBlocked !== null} onclick={onrestore}>Restore it</Button>
 		{:else}
-			<Button variant="default" size="sm" disabled={busy} onclick={onrestore}>Restore it</Button>
-			<Button variant="secondary" size="sm" disabled={busy} onclick={oncopy}>Copy it</Button>
+			<Button variant="ghost" size="sm" disabled={busy} onclick={onrestore}>Restore it</Button>
+			<Button variant="ghost" size="sm" disabled={busy} onclick={oncopy}>Copy it</Button>
 		{/if}
 		<Button variant="ghost" size="sm" disabled={busy} onclick={ondismiss}>Discard</Button>
 	</div>

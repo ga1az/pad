@@ -493,14 +493,14 @@
 						<a href="/{username}/{wsSlug}/library?tab=playbooks" class="new-btn" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);"><Icon icon={LibraryIcon} /> Browse Library</a>
 						{#if canImport}
 						<Button
-							variant="secondary"
+							variant="ghost"
 							disabled={importing}
 							onclick={openImportPicker}
 							title="Import a playbook or convention from a .pad.md artifact"
 						>{importing ? 'Importing…' : 'Import artifact'}</Button>
 						{/if}
 						{#if canCreatePlaybook}
-						<Button variant="default" onclick={() => (showNewForm = true)}>+ New Playbook</Button>
+						<Button variant="ghost" onclick={() => (showNewForm = true)}>+ New Playbook</Button>
 						{/if}
 						<input
 							bind:this={importInputEl}
@@ -563,7 +563,7 @@
 				</div>
 				<div class="form-actions">
 					<Button variant="ghost" onclick={resetForm}>Cancel</Button>
-					<Button variant="secondary" disabled={!newTitle.trim()} onclick={() => createPlaybook('draft')}>Create as Draft</Button>
+					<Button variant="ghost" disabled={!newTitle.trim()} onclick={() => createPlaybook('draft')}>Create as Draft</Button>
 					<Button variant="default" disabled={!newTitle.trim()} onclick={() => createPlaybook('active')}>Create as Active</Button>
 				</div>
 			</div>
@@ -581,7 +581,7 @@
 					{#each allScopes as s (s)}<option value={s}>{s}</option>{/each}
 				</select>
 				{#if hasActiveFilters}
-					<Button variant="secondary" size="sm" onclick={clearFilters}>Clear</Button>
+					<Button variant="ghost" size="sm" onclick={clearFilters}>Clear</Button>
 				{/if}
 			</div>
 		{/if}
@@ -600,7 +600,7 @@
 			>
 				{#snippet actions()}
 					{#if canCreatePlaybook}
-						<Button variant="default" onclick={() => (showNewForm = true)}>Create Your First Playbook</Button>
+						<Button variant="ghost" onclick={() => (showNewForm = true)}>Create Your First Playbook</Button>
 					{/if}
 				{/snippet}
 			</EmptyState>
@@ -705,7 +705,7 @@
 								<div class="card-actions">
 									<!-- The editor opens read-only for an account that may not
 									     write this playbook (BUG-3270), so the link says so. -->
-									<Button variant="secondary" size="sm" onclick={() => goto(`/${username}/${wsSlug}/playbooks/${itemUrlId(item)}`)}>{workspaceStore.canEditItem(item) ? 'Edit' : 'View'}</Button>
+									<Button variant="ghost" size="sm" onclick={() => goto(`/${username}/${wsSlug}/playbooks/${itemUrlId(item)}`)}>{workspaceStore.canEditItem(item) ? 'Edit' : 'View'}</Button>
 									<!-- DISABLED WHILE THE SCHEMA IS UNKNOWN (BUG-3067 round 7).
 									     Withholding the chip left `status` empty, and this label is
 									     computed FROM it — so every card read "Mark as Draft"
@@ -717,17 +717,17 @@
 									<!-- A status change and a delete are item writes, refused
 									     without edit on this playbook (BUG-3266). -->
 									{#if status && workspaceStore.canEditItem(item)}
-										<Button variant="secondary" size="sm" disabled={togglingStatus === item.slug} onclick={() => toggleStatus(item)}>
+										<Button variant="ghost" size="sm" disabled={togglingStatus === item.slug} onclick={() => toggleStatus(item)}>
 											{togglingStatus === item.slug ? '...' : nextStatusLabel(status)}
 										</Button>
 									{/if}
 									<!-- Duplicate creates a playbook (BUG-3264, codex round 1). -->
 									{#if canCreatePlaybook}
-									<Button variant="secondary" size="sm" disabled={duplicating === item.slug} onclick={() => duplicatePlaybook(item)}>
+									<Button variant="ghost" size="sm" disabled={duplicating === item.slug} onclick={() => duplicatePlaybook(item)}>
 										{duplicating === item.slug ? '...' : 'Duplicate'}
 									</Button>
 									{/if}
-									<Button variant="secondary" size="sm" disabled={exportingSlug === item.slug} onclick={() => exportPlaybook(item)} title="Download as a .pad.md artifact">
+									<Button variant="ghost" size="sm" disabled={exportingSlug === item.slug} onclick={() => exportPlaybook(item)} title="Download as a .pad.md artifact">
 										{exportingSlug === item.slug ? '...' : 'Export'}
 									</Button>
 									{#if !workspaceStore.canEditItem(item)}
@@ -736,7 +736,7 @@
 										<span class="delete-confirm">
 											Delete?
 											<Button variant="destructive" size="sm" disabled={deleting === item.slug} onclick={() => deletePlaybook(item.slug)}>{deleting === item.slug ? '...' : 'Yes'}</Button>
-											<Button variant="secondary" size="sm" onclick={() => (confirmDeleteSlug = null)}>No</Button>
+											<Button variant="ghost" size="sm" onclick={() => (confirmDeleteSlug = null)}>No</Button>
 										</span>
 									{:else}
 										<Button variant="destructive" size="sm" onclick={() => (confirmDeleteSlug = item.slug)}>Delete</Button>

@@ -151,7 +151,7 @@
 <div class="agents-tab">
 	{#if loadError}
 		<p class="error" role="alert">{loadError}</p>
-		<Button variant="secondary" size="sm" onclick={load}>Try again</Button>
+		<Button variant="ghost" size="sm" onclick={load}>Try again</Button>
 	{:else if !links}
 		<p class="hint">Loading…</p>
 	{:else}
@@ -182,7 +182,7 @@
 				<p class="warn">Copy this link now. It cannot be shown again.</p>
 				<div class="url-row">
 					<input type="text" readonly aria-label="Join link URL" value={minted.url} onfocus={(e) => e.currentTarget.select()} />
-					<Button variant="secondary" size="sm" onclick={copyMinted}><Icon icon={Copy01Icon} /> Copy</Button>
+					<Button variant="ghost" size="sm" onclick={copyMinted}><Icon icon={Copy01Icon} /> Copy</Button>
 					<Button size="sm" variant="ghost" onclick={() => (minted = null)}>Done</Button>
 				</div>
 			</div>

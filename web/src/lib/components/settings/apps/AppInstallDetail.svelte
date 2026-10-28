@@ -220,16 +220,16 @@
 				<Button variant={c.danger ? 'destructive-solid' : 'default'} size="sm" disabled={busy} onclick={() => pending && run(pending)}>
 					{busy ? 'Working…' : label(pending)}
 				</Button>
-				<Button variant="secondary" size="sm" disabled={busy} onclick={cancelPending}>Cancel</Button>
+				<Button variant="ghost" size="sm" disabled={busy} onclick={cancelPending}>Cancel</Button>
 			</div>
 		</div>
 	{:else if actions.length > 0}
 		<div class="row actions" bind:this={actionsEl}>
 			{#if canUpgrade}
-				<Button variant="secondary" data-action="upgrade" size="sm" onclick={() => ((upgrading = true), (error = ''))}>Check for an update</Button>
+				<Button variant="ghost" data-action="upgrade" size="sm" onclick={() => ((upgrading = true), (error = ''))}>Check for an update</Button>
 			{/if}
 			{#each actions as a (a)}
-				<Button data-action={a} size="sm" variant={consequences[a].danger ? 'destructive' : 'secondary'} onclick={() => ((pending = a), (error = ''))}>
+				<Button data-action={a} size="sm" variant={consequences[a].danger ? 'destructive' : 'ghost'} onclick={() => ((pending = a), (error = ''))}>
 					{label(a)}
 				</Button>
 			{/each}

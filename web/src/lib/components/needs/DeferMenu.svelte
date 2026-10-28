@@ -68,7 +68,7 @@
 			bind:value={picked}
 			oninput={() => (error = '')}
 		/>
-		<Button variant="secondary" size="sm" disabled={!picked} onclick={chooseDate}>Defer</Button>
+		<Button variant="ghost" size="sm" disabled={!picked} onclick={chooseDate}>Defer</Button>
 	</div>
 	{#if error}<p class="err" role="alert">{error}</p>{/if}
 </div>

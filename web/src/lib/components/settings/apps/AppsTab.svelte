@@ -65,7 +65,7 @@
 <div class="apps-tab" bind:this={root}>
 	{#if loadError}
 		<p class="error" role="alert">{loadError}</p>
-		<Button variant="secondary" size="sm" onclick={load}>Try again</Button>
+		<Button variant="ghost" size="sm" onclick={load}>Try again</Button>
 	{:else if !list}
 		<p class="hint">Loading…</p>
 	{:else if !list.available}
@@ -110,7 +110,7 @@
 				{/each}
 			</ul>
 		{/if}
-		<Button variant="default" size="sm" onclick={() => (installing = true)}>Install an app</Button>
+		<Button variant="ghost" size="sm" onclick={() => (installing = true)}>Install an app</Button>
 		{#if tombstones.length > 0}
 			<details class="tombstones">
 				<summary>Uninstalled ({tombstones.length})</summary>

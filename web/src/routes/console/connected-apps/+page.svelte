@@ -311,7 +311,7 @@
 	{:else if error}
 		<div class="error-msg">
 			<p>{error}</p>
-			<Button variant="secondary" onclick={loadApps}>Retry</Button>
+			<Button variant="ghost" onclick={loadApps}>Retry</Button>
 		</div>
 	{:else if apps.length === 0 && appGrants.length === 0}
 		<div class="empty-state">
@@ -440,7 +440,7 @@
 
 						<div class="app-actions">
 							<Button
-								variant="secondary"
+								variant="ghost"
 								onclick={() => (editingId === app.id ? closeEdit() : openEdit(app))}
 								aria-expanded={editingId === app.id}
 							>
@@ -476,7 +476,7 @@
 											disabled={!!savingFlag[app.id]}
 										/>
 										<Button
-											variant="secondary"
+											variant="ghost"
 											onclick={() => saveName(app)}
 											disabled={!!savingFlag[app.id] ||
 												(nameDrafts[app.id] ?? '').trim() === (app.name ?? '')}
@@ -524,7 +524,7 @@
 									{#if isAll}
 										<div class="edit-row">
 											<Button
-												variant="secondary"
+												variant="ghost"
 												onclick={() => limitToCurrent(app)}
 												disabled={!!savingFlag[app.id]}
 											>
@@ -597,7 +597,7 @@
 											{/each}
 										</select>
 										<Button
-											variant="secondary"
+											variant="ghost"
 											onclick={() => addWorkspaceToApp(app)}
 											disabled={!!savingFlag[app.id] || !addPickerSlug[app.id]}
 										>
@@ -684,7 +684,7 @@
 				<p class="modal-error">{revokeError}</p>
 			{/if}
 			<div class="modal-actions">
-				<Button variant="secondary" onclick={closeConfirm} disabled={revoking}>Cancel</Button>
+				<Button variant="ghost" onclick={closeConfirm} disabled={revoking}>Cancel</Button>
 				<Button variant="destructive" onclick={confirmRevoke} disabled={revoking}>
 					{revoking ? 'Revoking…' : 'Revoke'}
 				</Button>
@@ -1016,7 +1016,7 @@
 			align-self: stretch;
 		}
 
-		/* Layout-only: stretch the shared <Button variant="secondary">s full-width on mobile.
+		/* Layout-only: stretch the shared <Button variant="ghost">s full-width on mobile.
 		   :global because the button element lives inside the Button component. */
 		.app-actions :global(button) {
 			width: 100%;

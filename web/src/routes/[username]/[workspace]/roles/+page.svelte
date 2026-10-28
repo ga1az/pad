@@ -1047,7 +1047,7 @@
 	{:else if error}
 		<EmptyState icon="!" title="Failed to load" message={error}>
 			{#snippet actions()}
-				<Button variant="secondary" onclick={loadData}>Retry</Button>
+				<Button variant="ghost" onclick={loadData}>Retry</Button>
 			{/snippet}
 		</EmptyState>
 	{:else if orderedLanes.length === 0}
@@ -1065,7 +1065,7 @@
 			>
 				{#snippet actions()}
 					{#if isOwner}
-						<Button variant="secondary" onclick={openCreateModal}>Create your first role</Button>
+						<Button variant="ghost" onclick={openCreateModal}>Create your first role</Button>
 					{/if}
 				{/snippet}
 			</EmptyState>

@@ -711,13 +711,13 @@
 		<PlanLimitPrompt scope="create-workspace" />
 
 		<div class="modal-footer">
-			<Button variant="secondary" onclick={close}>Cancel</Button>
+			<Button variant="ghost" onclick={close}>Cancel</Button>
 			{#if mode === 'create'}
 				<Button variant="default" onclick={createWorkspace} disabled={!newName.trim()}>
 					Create Workspace
 				</Button>
 			{:else if importPhase === 'uploading' || importPhase === 'finishing'}
-				<Button variant="secondary" onclick={cancelUpload} disabled={importPhase === 'finishing'}>
+				<Button variant="ghost" onclick={cancelUpload} disabled={importPhase === 'finishing'}>
 					Stop upload
 				</Button>
 				<Button variant="default" disabled>

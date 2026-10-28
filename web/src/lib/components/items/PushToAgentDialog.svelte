@@ -766,9 +766,9 @@ always a broadcast that went out.
 		{#if sending}
 			<span class="muted footer-status" role="status">Sending…</span>
 		{/if}
-		<Button variant="secondary" disabled={sending} onclick={handleDismiss}>Cancel</Button>
+		<Button variant="ghost" disabled={sending} onclick={handleDismiss}>Cancel</Button>
 		{#if noAccepting}
-			<Button variant="secondary" disabled={empty || tooLong} onclick={handleCopyInstead}>
+			<Button variant="ghost" disabled={empty || tooLong} onclick={handleCopyInstead}>
 				Copy instead
 			</Button>
 		{/if}

@@ -660,10 +660,10 @@
 			</div>
 			<div class="dash-header-actions">
 				{#if firstCollection}
-					<Button variant="secondary" onclick={() => uiStore.requestQuickAdd(firstCollection.slug)}><Icon icon={firstCollection.icon} /> New {firstCollection.name.replace(/s$/, '')}</Button>
+					<Button variant="ghost" onclick={() => uiStore.requestQuickAdd(firstCollection.slug)}><Icon icon={firstCollection.icon} /> New {firstCollection.name.replace(/s$/, '')}</Button>
 				{/if}
 				{#if hasTasksCollection}
-					<Button variant="default" onclick={() => uiStore.requestQuickAdd('tasks')}>+ New Task</Button>
+					<Button variant="ghost" onclick={() => uiStore.requestQuickAdd('tasks')}>+ New Task</Button>
 				{/if}
 			</div>
 		</header>
@@ -729,8 +729,8 @@
 							have it set up for you — or create your first collection by hand.
 						</p>
 						<div class="empty-escape-actions">
-							<Button variant="default" onclick={() => (showCreateCollection = true)}>+ Create a collection</Button>
-							<Button variant="secondary" onclick={showOnboarding}>Show setup guide</Button>
+							<Button variant="ghost" onclick={() => (showCreateCollection = true)}>+ Create a collection</Button>
+							<Button variant="ghost" onclick={showOnboarding}>Show setup guide</Button>
 						</div>
 					</div>
 				</div>
@@ -1036,7 +1036,7 @@
 			<div class="dash-error-icon"><Icon icon={Alert02Icon} /></div>
 			<h2>Couldn't load the dashboard</h2>
 			<p>Something went wrong while loading. It may be a temporary network or server issue.</p>
-			<Button variant="default" onclick={() => { if (wsSlug) load(wsSlug); }}>Retry</Button>
+			<Button variant="ghost" onclick={() => { if (wsSlug) load(wsSlug); }}>Retry</Button>
 		</div>
 	{:else}
 		<div class="loading">No dashboard data available.</div>

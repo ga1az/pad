@@ -1053,7 +1053,7 @@
 								onkeydown={(e) => isOwner && e.key === 'Enter' && saveName()}
 							/>
 							{#if isOwner}
-								<Button variant="secondary" size="sm" onclick={saveName} disabled={savingName}>
+								<Button variant="ghost" size="sm" onclick={saveName} disabled={savingName}>
 									{savingName ? 'Saving...' : 'Save'}
 								</Button>
 								{#if nameStatus === 'saved'}
@@ -1137,10 +1137,10 @@
 							<Button variant="default" onclick={saveContext} disabled={savingContext}>
 								{savingContext ? 'Saving...' : 'Save Context'}
 							</Button>
-							<Button variant="secondary" onclick={resetContextEditor} disabled={savingContext}>
+							<Button variant="ghost" onclick={resetContextEditor} disabled={savingContext}>
 								Reset
 							</Button>
-							<Button variant="secondary" onclick={clearContextEditor} disabled={savingContext}>
+							<Button variant="ghost" onclick={clearContextEditor} disabled={savingContext}>
 								Clear
 							</Button>
 							{#if contextStatus === 'saved'}
@@ -1263,7 +1263,7 @@
 												<Button variant="default" size="sm" onclick={saveCollectionAccess} disabled={accessSaving}>
 													{accessSaving ? 'Saving...' : 'Save'}
 												</Button>
-												<Button variant="secondary" size="sm" onclick={() => setAccessPanel(null)}>
+												<Button variant="ghost" size="sm" onclick={() => setAccessPanel(null)}>
 													Cancel
 												</Button>
 											</div>
@@ -1493,7 +1493,7 @@
 								<Button variant="destructive" onclick={handleDeleteWorkspace} disabled={deleteInput !== wsSlug || deleting}>
 									{deleting ? 'Deleting...' : 'Delete this workspace'}
 								</Button>
-								<Button variant="secondary" onclick={() => { confirmDelete = false; deleteInput = ''; }}>Cancel</Button>
+								<Button variant="ghost" onclick={() => { confirmDelete = false; deleteInput = ''; }}>Cancel</Button>
 							</div>
 						</div>
 					{/if}

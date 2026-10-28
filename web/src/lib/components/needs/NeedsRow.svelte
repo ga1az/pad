@@ -59,7 +59,7 @@
 	</div>
 	<div class="actions">
 		{#if view === 'hidden'}
-			<Button variant="secondary" size="sm" disabled={busy} onclick={() => onrestore(row)}>Restore</Button>
+			<Button variant="ghost" size="sm" disabled={busy} onclick={() => onrestore(row)}>Restore</Button>
 		{:else}
 			<Button size="sm" variant="ghost" disabled={busy} onclick={() => ondismiss(row)}>Dismiss</Button>
 			<div class="defer-wrap">

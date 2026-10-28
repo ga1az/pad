@@ -136,7 +136,7 @@
 				<Button type="submit" variant="default" size="sm" disabled={busy || !baseUrl.trim()}>
 					{busy ? 'Fetching…' : 'Review'}
 				</Button>
-				<Button variant="secondary" type="button" size="sm" disabled={busy} onclick={onclose}>Cancel</Button>
+				<Button variant="ghost" type="button" size="sm" disabled={busy} onclick={onclose}>Cancel</Button>
 			</div>
 		</form>
 	{:else}
@@ -203,7 +203,7 @@
 				<Button variant="default" size="sm" disabled={busy} onclick={install}>
 					{busy ? 'Installing…' : `Install ${preview.title}`}
 				</Button>
-				<Button variant="secondary" size="sm" disabled={busy} onclick={cancel}>Cancel</Button>
+				<Button variant="ghost" size="sm" disabled={busy} onclick={cancel}>Cancel</Button>
 			</div>
 		</section>
 	{/if}

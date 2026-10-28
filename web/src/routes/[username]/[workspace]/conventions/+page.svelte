@@ -673,7 +673,7 @@
 				<a href="/{username}/{workspace}/library" class="btn btn-secondary">Browse Library</a>
 				{#if canImport}
 				<Button
-					variant="secondary"
+					variant="ghost"
 					disabled={importing}
 					onclick={openImportPicker}
 					title="Import a convention or playbook from a .pad.md artifact"
@@ -682,7 +682,7 @@
 				</Button>
 				{/if}
 				{#if canCreateConvention}
-				<Button variant="default" onclick={() => (showCreate = !showCreate)}>
+				<Button variant="ghost" onclick={() => (showCreate = !showCreate)}>
 					{showCreate ? 'Cancel' : '+ New Convention'}
 				</Button>
 				{/if}
@@ -739,7 +739,7 @@
 				<textarea aria-label="Command references, one per line" bind:value={newCommands} placeholder="Optional command references, one per line..." rows="2"></textarea>
 				<textarea aria-label="Instruction for the agent" bind:value={newContent} placeholder="Instruction the agent should follow..." rows="3"></textarea>
 				<div class="form-actions">
-					<Button variant="secondary" onclick={resetForm}>Cancel</Button>
+					<Button variant="ghost" onclick={resetForm}>Cancel</Button>
 					<Button variant="default" type="submit" disabled={creating || !newTitle.trim()}>
 						{creating ? 'Creating...' : 'Create'}
 					</Button>
@@ -764,7 +764,7 @@
 					{#each ENFORCEMENT_LEVELS as p (p)}<option value={p}>{p}</option>{/each}
 				</select>
 				{#if hasActiveFilters}
-					<Button variant="secondary" size="sm" onclick={clearFilters}>Clear</Button>
+					<Button variant="ghost" size="sm" onclick={clearFilters}>Clear</Button>
 				{/if}
 			</div>
 		{/if}
@@ -778,7 +778,7 @@
 		{:else if grouped.length === 0 && hasActiveFilters}
 			<EmptyState message="No conventions match your filters.">
 				{#snippet actions()}
-					<Button variant="secondary" onclick={clearFilters}>Clear filters</Button>
+					<Button variant="ghost" onclick={clearFilters}>Clear filters</Button>
 				{/snippet}
 			</EmptyState>
 		{:else}
@@ -893,7 +893,7 @@
 													></textarea>
 													<div class="expanded-actions">
 														<Button variant="default" size="sm" disabled={saving || !workspaceStore.canEditItem(item)} title={workspaceStore.canEditItem(item) ? undefined : 'You can no longer edit this convention'} onclick={() => saveEditing(item)}>{saving ? 'Saving...' : 'Save'}</Button>
-														<Button variant="secondary" size="sm" onclick={cancelEditing}>Cancel</Button>
+														<Button variant="ghost" size="sm" onclick={cancelEditing}>Cancel</Button>
 														<span class="edit-hint">{modKeyLabel('Enter')} to save · Esc to cancel</span>
 													</div>
 												{:else}
@@ -932,13 +932,13 @@
 													{/if}
 													<div class="expanded-actions">
 														{#if workspaceStore.canEditItem(item)}
-															<Button variant="secondary" size="sm" onclick={() => startEditing(item)}>Edit</Button>
+															<Button variant="ghost" size="sm" onclick={() => startEditing(item)}>Edit</Button>
 														{/if}
 														<!-- TASK-2257 (C69): the item's own page (history, comments,
 														     wiki-links) was unreachable from here. -->
 														<a class="btn btn-secondary open-item" href="/{username}/{workspace}/{conventionsSlug}/{itemUrlId(item)}">Open item</a>
 														<Button
-															variant="secondary"
+															variant="ghost"
 															size="sm"
 															disabled={exportingSlug === item.slug}
 															onclick={() => handleExport(item)}
@@ -951,7 +951,7 @@
 														{:else if confirmDelete === item.slug}
 															<span class="confirm-text">Delete this convention?</span>
 															<Button variant="destructive-solid" size="sm" onclick={() => deleteConvention(item)}>Confirm</Button>
-															<Button variant="secondary" size="sm" onclick={() => (confirmDelete = null)}>Cancel</Button>
+															<Button variant="ghost" size="sm" onclick={() => (confirmDelete = null)}>Cancel</Button>
 														{:else}
 															<Button variant="destructive" size="sm" onclick={() => (confirmDelete = item.slug)}>Delete</Button>
 														{/if}
