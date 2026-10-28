@@ -1173,18 +1173,18 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-6);
-		max-width: 600px;
+		max-width: 720px;
 	}
 
 	.page-note {
-		font-size: 0.88em;
+		font-size: 13px;
 		color: var(--text-secondary);
 		margin: 0 0 var(--space-4);
 	}
 
 	.page-title {
-		font-size: 1.4rem;
-		font-weight: 700;
+		font-size: 20px;
+		font-weight: 600;
 		color: var(--text-primary);
 	}
 
@@ -1194,19 +1194,20 @@
 		text-align: center;
 	}
 
+	/* Linear's settings group: a hairline-bordered block, no fill. */
 	.card {
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
+		background: transparent;
+		border: 1px solid var(--ui-border);
+		border-radius: 8px;
 		overflow: hidden;
 	}
 
 	.card-title {
-		font-size: 0.95rem;
+		font-size: 15px;
 		font-weight: 600;
 		color: var(--text-primary);
 		padding: var(--space-4) var(--space-5);
-		border-bottom: 1px solid var(--border);
+		border-bottom: 1px solid var(--ui-border);
 	}
 
 	.card-body {
@@ -1223,9 +1224,9 @@
 	}
 
 	label {
-		font-size: 0.8rem;
+		font-size: 13px;
 		font-weight: 500;
-		color: var(--text-muted);
+		color: var(--text-secondary);
 	}
 
 	input {
