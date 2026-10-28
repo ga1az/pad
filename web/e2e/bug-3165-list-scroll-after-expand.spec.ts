@@ -16,6 +16,10 @@ import { deleteCollection } from './lib/attachment-viewer';
 
 const ROWS = 80;
 
+// 250 characters (titles cap at 255).
+const longTitle = (i: number) =>
+	`B3165 row ${String(i).padStart(2, '0')} ${'with a long title that wraps once the pane narrows the list '.repeat(5)}`.slice(0, 250).trim();
+
 async function setup(page: Page, fixture: import('./fixtures').SuiteFixture, request: APIRequestContext, view: 'list' | 'table', titleOf: (i: number) => string = (i) => `B3165 row ${String(i).padStart(2, '0')}`) {
 	await page.setViewportSize({ width: 1400, height: 800 });
 	await browserLogin(page);
@@ -151,25 +155,47 @@ test.describe('BUG-3165: the list keeps its position across the split pane', () 
 		}
 	});
 
-	test('long titles in the narrower column: the CLICKED row stays put, not merely the top one', async ({ page, fixture, request }) => {
-		// Long titles wrap onto more lines in the narrower column than at full
-		// width, so every row above the clicked one grows: holding the TOP row in
-		// place would push the clicked row down by that growth. 250 characters
-		// (titles cap at 255), so the line count differs whatever the font's
-		// glyph width: a ~130 character title wrapped to two lines in BOTH
-		// layouts on CI's fonts.
-		const { coll } = await setup(page, fixture, request, 'list', (i) =>
-			`B3165 row ${String(i).padStart(2, '0')} ${'with a long title that wraps once the pane narrows the list '.repeat(5)}`.slice(0, 250).trim());
+	test('list: long titles ellipsize at a fixed 44px, so the clicked row stays put', async ({ page, fixture, request }) => {
+		// Since TASK-29 a desktop list row is Linear's fixed 44px line and a long
+		// title ellipsizes, so nothing in the list reflows when the pane narrows
+		// it. That is pinned here, so a change that brings reflow back is noticed;
+		// the leg below is the one that tells the CLICKED row from the TOP row.
+		const { coll } = await setup(page, fixture, request, 'list', longTitle);
 		try {
 			const { title, before } = await scrollAndPick(page);
 			const heightBefore = await rowHeight(page, title);
+			expect(heightBefore, 'a desktop list row is 44px').toBe(44);
 			await openRow(page, title);
-			// The rows used to grow here, so holding the TOP row would push the
-			// clicked one down. Since TASK-29 a desktop list row is Linear's fixed
-			// 44px line and a long title ellipsizes, so nothing reflows: pinned, so
-			// a change that brings reflow back brings this leg's original
-			// precondition back with it. The clicked row must still stay put.
 			expect(await rowHeight(page, title), 'a list row keeps its 44px height in the narrower column').toBe(heightBefore);
+			const opened = await rowTop(page, title);
+			expect(opened, 'opening the pane moved the clicked row').toBeGreaterThan(before - 40);
+			expect(opened).toBeLessThan(before + 40);
+		} finally {
+			await deleteCollection(fixture, request, coll.slug);
+		}
+	});
+
+	test('table: rows above the clicked one reflow in the narrower column; the CLICKED row stays put, not merely the top one', async ({ page, fixture, request }) => {
+		// The table is the layout whose rows still reflow (a title wraps, it does
+		// not ellipsize), so it is where holding the TOP visible row in place
+		// would push the clicked row down by the growth of every row between the
+		// two. 250 characters (titles cap at 255), so the line count differs
+		// whatever the font's glyph width: a ~130 character title wrapped to two
+		// lines in BOTH layouts on CI's fonts.
+		const { coll } = await setup(page, fixture, request, 'table', longTitle);
+		try {
+			const { title, before } = await scrollAndPick(page);
+			const top = await topRow(page);
+			// Rows between the top visible row and the clicked one, as the layout
+			// stacks them (independent of the scroll position).
+			const between = async () => (await rowTop(page, title))! - (await rowTop(page, top.title))!;
+			const spanBefore = await between();
+			expect(spanBefore, 'precondition: rows sit between the top row and the clicked one').toBeGreaterThan(100);
+			await openRow(page, title);
+			const spanAfter = await between();
+			// Without this the leg proves nothing: a top-row anchor and a
+			// clicked-row anchor only differ when the rows between them change height.
+			expect(spanAfter - spanBefore, 'precondition: the narrower column reflowed the rows above the clicked one').toBeGreaterThan(60);
 			const opened = await rowTop(page, title);
 			expect(opened, 'opening the pane moved the clicked row').toBeGreaterThan(before - 40);
 			expect(opened).toBeLessThan(before + 40);
