@@ -25,6 +25,7 @@
 	import CreateCollectionModal from '$lib/components/collections/CreateCollectionModal.svelte';
 	import { isBlockedByModal } from '$lib/a11y/viewerBackdrop';
 	import AppDialog from '$lib/components/ui-adapters/AppDialog.svelte';
+	import SidebarDesktop from '$lib/components/layout/SidebarDesktop.svelte';
 	import { coveredPage } from '$lib/stores/coveredPage.svelte';
 	import Icon from '$lib/icons/Icon.svelte';
 	import {
@@ -571,6 +572,29 @@
 	ontouchmove={handleTouchMove}
 	ontouchend={handleTouchEnd}
 >
+	{#if !uiStore.isMobile}
+		<!-- Desktop (SPEC-24 / TASK-27): shadcn-svelte's Sidebar, laid out like
+		     Linear's. The markup below is the mobile drawer, unchanged. -->
+		<SidebarDesktop
+			{wsPrefix}
+			{isGuest}
+			{activeKey}
+			{activeCollectionSlug}
+			collections={sidebarCollections}
+			{agentCollections}
+			dragDisabled={uiStore.isTouch || isGuest}
+			{flipDurationMs}
+			onconsider={handleCollectionConsider}
+			onfinalize={handleCollectionFinalize}
+			canQuickAdd={(c) => workspaceStore.canEditCollection(c.id)}
+			onquickadd={startQuickAdd}
+			oncompose={creatableCollections.length > 0 ? () => uiStore.requestQuickAdd() : undefined}
+			onnewcollection={workspaceStore.isOwner ? () => { showCreateCollection = true; } : undefined}
+			theme={currentTheme}
+			ontoggletheme={toggleTheme}
+			{versionLabel}
+		/>
+	{:else}
 	<div class="sidebar-inner">
 		{#if wsSlug}
 			<!--
@@ -855,6 +879,7 @@
 			{/if}
 		</div>
 	</div>
+	{/if}
 </aside>
 
 {#if wsSlug}
@@ -984,6 +1009,14 @@
 		overflow: hidden;
 		transition: transform 0.25s ease, width 0.25s ease, min-width 0.25s ease;
 		transform: translateX(0);
+	}
+	/* Desktop (TASK-27): no fill and no border, the sidebar is the app frame
+	   (+layout.svelte paints it). Linear's 241px, from ui.css. */
+	.sidebar:not(.mobile) {
+		width: var(--ui-sidebar-width);
+		min-width: var(--ui-sidebar-width);
+		background: none;
+		border-right: none;
 	}
 	.sidebar.collapsed {
 		transform: translateX(calc(var(--sidebar-width) * -1));

@@ -300,6 +300,7 @@ describe('sidebar — GitHub repo link', () => {
 		const root = process.cwd();
 		for (const rel of [
 			'src/lib/components/layout/Sidebar.svelte',
+			'src/lib/components/layout/SidebarDesktop.svelte',
 			'src/lib/components/layout/UserMenuResources.svelte',
 			'src/lib/components/auth/AuthFooter.svelte',
 			'src/lib/components/auth/AuthHeader.svelte'

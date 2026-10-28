@@ -89,13 +89,19 @@ for (const [name, viewport] of [
 /**
  * The row's own layout, pinned because the fix depends on it.
  *
- * `.settings-btn` is the only shrinkable item, which is what makes every pixel
+ * `.settings-btn` was the only shrinkable item, which is what made every pixel
  * recovered from the gaps land in the label. If another control loses its
  * `flex-shrink: 0` the row starts distributing shrink elsewhere and the
  * headroom this fix bought silently drains — a change that would not fail the
  * line-box assertions until it had gone far enough to wrap again.
+ *
+ * TASK-27 (desktop, the Linear footer strip): Settings is a pill that never
+ * shrinks and never wraps, and the VERSION label beside it is the row's one
+ * flexible item, truncating first. The property is the same — exactly one
+ * item gives way, and it is not the Settings label — with the giver moved.
+ * The mobile drawer keeps the old row.
  */
-test('sidebar footer: Settings is the only shrinkable control in the row', async ({
+test('sidebar footer: Settings never shrinks; the version label is the only shrinkable item', async ({
 	page,
 	fixture
 }) => {
@@ -116,5 +122,10 @@ test('sidebar footer: Settings is the only shrinkable control in the row', async
 			.map((c) => c.className.split(' ')[0]);
 	});
 
-	expect(shrinkable).toEqual(['settings-btn']);
+	expect(shrinkable).toEqual(['version-label']);
+	const settings = await page.evaluate(() => {
+		const el = document.querySelector('.sidebar-footer .footer-row .settings-btn');
+		return el ? [getComputedStyle(el).flexShrink, getComputedStyle(el).whiteSpace] : null;
+	});
+	expect(settings).toEqual(['0', 'nowrap']);
 });

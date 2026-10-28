@@ -55,7 +55,8 @@ test.describe('TASK-3520: the page behind an overlay is inert (desktop)', () => 
 	test('the notification panel: page and sidebar inert, panel live, focus back on the bell', async ({ page, fixture }) => {
 		await page.goto(docsUrl(fixture));
 		await pageSettled(page);
-		const bell = page.locator('.sidebar button.bell-btn');
+		// The desktop bell is in the content panel's header since TASK-27.
+		const bell = page.locator('.content-panel-header button.bell-btn');
 		await bell.focus();
 		await page.keyboard.press('Enter');
 		const panel = page.getByRole('dialog', { name: 'Notifications' });

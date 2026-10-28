@@ -25,6 +25,7 @@
 	import { sweepExpiredRefusedRawDrafts } from '$lib/items/refusedRawDraft';
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
 	import TopBar from '$lib/components/layout/TopBar.svelte';
+	import PanelHeader from '$lib/components/layout/PanelHeader.svelte';
 	import CommandPalette from '$lib/components/search/CommandPalette.svelte';
 	import AppToaster from '$lib/components/ui-adapters/AppToaster.svelte';
 	import PlanLimitPrompt from '$lib/components/billing/PlanLimitPrompt.svelte';
@@ -448,7 +449,14 @@
 		around the nav. Sidebar inerts its own <aside>, beside which the panel
 		and quick-add render.
 	-->
-	<div class="app-layout">
+	<!--
+		Desktop is Linear's frame (SPEC-24 / TASK-27): the app layout is the
+		frame colour, the sidebar has no fill of its own, and the page sits in a
+		rounded panel with PanelHeader on top. The panel wrapper is
+		`display: contents` on mobile, so the mobile box tree is unchanged and a
+		breakpoint crossing never remounts the page.
+	-->
+	<div class="app-layout" class:frame={!uiStore.isMobile}>
 		{#if !uiStore.isMobile && uiStore.topbarOpen}
 			<div style="display: contents" inert={coveredPage.active}>
 				<TopBar />
@@ -482,9 +490,21 @@
 					</svg>
 				</button>
 			{/if}
-			<main class="main-content" inert={coveredPage.active && !coveredPage.keepsBottomNav}>
-				{@render children()}
-			</main>
+			<div
+				class="content-panel"
+				class:desktop={!uiStore.isMobile}
+				class:no-sidebar={!uiStore.sidebarOpen}
+				class:no-topbar={!uiStore.topbarOpen}
+			>
+				{#if !uiStore.isMobile}
+					<div style="display: contents" inert={coveredPage.active}>
+						<PanelHeader />
+					</div>
+				{/if}
+				<main class="main-content" inert={coveredPage.active && !coveredPage.keepsBottomNav}>
+					{@render children()}
+				</main>
+			</div>
 		</div>
 	</div>
 
@@ -528,6 +548,80 @@
 		overflow-y: auto;
 		min-width: 0;
 	}
+	.content-panel {
+		display: contents;
+	}
+
+	/*
+		The desktop frame (TASK-27), measured from Linear at 1:1: the panel
+		starts right at the sidebar's edge (241px), 9px short of the window's
+		right edge and 35px above its bottom; that strip holds the sidebar's
+		footer row. 2px from the top when the workspace bar is hidden.
+	*/
+	.app-layout.frame {
+		background: var(--ui-sidebar);
+	}
+	.content-panel.desktop {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		min-width: 0;
+		min-height: 0;
+		margin: 0 9px 35px 0;
+		background: var(--ui-background);
+		border: 1px solid var(--ui-border);
+		border-radius: 8px;
+		/* The hairline darker edge outside the border. */
+		box-shadow: 0 0 0 1px color-mix(in oklch, var(--ui-sidebar), black 20%);
+		overflow: hidden;
+	}
+	.content-panel.desktop.no-topbar {
+		margin-top: 2px;
+	}
+	/* With the sidebar hidden its footer strip goes too, so the panel keeps
+	   an even 9px margin. */
+	.content-panel.desktop.no-sidebar {
+		margin-left: 9px;
+		margin-bottom: 9px;
+	}
+	.content-panel.desktop .main-content {
+		min-height: 0;
+	}
+
+	/*
+		Until the page tasks (TASK-28..31) restyle the content, the legacy
+		SURFACE tokens are pointed at the Linear ones inside the dark panel, so
+		the steps read frame < panel <= column < card instead of a near-black
+		page inside a lighter frame. Hex, not var(--ui-*): computed colours stay
+		rgb(), which the e2e contrast measurements parse. Text colours keep
+		their legacy values.
+	*/
+	@media not print {
+		:global([data-theme='dark']) .content-panel.desktop {
+			--bg-primary: #1f2023;
+			--bg-secondary: #1f2023;
+			--bg-tertiary: #28292c;
+			--bg-hover: #27282b;
+			--bg-active: #2c2d30;
+			--card-bg: #28292c;
+			--card-border: #2d2d2f;
+			--border: #2d2d2f;
+			--border-subtle: #262729;
+		}
+	}
+	@media screen and (not (prefers-color-scheme: light)) {
+		:global(:root:not([data-theme='light'])) .content-panel.desktop {
+			--bg-primary: #1f2023;
+			--bg-secondary: #1f2023;
+			--bg-tertiary: #28292c;
+			--bg-hover: #27282b;
+			--bg-active: #2c2d30;
+			--card-bg: #28292c;
+			--card-border: #2d2d2f;
+			--border: #2d2d2f;
+			--border-subtle: #262729;
+		}
+	}
 	/*
 		Mobile: the consolidated <TopBar mobile /> is rendered as a sibling
 		of .app-layout and uses position: fixed (z-index 35). Without an
@@ -569,8 +663,8 @@
 		justify-content: center;
 		width: 48px;
 		height: 20px;
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
+		background: var(--ui-sidebar);
+		border: 1px solid var(--ui-border);
 		border-top: none;
 		border-radius: 0 0 var(--radius) var(--radius);
 		color: var(--text-muted);
@@ -597,8 +691,8 @@
 		justify-content: center;
 		width: 20px;
 		height: 48px;
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
+		background: var(--ui-sidebar);
+		border: 1px solid var(--ui-border);
 		border-left: none;
 		border-radius: 0 var(--radius) var(--radius) 0;
 		color: var(--text-muted);

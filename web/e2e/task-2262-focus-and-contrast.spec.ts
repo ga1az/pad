@@ -36,9 +36,16 @@ test.describe('TASK-2262: focus ring and non-text contrast', () => {
 			await expect(page.locator('.section-add-btn').first()).toBeVisible();
 			await page.mouse.move(1200, 700); // nothing hovered
 			const ratios = await page.evaluate(() => {
+				// SPEC-24's --ui-* tokens compute to oklch(), so every colour is
+				// resolved to sRGB through a canvas rather than parsed as rgb().
+				const ctx = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!;
 				const parse = (c: string) => {
-					const p = c.match(/rgba?\(([^)]+)\)/)![1].split(/[ ,/]+/).filter(Boolean).map(Number);
-					return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 };
+					ctx.clearRect(0, 0, 1, 1);
+					ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+					ctx.fillStyle = c;
+					ctx.fillRect(0, 0, 1, 1);
+					const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+					return { r, g, b, a: a / 255 };
 				};
 				const lum = ({ r, g, b }: { r: number; g: number; b: number }) => {
 					const f = (v: number) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
