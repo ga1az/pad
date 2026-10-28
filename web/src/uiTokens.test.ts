@@ -63,8 +63,10 @@ describe('ui.css tokens', () => {
 	});
 
 	it('gives every themed dark token a light value', () => {
-		// Radius and the status colors are the same in both themes.
-		const themed = [...dark.keys()].filter((n) => n !== '--ui-radius' && !n.startsWith('--ui-status-'));
+		// Radius, the sidebar widths and the status colors are the same in both themes.
+		const themed = [...dark.keys()].filter(
+			(n) => n !== '--ui-radius' && !n.startsWith('--ui-sidebar-width') && !n.startsWith('--ui-status-')
+		);
 		expect([...light.keys()].sort()).toEqual(themed.sort());
 	});
 

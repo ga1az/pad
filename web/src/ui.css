@@ -36,6 +36,14 @@
 @source "./lib/components/ui/**/*.{svelte,ts}";
 @source "./routes/_ui-preview/**/*.svelte";
 @source "./lib/components/ui-adapters/**/*.{svelte,ts}";
+/* The desktop app frame (TASK-27). File by file, not the whole layout/
+   folder: the mobile chrome there is still legacy markup, and TopBar.svelte
+   is restyled with its own scoped CSS. */
+@source "./lib/components/layout/SidebarDesktop.svelte";
+@source "./lib/components/layout/PanelHeader.svelte";
+/* PanelHeader passes NotificationPanel a `visible` prop, which would emit
+   `.visible`, a class ItemDetail's save status uses. */
+@source not inline("visible");
 
 /* `dark:` follows the app's own theme switch (see app.css "Light mode" and
    the comment atop lib/components/editor/mermaidTheme.ts). There is no
@@ -68,6 +76,11 @@
    they were measured with (chroma <= 0.008); indigo is the only brand hue. */
 :root {
 	--ui-radius: 8px;
+	/* Sizes, the same in both themes. shadcn's sidebar calls these
+	   --sidebar-width(-icon); app.css owns --sidebar-width (the mobile
+	   drawer). 241px is Linear's, measured at 1:1. */
+	--ui-sidebar-width: 241px;
+	--ui-sidebar-width-icon: 48px;
 
 	--ui-sidebar: oklch(0.215 0.006 285.9); /* #19191c app frame + sidebar */
 	--ui-background: oklch(0.244 0.006 271.2); /* #1f2023 main content panel */

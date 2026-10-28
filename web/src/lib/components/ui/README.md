@@ -44,3 +44,16 @@ Two more rules learned here:
 
 - **bits-ui and svelte-sonner compile in runes mode** (`svelteCompileOptions.ts`). A few of their files use no rune, and one legacy-mode component switches the whole Svelte runtime into legacy mode.
 - **Check the built CSS for collisions** before you add an `@source` line or prose to a scanned file: every word becomes a candidate, and a generated utility (`.grid`, `.inline`, `.table`, `.block`, `.visible`) hits any legacy element with that class. Reword the prose, or rename the legacy class.
+
+## Sidebar and Breadcrumb (TASK-27)
+
+The desktop sidebar (`layout/SidebarDesktop.svelte`) and the content panel's header (`layout/PanelHeader.svelte`) are built on these. What was changed from the CLI's output:
+
+- **Widths are tokens.** shadcn's `--sidebar-width` / `--sidebar-width-icon` are `--ui-sidebar-width` (241px, Linear's) and `--ui-sidebar-width-icon` in `ui.css`'s `:root`, the same in both themes like `--ui-radius`. app.css keeps `--sidebar-width` for the mobile drawer.
+- **The app owns the state.** No cookie and no Mod+B shortcut in the provider (Mod+B is bold in the editor; Mod+\ already toggles the chrome); `open` comes from `uiStore`. `isMobile` reads the app's breakpoint store, and `Sidebar.Root` has no mobile Sheet branch: below the breakpoint the sidebar is the app's own drawer.
+- **Dropped:** `input`, `skeleton`, `sheet`, and the sidebar's `Input`, `MenuSkeleton`, `Rail` and `Trigger`, which nothing uses (the skeleton also reads a non-token variable).
+- **`data-active` is absent, not `"false"`,** when a menu button is inactive: `data-active:` matches the attribute's presence.
+- **Linear's row:** `MenuButton` is 28px, 13px medium, hover +4% white, active filled `--ui-sidebar-accent`, radius 6px; `MenuBadge` is the gray right-aligned count; `GroupLabel` the 12px gray section header.
+- **Lists need `list-none`** while there is no Preflight: the breadcrumb's `<ol>` showed "1." markers.
+
+Unwanted candidates can be excluded in `ui.css` with `@source not inline("word")` when a scanned file has to contain the word (PanelHeader passes NotificationPanel a `visible` prop).
