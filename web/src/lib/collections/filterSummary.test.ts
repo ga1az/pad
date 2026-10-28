@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filterSummaryParts, filteredCountLabel, relationSummaryLabel } from './filterSummary';
+import { filterSummaryEntries, filterSummaryParts, filteredCountLabel, relationSummaryLabel } from './filterSummary';
 import type { ItemIndexRow } from '$lib/types';
 
 const base = {
@@ -34,6 +34,26 @@ describe('filterSummaryParts (TASK-3592)', () => {
 
 	it('a whitespace-only search is not a filter', () => {
 		expect(filterSummaryParts({ ...base, search: '   ' })).toEqual([]);
+	});
+});
+
+describe('filterSummaryEntries (TASK-29)', () => {
+	it('says what each chip clears, with unique ids, in the parts order', () => {
+		const input = { ...base, filters: { status: 'open', owner: 'i1' }, tags: ['ui'], unparented: true, search: 'login' };
+		const entries = filterSummaryEntries(input);
+		expect(entries).toEqual([
+			{ id: 'field:status', kind: 'field', field: 'status', label: 'status: open' },
+			{ id: 'field:owner', kind: 'field', field: 'owner', label: 'owner: Alice' },
+			{ id: 'tags', kind: 'tags', label: 'tags: ui' },
+			{ id: 'unparented', kind: 'unparented', label: 'unparented only' },
+			{ id: 'search', kind: 'search', label: 'search: “login”' },
+		]);
+		expect(entries.map((e) => e.label)).toEqual(filterSummaryParts(input));
+	});
+
+	it('a field keyed `tags` or `search` cannot collide with the fixed ids', () => {
+		const ids = filterSummaryEntries({ ...base, filters: { tags: 'x', search: 'y' }, tags: ['ui'], search: 'q' }).map((e) => e.id);
+		expect(new Set(ids).size).toBe(ids.length);
 	});
 });
 

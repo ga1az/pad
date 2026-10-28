@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { Alert02Icon, LockIcon, MoreHorizontalIcon, PinIcon, Search01Icon, StarIcon } from '@hugeicons/core-free-icons';
+	import { Alert02Icon, Cancel01Icon, Layers01Icon, LockIcon, MoreHorizontalIcon, PinIcon, Search01Icon, SlidersHorizontalIcon, StarIcon } from '@hugeicons/core-free-icons';
 	import Icon from '$lib/icons/Icon.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { isRelationType } from '$lib/items/relationFieldTypes';
 	import { ownValue } from '$lib/utils/ownValue';
@@ -18,7 +19,7 @@
 	import { laneWriteValue, laneWriteRefusalMessage } from '$lib/collections/laneWriteValue';
 	import { summarizeBulkFailures, bulkToastMessage } from '$lib/collections/bulkFailureReason';
 	import { createDefaultFields } from '$lib/collections/createDefaults';
-	import { filterSummaryParts, filteredCountLabel, relationSummaryLabel } from '$lib/collections/filterSummary';
+	import { filterSummaryEntries, filteredCountLabel, relationSummaryLabel, type FilterSummaryEntry } from '$lib/collections/filterSummary';
 	import PlanLimitPrompt from '$lib/components/billing/PlanLimitPrompt.svelte';
 	import { blockedDraftMessage, draftCreateFields, draftTargets, lostLaneLabel, saveAllDrafts } from '$lib/collections/laneDrafts';
 	import BoardView from '$lib/components/collections/BoardView.svelte';
@@ -1957,7 +1958,7 @@
 	// segmented view toggle + saved-views tab bar merge into one View menu;
 	// sort becomes an icon menu; archived/edit/share live in the ⋯ menu.
 	let viewMenuOpen = $state(false);
-	let viewMenuTrigger = $state<HTMLElement | undefined>(undefined);
+	let viewMenuTrigger = $state<HTMLElement | null>(null);
 	let sortMenuOpen = $state(false);
 	let sortMenuTrigger = $state<HTMLElement | null>(null);
 	let collMenuOpen = $state(false);
@@ -1989,9 +1990,10 @@
 	let viewTriggerLabel = $derived(activeViewName ?? viewModeLabel);
 
 	// With the panel closed, a filtered view says so (TASK-3592): what is
-	// filtered, "N of M", and a Clear. Clear is the View menu's "All".
+	// filtered, "N of M", and a Clear. Clear is the View menu's "All". Since
+	// TASK-29 each filter is a chip whose × clears that filter alone.
 	let filterSummary = $derived(
-		filterSummaryParts({
+		filterSummaryEntries({
 			filters: activeFilters,
 			tags: selectedTags,
 			search: searchQuery,
@@ -2015,6 +2017,22 @@
 		})
 	);
 	let itemCountLabel = $derived(filteredCountLabel(filteredItems.length, items.length, hasActiveFilters));
+
+	/** A filter chip's ×: clears that filter through the door that sets it. */
+	function removeFilter(entry: FilterSummaryEntry) {
+		if (entry.kind === 'field') {
+			const next = { ...activeFilters };
+			delete next[entry.field];
+			handleFilterChange(next);
+		} else if (entry.kind === 'tags') {
+			handleTagFilterChange([]);
+		} else if (entry.kind === 'unparented') {
+			handleUnparentedChange(false);
+		} else {
+			searchResultRank = null;
+			handleSearchChange('');
+		}
+	}
 
 	function selectViewMode(mode: ViewMode) {
 		saveViewMode(mode);
@@ -4113,6 +4131,161 @@
 
 <svelte:window onkeydown={handlePageKeydown} />
 
+{#snippet sortControl()}
+	{#if viewMode !== 'table'}
+		<div class="menu-anchor">
+			<Tooltip.Root>
+				<Tooltip.Trigger onclick={() => (sortMenuOpen = !sortMenuOpen)}>
+					{#snippet child({ props })}
+						<Button
+							{...props}
+							variant="icon"
+							size="icon"
+							class="toolbar-icon-btn"
+							bind:ref={sortMenuTrigger}
+							aria-haspopup="menu"
+							aria-expanded={sortMenuOpen}
+							aria-label="Sort items"
+						>
+							<svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M4 2v10M4 12l-2.2-2.4M4 12l2.2-2.4M11 13V3M11 3 8.8 5.4M11 3l2.2 2.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+						</Button>
+					{/snippet}
+				</Tooltip.Trigger>
+				<Tooltip.Content>Sort items</Tooltip.Content>
+			</Tooltip.Root>
+			<ResponsiveMenu
+				open={sortMenuOpen}
+				onclose={() => (sortMenuOpen = false)}
+				trigger={sortMenuTrigger}
+				mode="anchored"
+				sheetOnMobile
+				sheetTitle="Sort items"
+				ariaLabel="Sort items"
+			>
+				<div class="menu-label">Sort within groups</div>
+				{#each sortOptions as opt (opt.value)}
+					<ResponsiveMenuItem
+						checked={sortMode === opt.value}
+						onclick={() => { saveSortMode(opt.value as SortMode); sortMenuOpen = false; }}
+					>
+						{opt.label}
+					</ResponsiveMenuItem>
+				{/each}
+			</ResponsiveMenu>
+		</div>
+	{/if}
+{/snippet}
+
+{#snippet filterControl()}
+	<Tooltip.Root>
+		<Tooltip.Trigger onclick={() => (filtersOpen = !filtersOpen)}>
+			{#snippet child({ props })}
+				<Button
+					{...props}
+					variant="icon"
+					size="icon"
+					class="toolbar-icon-btn filter-toggle-btn"
+					aria-label="Toggle filters"
+					aria-expanded={filtersOpen}
+				>
+					<!-- Linear's filter glyph: three centred lines, each shorter. -->
+					<svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M1.75 3.75h10.5M3.5 7h7M5.25 10.25h3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+					{#if hasActiveFilters}
+						<span class="filter-badge" aria-hidden="true"></span>
+					{/if}
+				</Button>
+			{/snippet}
+		</Tooltip.Trigger>
+		<Tooltip.Content>{hasActiveFilters ? 'Filters (active)' : 'Filter'}</Tooltip.Content>
+	</Tooltip.Root>
+{/snippet}
+
+{#snippet quickActionsControl()}
+	{#if collection && (quickActions.length > 0 || isOwner)}
+		<QuickActionsMenu
+			actions={quickActions}
+			{collection}
+			scope="collection"
+			{wsSlug}
+			canEdit={isOwner}
+			onmanage={() => {
+				editCollectionSection = 'actions';
+				editCollectionOpen = true;
+			}}
+			oncollectionupdated={(updated) => {
+				// Apply the returned collection immediately so a fast
+				// follow-up save reads fresh settings.quick_actions
+				// instead of stale ones — without this, a second
+				// save can overwrite the first before loadCollection
+				// resolves. Bump the unified fence so an in-flight
+				// stale load/refresh can't revert this fresh write.
+				collectionGen++;
+				collection = updated;
+				loadCollection(wsSlug, collSlug, showArchived);
+			}}
+		/>
+	{/if}
+{/snippet}
+
+{#snippet collectionMenuControl()}
+	<div class="menu-anchor">
+		<Tooltip.Root>
+			<Tooltip.Trigger onclick={() => (collMenuOpen = !collMenuOpen)}>
+				{#snippet child({ props })}
+					<Button
+						{...props}
+						variant="icon"
+						size="icon"
+						class="toolbar-icon-btn"
+						bind:ref={collMenuTrigger}
+						aria-haspopup="menu"
+						aria-expanded={collMenuOpen}
+						aria-label="Collection menu"
+					><Icon icon={MoreHorizontalIcon} /></Button>
+				{/snippet}
+			</Tooltip.Trigger>
+			<Tooltip.Content>More</Tooltip.Content>
+		</Tooltip.Root>
+		<!-- Mobile mount of the realtime badge (IDEA-2297), as a status
+		     badge on this button's corner rather than a flex item of its
+		     own: at 360 a separate dot wrapped alone onto a second row
+		     (TASK-2244, Dave's gate). It stays a role="status" region with
+		     its label, and takes no taps, so the button keeps them. -->
+		{#if viewport.isMobile}
+			<span class="sse-badge">
+				<SSEStatusIndicator compact />
+			</span>
+		{/if}
+		<ResponsiveMenu
+			open={collMenuOpen}
+			onclose={() => (collMenuOpen = false)}
+			trigger={collMenuTrigger}
+			mode="anchored"
+			sheetOnMobile
+			sheetTitle="Collection"
+			ariaLabel="Collection menu"
+		>
+			<ResponsiveMenuItem
+				icon="🗃"
+				checked={showArchived}
+				onclick={() => { showArchived = !showArchived; collMenuOpen = false; }}
+			>
+				Show archived
+			</ResponsiveMenuItem>
+			{#if isOwner}
+				<div class="menu-divider" role="separator"></div>
+				<ResponsiveMenuItem icon="✎" onclick={() => { editCollectionOpen = true; collMenuOpen = false; }}>
+					Edit collection…
+				</ResponsiveMenuItem>
+				<ResponsiveMenuItem icon="⇗" onclick={() => { shareDialogOpen = true; collMenuOpen = false; }}>
+					Share collection…
+				</ResponsiveMenuItem>
+			{/if}
+		</ResponsiveMenu>
+	</div>
+{/snippet}
+
+
 <!--
 	Split-pane layout (PLAN-2105 / TASK-2112). When `?item=` is set the page
 	becomes a flex row: the list column (flex:1, always mounted) + a right-
@@ -4121,7 +4294,7 @@
 	is the ONLY thing that mounts/unmounts on open/close — see the NO-{#key}
 	note on the ItemDetail mount below.
 -->
-<div class="collection-page" class:board-active={viewMode === 'board'} class:table-active={viewMode === 'table'} class:pane-open={!!openItemRef}>
+<div class="collection-page" class:frame={!viewport.isMobile} class:board-active={viewMode === 'board'} class:table-active={viewMode === 'table'} class:pane-open={!!openItemRef}>
 	<!-- tabindex=-1: a programmatic focus landmark (not a Tab stop) so closing
 	     the pane can return focus here when there's no originating row to land on
 	     (deep-linked / filtered-out item — TASK-2122).
@@ -4189,32 +4362,11 @@
 		{/if}
 		<!-- Header -->
 		<div class="page-header">
-			<div class="title-row">
-				<div class="title-group">
-					<h1>
-						{#if collection.icon}<span class="collection-icon"><Icon icon={collection.icon} /></span>{/if}
-						{collection.name}
-						<span class="item-count">{itemCountLabel}</span>
-					</h1>
-
-					<!-- Realtime stream status (PLAN-1984 / TASK-2027): surfaces the
-					     already-computed SSE connection state so a stale board hints
-					     when live updates are down or unauthorized.
-					     Desktop only — at ≤768px the h1 is hidden, so leaving the badge
-					     here held .title-group open as a row containing nothing else
-					     (IDEA-2297). The mobile mount lives in .header-actions below. -->
-					{#if !viewport.isMobile}
-						<SSEStatusIndicator />
-					{/if}
-				</div>
-
-				<div class="header-actions">
-					{#if viewport.isMobile}
-						<!--
-							Mobile: labeled chip + BottomSheet picker. Icon-only
-							segmented buttons are hard to decode on touch, and the
-							sheet gives each option a clear label.
-						-->
+			{#if viewport.isMobile}
+				<!-- Phone width keeps its one-row strip (TASK-2244 measured it): the
+				     collection name is in MobileContextBar, so there is no heading. -->
+				<div class="title-row">
+					<div class="header-actions">
 						<button
 							class="view-chip"
 							type="button"
@@ -4302,27 +4454,97 @@
 								</div>
 							</BottomSheet>
 						{/if}
-					{:else}
-						<div class="menu-anchor">
-							<button
-								class="view-dd-trigger"
-								bind:this={viewMenuTrigger}
-								onclick={() => (viewMenuOpen = !viewMenuOpen)}
-								aria-haspopup="menu"
-								aria-expanded={viewMenuOpen}
-								aria-label="Change view"
-								title="View, saved views"
-							>
-								<span class="view-dd-icon" aria-hidden="true"><Icon icon={viewModeIcon} /></span>
-								<span class="view-dd-label">{viewTriggerLabel}</span>
-								<span class="view-dd-caret" aria-hidden="true">▾</span>
+						{@render sortControl()}
+						{@render filterControl()}
+						{@render quickActionsControl()}
+						{@render collectionMenuControl()}
+						{#if canEditThisCollection}
+							<button class="new-btn" onclick={handleNewButtonClick} disabled={creatingNew}>
+								+ <span class="new-btn-label">New {singularName()}</span>
 							</button>
+						{/if}
+					</div>
+				</div>
+			{:else}
+				<!--
+					Linear's tabs row (SPEC-24 / TASK-29), right under the panel
+					header, which already names the collection and holds
+					"+ New <item>". Left: one pill per view scope, "All" and each
+					saved view (the View menu's old list, still in Display), then
+					"Save current view". Right: the realtime dot and round icon
+					buttons: filter, sort, Display (List / Board / Table and the
+					saved views' management), quick actions and the collection ⋯.
+				-->
+				<div class="view-toolbar">
+					<div class="view-tabs" role="group" aria-label="Views">
+						<button
+							type="button"
+							class="view-tab"
+							aria-pressed={activeViewId === null}
+							onclick={clearActiveView}
+						>All {collection.name.toLowerCase()}</button>
+						{#each savedViews as view (view.id)}
+							<button
+								type="button"
+								class="view-tab"
+								aria-pressed={activeViewId === view.id}
+								onclick={() => applyViewConfig(view)}
+							>
+								<span class="view-tab-label">{view.name}</span>
+								{#if defaultViewId === view.id}
+									<span class="saved-view-default" title="Default view — applied on entry" aria-label="Default view"><Icon icon={PinIcon} /></span>
+								{/if}
+							</button>
+						{/each}
+						{#if canSaveView}
+							<Tooltip.Root>
+								<Tooltip.Trigger onclick={openSaveView}>
+									{#snippet child({ props })}
+										<Button {...props} variant="ghost" size="icon" class="view-tab-save" aria-label="Save current view">
+											<Icon icon={Layers01Icon} size={14} />
+										</Button>
+									{/snippet}
+								</Tooltip.Trigger>
+								<Tooltip.Content>Save current view</Tooltip.Content>
+							</Tooltip.Root>
+						{/if}
+					</div>
+					<!-- The count the old heading showed ("9", or "3 of 9" when
+					     filtered), for assistive tech; the filter row below shows the
+					     filtered count on screen. -->
+					<span class="sr-only"><span class="item-count">{itemCountLabel}</span> {collection.name.toLowerCase()}</span>
+
+					<div class="header-actions">
+						<!-- Realtime stream status (PLAN-1984 / TASK-2027), as its dot. -->
+						<SSEStatusIndicator compact />
+						{@render filterControl()}
+						{@render sortControl()}
+						<div class="menu-anchor">
+							<Tooltip.Root>
+								<Tooltip.Trigger onclick={() => (viewMenuOpen = !viewMenuOpen)}>
+									{#snippet child({ props })}
+										<Button
+											{...props}
+											variant="icon"
+											size="icon"
+											class="toolbar-icon-btn view-dd-trigger"
+											bind:ref={viewMenuTrigger}
+											aria-haspopup="menu"
+											aria-expanded={viewMenuOpen}
+											aria-label="Change view"
+										>
+											<Icon icon={SlidersHorizontalIcon} size={14} />
+										</Button>
+									{/snippet}
+								</Tooltip.Trigger>
+								<Tooltip.Content>Display: {viewTriggerLabel}</Tooltip.Content>
+							</Tooltip.Root>
 							<ResponsiveMenu
 								open={viewMenuOpen}
 								onclose={() => (viewMenuOpen = false)}
 								trigger={viewMenuTrigger}
 								mode="anchored"
-								align="left"
+								align="right"
 								ariaLabel="View"
 							>
 								{#each VIEW_CHOICES as choice (choice.mode)}
@@ -4387,156 +4609,16 @@
 								{/if}
 							</ResponsiveMenu>
 						</div>
-					{/if}
-
-					{#if viewMode !== 'table'}
-						<div class="menu-anchor">
-							<Tooltip.Root>
-								<Tooltip.Trigger onclick={() => (sortMenuOpen = !sortMenuOpen)}>
-									{#snippet child({ props })}
-										<Button
-											{...props}
-											variant="icon"
-											size="icon"
-											class="toolbar-icon-btn"
-											bind:ref={sortMenuTrigger}
-											aria-haspopup="menu"
-											aria-expanded={sortMenuOpen}
-											aria-label="Sort items"
-										>
-											<svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M4 2v10M4 12l-2.2-2.4M4 12l2.2-2.4M11 13V3M11 3 8.8 5.4M11 3l2.2 2.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-										</Button>
-									{/snippet}
-								</Tooltip.Trigger>
-								<Tooltip.Content>Sort items</Tooltip.Content>
-							</Tooltip.Root>
-							<ResponsiveMenu
-								open={sortMenuOpen}
-								onclose={() => (sortMenuOpen = false)}
-								trigger={sortMenuTrigger}
-								mode="anchored"
-								sheetOnMobile
-								sheetTitle="Sort items"
-								ariaLabel="Sort items"
-							>
-								<div class="menu-label">Sort within groups</div>
-								{#each sortOptions as opt (opt.value)}
-									<ResponsiveMenuItem
-										checked={sortMode === opt.value}
-										onclick={() => { saveSortMode(opt.value as SortMode); sortMenuOpen = false; }}
-									>
-										{opt.label}
-									</ResponsiveMenuItem>
-								{/each}
-							</ResponsiveMenu>
-						</div>
-					{/if}
-
-					<button
-						class="toolbar-icon-btn filter-toggle-btn"
-						class:has-filters={hasActiveFilters}
-						onclick={() => filtersOpen = !filtersOpen}
-						aria-label="Toggle filters"
-						aria-expanded={filtersOpen}
-						title="Filters"
-					>
-						<svg class="filter-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-						{#if hasActiveFilters}
-							<span class="filter-badge"></span>
-						{/if}
-					</button>
-
-					{#if collection && (quickActions.length > 0 || isOwner)}
-						<QuickActionsMenu
-							actions={quickActions}
-							{collection}
-							scope="collection"
-							{wsSlug}
-							canEdit={isOwner}
-							onmanage={() => {
-								editCollectionSection = 'actions';
-								editCollectionOpen = true;
-							}}
-							oncollectionupdated={(updated) => {
-								// Apply the returned collection immediately so a fast
-								// follow-up save reads fresh settings.quick_actions
-								// instead of stale ones — without this, a second
-								// save can overwrite the first before loadCollection
-								// resolves. Bump the unified fence so an in-flight
-								// stale load/refresh can't revert this fresh write.
-								collectionGen++;
-								collection = updated;
-								loadCollection(wsSlug, collSlug, showArchived);
-							}}
-						/>
-					{/if}
-
-					<div class="menu-anchor">
-						<Tooltip.Root>
-							<Tooltip.Trigger onclick={() => (collMenuOpen = !collMenuOpen)}>
-								{#snippet child({ props })}
-									<Button
-										{...props}
-										variant="icon"
-										size="icon"
-										class="toolbar-icon-btn"
-										bind:ref={collMenuTrigger}
-										aria-haspopup="menu"
-										aria-expanded={collMenuOpen}
-										aria-label="Collection menu"
-									><Icon icon={MoreHorizontalIcon} /></Button>
-								{/snippet}
-							</Tooltip.Trigger>
-							<Tooltip.Content>More</Tooltip.Content>
-						</Tooltip.Root>
-						<!-- Mobile mount of the realtime badge (IDEA-2297), as a status
-						     badge on this button's corner rather than a flex item of its
-						     own: at 360 a separate dot wrapped alone onto a second row
-						     (TASK-2244, Dave's gate). It stays a role="status" region with
-						     its label, and takes no taps, so the button keeps them. -->
-						{#if viewport.isMobile}
-							<span class="sse-badge">
-								<SSEStatusIndicator compact />
-							</span>
-						{/if}
-						<ResponsiveMenu
-							open={collMenuOpen}
-							onclose={() => (collMenuOpen = false)}
-							trigger={collMenuTrigger}
-							mode="anchored"
-							sheetOnMobile
-							sheetTitle="Collection"
-							ariaLabel="Collection menu"
-						>
-							<ResponsiveMenuItem
-								icon="🗃"
-								checked={showArchived}
-								onclick={() => { showArchived = !showArchived; collMenuOpen = false; }}
-							>
-								Show archived
-							</ResponsiveMenuItem>
-							{#if isOwner}
-								<div class="menu-divider" role="separator"></div>
-								<ResponsiveMenuItem icon="✎" onclick={() => { editCollectionOpen = true; collMenuOpen = false; }}>
-									Edit collection…
-								</ResponsiveMenuItem>
-								<ResponsiveMenuItem icon="⇗" onclick={() => { shareDialogOpen = true; collMenuOpen = false; }}>
-									Share collection…
-								</ResponsiveMenuItem>
-							{/if}
-						</ResponsiveMenu>
+						{@render quickActionsControl()}
+						{@render collectionMenuControl()}
 					</div>
-
-					{#if canEditThisCollection}
-						<button class="new-btn" onclick={handleNewButtonClick} disabled={creatingNew}>
-							+ <span class="new-btn-label">New {singularName()}</span>
-						</button>
-					{/if}
-
 				</div>
-			</div>
+			{/if}
 
 			{#if hasActiveFilters && !filtersOpen}
+				<!-- The filter row (TASK-3592; Linear's chips since TASK-29): the
+				     count opens the panel, each filter is a chip with its own ×,
+				     and Clear drops them all. -->
 				<div class="filter-summary">
 					<button
 						type="button"
@@ -4545,10 +4627,23 @@
 						title="Show filters"
 					>
 						<span class="filter-summary-count">{itemCountLabel}</span>
-						{#if filterSummary.length > 0}
-							<span class="filter-summary-parts">· {filterSummary.join(' · ')}</span>
-						{/if}
 					</button>
+					<ul class="filter-chips" aria-label="Active filters">
+						{#each filterSummary as entry (entry.id)}
+							<li>
+								<Badge variant="outline" class="filter-chip">
+									<span class="filter-chip-label">{entry.label}</span>
+									<button
+										type="button"
+										class="filter-chip-remove"
+										aria-label="Remove filter {entry.label}"
+										title="Remove filter"
+										onclick={() => removeFilter(entry)}
+									><Icon icon={Cancel01Icon} size={10} /></button>
+								</Badge>
+							</li>
+						{/each}
+					</ul>
 					<button type="button" class="filter-summary-clear" onclick={clearActiveView}>Clear</button>
 				</div>
 			{/if}
@@ -4758,6 +4853,9 @@
 				filtered={hasActiveFilters}
 				onGroupReorder={handleGroupReorder}
 				oncreate={canEditThisCollection ? openQuickCreate : undefined}
+				onCreateInColumn={canEditThisCollection ? quickCreateInColumn : undefined}
+				bind:draftText
+				bind:draftOpen
 				{itemProgress}
 				{progressLabel}
 				canEdit={canEditThisCollection}
@@ -5114,6 +5212,117 @@
 		margin-bottom: var(--space-4);
 	}
 
+	/* ── Linear's frame on desktop (SPEC-24 / TASK-29) ──────────────────────
+	   Measured at 1:1: the content starts 8px inside the panel, full width,
+	   right under the 44px panel header; the tabs row is 47px; the first
+	   group or lane follows it with no rule between. Set after the view and
+	   pane rules above in specificity (two classes plus one), so it wins their
+	   padding and width. */
+	.collection-page.frame,
+	.collection-page.frame.table-active {
+		max-width: none;
+		padding: 0 8px 8px;
+	}
+	.collection-page.frame.board-active {
+		padding: 0 var(--space-2) var(--space-2) 8px;
+	}
+	.collection-page.frame.pane-open {
+		padding: 0;
+	}
+	.collection-page.frame.pane-open .list-column {
+		padding: 0 8px 8px;
+	}
+	.collection-page.frame.pane-open.board-active .list-column {
+		padding: 0 var(--space-2) var(--space-2) 8px;
+	}
+	.frame .page-header {
+		margin-bottom: 0;
+	}
+	.frame .header-separator {
+		display: none;
+	}
+
+	.view-toolbar {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		height: 47px;
+		padding-right: 2px;
+	}
+	.view-tabs {
+		display: flex;
+		flex: 1 1 auto;
+		align-items: center;
+		gap: 6px;
+		min-width: 0;
+		overflow: hidden;
+	}
+	/* The pill tab: 28px, fully round, 13px medium; the active one a step
+	   lighter with the light text. Mixed toward the foreground, so the light
+	   theme darkens where the dark one lightens. */
+	.view-tab {
+		display: inline-flex;
+		flex: 0 1 auto;
+		align-items: center;
+		gap: 5px;
+		min-width: 0;
+		height: 28px;
+		padding: 0 11px;
+		background: color-mix(in oklch, var(--ui-tab), var(--ui-foreground) 2%);
+		border: 1px solid color-mix(in oklch, var(--ui-foreground) 10%, transparent);
+		border-radius: 999px;
+		color: var(--ui-muted-foreground);
+		font: inherit;
+		font-size: 13px;
+		font-weight: 500;
+		line-height: 1;
+		white-space: nowrap;
+		cursor: pointer;
+	}
+	.view-tab:hover {
+		color: var(--ui-foreground);
+	}
+	.view-tab[aria-pressed='true'] {
+		background: color-mix(in oklch, var(--ui-tab), var(--ui-foreground) 8%);
+		color: var(--ui-foreground);
+	}
+	.view-tab:focus-visible {
+		outline: 2px solid var(--ui-ring);
+		outline-offset: 1px;
+	}
+	.view-tabs :global(.view-tab-save) {
+		flex: none;
+		margin-left: 2px;
+	}
+
+	.view-toolbar .header-actions {
+		flex: none;
+		flex-wrap: nowrap;
+		gap: 6px;
+		margin-left: auto;
+	}
+	.view-toolbar .header-actions :global(.sse-state) {
+		margin-right: 4px;
+	}
+	/* The ⚡ trigger as the row's other round icon buttons (TASK-26's `icon`
+	   variant, by value: QuickActionsMenu's own trigger stays as it is in the
+	   item pane). The `div` and the child combinator outrank the child's
+	   scoped rule, as the height rule below explains. */
+	.view-toolbar .header-actions :global(div.quick-actions-menu > .trigger-btn) {
+		justify-content: center;
+		width: 28px;
+		padding: 0;
+		background: var(--ui-tab);
+		border: 1px solid color-mix(in oklch, var(--ui-foreground) 7%, transparent);
+		border-radius: 50%;
+		color: var(--ui-muted-foreground);
+		font-size: 14px;
+	}
+	.view-toolbar .header-actions :global(div.quick-actions-menu > .trigger-btn:hover) {
+		background: color-mix(in oklch, var(--ui-tab), white 5%);
+		color: var(--ui-foreground);
+	}
+
 	.title-row {
 		display: flex;
 		align-items: center;
@@ -5121,36 +5330,6 @@
 		gap: var(--space-4);
 		margin-bottom: var(--space-3);
 		flex-wrap: wrap;
-	}
-
-	.title-group {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-		flex-wrap: wrap;
-		min-width: 0;
-	}
-
-	h1 {
-		font-size: 1.6em;
-		margin: 0;
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-	}
-
-	.collection-icon {
-		font-size: 0.9em;
-	}
-
-	.item-count {
-		font-size: 0.5em;
-		font-weight: 400;
-		color: var(--text-muted);
-		background: var(--bg-tertiary);
-		padding: 2px 8px;
-		border-radius: 10px;
-		vertical-align: middle;
 	}
 
 	.header-actions {
@@ -5178,7 +5357,6 @@
 	   shrink, and the app-wide `* { box-sizing: border-box }` means the
 	   unbordered New button lands on the same box as its bordered siblings.
 	   .toolbar-icon-btn is already 28px. */
-	.view-dd-trigger,
 	.view-chip,
 	.new-btn {
 		height: 28px;
@@ -5210,55 +5388,6 @@
 	.menu-anchor {
 		position: relative;
 		flex-shrink: 0;
-	}
-
-	.view-dd-trigger {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		padding: var(--space-1) var(--space-3);
-		cursor: pointer;
-		font-size: 0.85em;
-		font-weight: 550;
-		color: var(--text-secondary);
-		white-space: nowrap;
-	}
-
-	.view-dd-trigger:hover {
-		color: var(--text-primary);
-		border-color: var(--border-strong, var(--text-muted));
-	}
-
-	.view-dd-icon {
-		opacity: 0.8;
-	}
-
-	.view-dd-caret {
-		font-size: 0.75em;
-		color: var(--text-muted);
-	}
-
-	.toolbar-icon-btn {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 30px;
-		height: 28px;
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		cursor: pointer;
-		color: var(--text-secondary);
-		position: relative;
-		flex-shrink: 0;
-	}
-
-	.toolbar-icon-btn:hover {
-		color: var(--text-primary);
-		border-color: var(--border-strong, var(--text-muted));
 	}
 
 	.menu-divider {
@@ -5381,25 +5510,20 @@
 		color: var(--text-secondary);
 	}
 
-	/* Filter toggle */
-	.filter-toggle-btn.has-filters {
-		border-color: color-mix(in srgb, var(--accent-primary, var(--accent-blue)) 55%, transparent);
-		color: var(--text-primary);
+	/* Active-filter dot on the filter button's top-right rim, Linear's 6px
+	   indigo (TASK-29). The Button is its positioning context. */
+	.header-actions :global(.filter-toggle-btn) {
+		position: relative;
 	}
-
-	.filter-icon {
-		flex-shrink: 0;
-	}
-
-	/* Active-filter dot rides the icon button's corner (mock treatment). */
 	.filter-badge {
 		position: absolute;
-		top: 3px;
-		right: 3px;
+		top: -1px;
+		right: -1px;
 		width: 6px;
 		height: 6px;
 		border-radius: 50%;
-		background: var(--accent-primary, var(--accent-blue));
+		background: var(--ui-primary);
+		pointer-events: none;
 	}
 
 	.search-cap-notice {
@@ -5411,54 +5535,101 @@
 	.filters-panel {
 		padding: var(--space-3) 0;
 	}
+	/* Desktop: the open filter bar is a slim chip row under the tabs row. */
+	.frame .filters-panel {
+		padding: 2px 0 var(--space-2);
+	}
 
-	/* TASK-3592: the closed-panel summary of a filtered view. */
+	/* TASK-3592: the closed-panel summary of a filtered view; Linear's slim
+	   chip row since TASK-29. */
 	.filter-summary {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
-		padding: var(--space-2) 0 0;
-		font-size: 0.85em;
+		min-height: 32px;
+		padding: 0 0 var(--space-2);
+		font-size: 12px;
 		min-width: 0;
 	}
 	.filter-summary-text {
 		display: inline-flex;
-		gap: var(--space-1);
-		min-width: 0;
+		flex: none;
 		background: none;
 		border: none;
-		padding: 0;
-		color: var(--text-secondary);
+		padding: 0 2px;
 		font: inherit;
 		cursor: pointer;
-		text-align: left;
 	}
 	.filter-summary-count {
-		flex: none;
-		font-weight: 600;
-		color: var(--text-primary);
+		font-weight: 500;
+		color: var(--ui-muted-foreground);
+		font-variant-numeric: tabular-nums;
 	}
-	.filter-summary-parts {
+	.filter-summary-text:hover .filter-summary-count {
+		color: var(--ui-foreground);
+	}
+	.filter-chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+		min-width: 0;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.filter-chips li {
+		display: flex;
+		min-width: 0;
+	}
+	.filter-chips :global(.filter-chip) {
+		height: 24px;
+		max-width: 22rem;
+		padding: 0 4px 0 9px;
+		gap: 4px;
+		border-color: color-mix(in oklch, var(--ui-foreground) 13%, transparent);
+		color: var(--ui-foreground);
+		font-size: 12px;
+	}
+	.filter-chip-label {
+		min-width: 0;
 		overflow: hidden;
 		text-overflow: ellipsis;
-		white-space: nowrap;
+	}
+	.filter-chip-remove {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		flex: none;
+		width: 16px;
+		height: 16px;
+		padding: 0;
+		background: none;
+		border: none;
+		border-radius: 50%;
+		color: var(--ui-muted-foreground);
+		cursor: pointer;
+	}
+	.filter-chip-remove:hover {
+		color: var(--ui-foreground);
+		background: color-mix(in oklch, var(--ui-foreground) 10%, transparent);
 	}
 	.filter-summary-clear {
 		flex: none;
 		background: none;
 		border: none;
 		padding: 0 var(--space-1);
-		color: var(--accent-blue);
+		color: var(--ui-muted-foreground);
 		font: inherit;
+		font-weight: 500;
 		cursor: pointer;
 	}
-	.filter-summary-clear:hover,
-	.filter-summary-text:hover .filter-summary-parts {
-		text-decoration: underline;
+	.filter-summary-clear:hover {
+		color: var(--ui-foreground);
 	}
 
-	/* A saved view's name can be long (TASK-3592): the trigger truncates. */
-	.view-dd-label,
+	/* A saved view's name can be long (TASK-3592): the chip and the tab
+	   truncate. */
+	.view-tab-label,
 	.view-chip-label {
 		max-width: 14em;
 		overflow: hidden;
@@ -5586,21 +5757,9 @@
 	}
 
 	@media (max-width: 768px) {
-		/* The collection name now lives in the persistent top bar
-		   (MobileContextBar, IDEA-1835) — drop the duplicate in-page heading
-		   but keep the view controls in the row. */
-		.title-row h1 {
-			display: none;
-		}
-
-		/* With the h1 hidden and the realtime badge moved into .header-actions
-		   (IDEA-2297), .title-group has no rendered children — but a 0-height
-		   flex item still collects .title-row's 12px column gap, which was the
-		   last of the wasted row. Take it out of layout entirely. */
-		.title-group {
-			display: none;
-		}
-
+		/* The collection name lives in the persistent top bar
+		   (MobileContextBar, IDEA-1835), so this row holds the controls only;
+		   no in-page heading renders here (TASK-29 removed it everywhere). */
 		.title-row {
 			flex-direction: column;
 			align-items: flex-start;
@@ -5626,17 +5785,13 @@
 		   e2e pins both. */
 		.view-chip,
 		.new-btn,
-		.toolbar-icon-btn,
 		.header-actions :global(.quick-actions-menu > .trigger-btn) {
 			height: 44px;
 			min-width: 44px;
 		}
-		.toolbar-icon-btn {
-			width: 44px;
-		}
-		/* The round icon Buttons (Sort, collection menu; TASK-26) carry the
-		   class too, but a scoped rule does not reach a component's root (and
-		   their data-slot is the tooltip trigger's). */
+		/* The round icon Buttons (sort, filter, collection menu; TASK-26 and
+		   TASK-29) carry .toolbar-icon-btn, which a scoped rule does not reach
+		   on a component's root (and their data-slot is the tooltip trigger's). */
 		.header-actions :global(.toolbar-icon-btn) {
 			width: 44px;
 			height: 44px;

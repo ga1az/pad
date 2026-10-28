@@ -63,47 +63,50 @@
 		gap: var(--space-1, 0.25rem);
 		align-items: center;
 	}
+	/* Linear's filter chip (TASK-29), as FilterBar's: 24px, round, a faint
+	   rim, 12px medium; the selected tags are tinted indigo. */
 	.tag-chip {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.4em;
-		padding: 0.1em 0.5em;
-		font-size: var(--text-xs, 0.75rem);
-		line-height: 1.5;
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
+		gap: 5px;
+		height: 24px;
+		padding: 0 9px;
+		font: inherit;
+		font-size: 12px;
+		font-weight: 500;
+		line-height: 1;
+		background: none;
+		border: 1px solid color-mix(in oklch, var(--ui-foreground) 12%, transparent);
 		border-radius: 999px;
-		color: var(--text-primary);
+		color: var(--ui-muted-foreground);
 		white-space: nowrap;
 		cursor: pointer;
 	}
 	.tag-chip:hover:not(.active) {
-		background: var(--bg-hover, var(--bg-tertiary));
+		color: var(--ui-foreground);
+		background: color-mix(in oklch, var(--ui-foreground) 4%, transparent);
 	}
 	.tag-chip.active {
-		background: var(--accent-blue);
-		border-color: var(--accent-blue);
-		color: #fff;
-		font-weight: 600;
+		background: color-mix(in oklch, var(--ui-primary) 18%, transparent);
+		border-color: color-mix(in oklch, var(--ui-primary) 45%, transparent);
+		color: var(--ui-foreground);
 	}
 	.tag-count {
 		font-variant-numeric: tabular-nums;
-		opacity: 0.7;
-		font-size: 0.92em;
+		color: var(--ui-subtle-foreground);
 	}
 	.tag-chip.active .tag-count {
-		opacity: 0.85;
+		color: var(--ui-muted-foreground);
 	}
 	.tag-clear {
 		background: none;
 		border: none;
 		padding: 0.1em 0.4em;
-		font-size: var(--text-xs, 0.75rem);
-		color: var(--text-secondary);
+		font-size: 12px;
+		color: var(--ui-muted-foreground);
 		cursor: pointer;
-		text-decoration: underline;
 	}
 	.tag-clear:hover {
-		color: var(--text-primary);
+		color: var(--ui-foreground);
 	}
 </style>

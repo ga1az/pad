@@ -9,6 +9,8 @@
 	import { localIndex } from '$lib/stores/localIndex.svelte';
 	import { collectionStore } from '$lib/stores/collections.svelte';
 	import { narrowRelationRow, relationChipFor } from '$lib/collections/relationGroups';
+	import StatusIcon from '$lib/components/status/StatusIcon.svelte';
+	import { statusCategory } from '$lib/components/status/statusCategory';
 
 	interface Props {
 		collection: Collection;
@@ -188,7 +190,7 @@
 					class="filter-btn"
 					class:active={activeStatus === option}
 					onclick={() => setStatusFilter(option)}
-				>{formatLabel(option)}</button>
+				><StatusIcon category={statusCategory(option, statusField)} size={12} />{formatLabel(option)}</button>
 			{/each}
 		</div>
 	{/if}
@@ -335,73 +337,77 @@
 </div>
 
 <style>
+	/* Linear's filter chips (SPEC-24 / TASK-29): every control is a 24px
+	   fully-rounded pill with a faint rim, 12px medium text, muted until it
+	   is the active value. Tokens are --ui-*, so the light theme follows. */
 	.filter-bar {
 		display: flex;
 		align-items: center;
-		gap: var(--space-3);
+		gap: 6px;
 		flex-wrap: wrap;
 		flex: 1;
+		font-size: 12px;
 	}
 
 	.status-filters {
 		display: flex;
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		overflow: hidden;
+		flex-wrap: wrap;
+		gap: 4px;
 	}
 
-	.filter-btn {
-		background: var(--bg-secondary);
-		border: none;
-		padding: var(--space-1) var(--space-3);
-		cursor: pointer;
-		font-size: 0.82em;
-		color: var(--text-secondary);
+	.filter-btn,
+	.parent-filter,
+	.parent-chip,
+	.unparented-chip,
+	.relation-filter-trigger {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		height: 24px;
+		padding: 0 9px;
+		background: none;
+		border: 1px solid color-mix(in oklch, var(--ui-foreground) 12%, transparent);
+		border-radius: 999px;
+		color: var(--ui-muted-foreground);
+		font: inherit;
+		font-size: 12px;
+		font-weight: 500;
+		line-height: 1;
 		white-space: nowrap;
+		cursor: pointer;
 	}
 
-	.filter-btn:not(:last-child) {
-		border-right: 1px solid var(--border);
+	.filter-btn:hover:not(.active),
+	.parent-chip:hover,
+	.unparented-chip:hover:not(.active),
+	.relation-filter-trigger:hover,
+	.parent-filter:hover {
+		color: var(--ui-foreground);
+		background: color-mix(in oklch, var(--ui-foreground) 4%, transparent);
 	}
 
-	.filter-btn.active {
-		background: var(--bg-tertiary);
-		color: var(--text-primary);
-		font-weight: 600;
-	}
-
-	.filter-btn:hover:not(.active) {
-		background: var(--bg-hover);
+	.filter-btn.active,
+	.unparented-chip.active,
+	.relation-filter-trigger.active {
+		background: color-mix(in oklch, var(--ui-tab), var(--ui-foreground) 8%);
+		color: var(--ui-foreground);
 	}
 
 	.parent-filter {
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		padding: var(--space-1) var(--space-3);
-		font-size: 0.82em;
-		color: var(--text-primary);
-		cursor: pointer;
 		max-width: 180px;
+		color: var(--ui-foreground);
+		background: var(--ui-background);
 	}
-	.parent-filter:focus {
-		border-color: var(--accent-blue);
+	.parent-filter:focus-visible {
+		outline: none;
+		border-color: var(--ui-ring);
 	}
 
-	/* Mobile: chip trigger for the parent filter. Styled to match the
-	   segmented filter buttons so it reads as part of the same toolbar. */
+	/* Mobile: chip trigger for the parent filter. */
 	.parent-chip {
-		display: inline-flex;
-		align-items: center;
 		gap: var(--space-1);
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		padding: var(--space-1) var(--space-3);
-		font-size: 0.82em;
-		color: var(--text-primary);
-		cursor: pointer;
 		max-width: 220px;
+		color: var(--ui-foreground);
 	}
 
 	.parent-chip-label {
@@ -411,13 +417,9 @@
 	}
 
 	.parent-chip-caret {
-		color: var(--text-muted);
+		color: var(--ui-muted-foreground);
 		font-size: 0.9em;
 		line-height: 1;
-	}
-
-	.parent-chip:hover {
-		border-color: var(--accent-blue);
 	}
 
 	.parent-sheet-body {
@@ -448,71 +450,41 @@
 		font-weight: 600;
 	}
 
-	.unparented-chip {
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		padding: var(--space-1) var(--space-3);
-		font-size: 0.82em;
-		color: var(--text-primary);
-		cursor: pointer;
-		white-space: nowrap;
-	}
-
-	.unparented-chip:hover:not(.active) {
-		border-color: var(--accent-blue);
-	}
-
-	.unparented-chip.active {
-		background: var(--bg-tertiary);
-		border-color: var(--accent-blue);
-		font-weight: 600;
-	}
-
 	.relation-filter {
 		position: relative;
 		display: inline-flex;
 		align-items: center;
-		gap: 0.25rem;
-	}
-
-	.relation-filter-trigger {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.35rem;
-		padding: 0.35rem 0.6rem;
-		border: 1px solid var(--border);
-		border-radius: 999px;
-		background: var(--bg-elevated, var(--bg));
-		color: var(--text);
-		font-size: 0.85rem;
-		cursor: pointer;
-	}
-
-	.relation-filter-trigger.active {
-		border-color: var(--accent, var(--border));
+		gap: 2px;
 	}
 
 	.relation-filter-ref {
-		font-family: var(--font-mono, ui-monospace, monospace);
-		font-size: 0.85em;
-		opacity: 0.7;
+		font-variant-numeric: tabular-nums;
+		color: var(--ui-muted-foreground);
 	}
 
 	.relation-filter-note {
-		font-size: 0.85em;
 		opacity: 0.7;
 		font-style: italic;
 	}
 
 	.relation-filter-clear {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 18px;
+		height: 18px;
+		padding: 0;
 		border: none;
+		border-radius: 50%;
 		background: none;
-		color: var(--text-muted, var(--text));
+		color: var(--ui-muted-foreground);
 		cursor: pointer;
-		font-size: 1rem;
+		font-size: 14px;
 		line-height: 1;
-		padding: 0 0.2rem;
+	}
+	.relation-filter-clear:hover {
+		color: var(--ui-foreground);
+		background: color-mix(in oklch, var(--ui-foreground) 10%, transparent);
 	}
 
 	.relation-filter-picker {
@@ -523,9 +495,10 @@
 		min-width: min(22rem, 90vw);
 		max-width: 90vw;
 		padding: 0.5rem;
-		border: 1px solid var(--border);
-		border-radius: 0.5rem;
-		background: var(--bg-elevated, var(--bg));
+		border: 1px solid var(--ui-border);
+		border-radius: 8px;
+		background: var(--ui-popover);
+		color: var(--ui-popover-foreground);
 		box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
 	}
 
@@ -537,19 +510,22 @@
 
 	.search-input {
 		width: 100%;
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		padding: var(--space-1) var(--space-3);
-		font-size: 0.82em;
-		color: var(--text-primary);
+		height: 24px;
+		padding: 0 10px;
+		background: none;
+		border: 1px solid color-mix(in oklch, var(--ui-foreground) 12%, transparent);
+		border-radius: 999px;
+		color: var(--ui-foreground);
+		font: inherit;
+		font-size: 12px;
 	}
 
 	.search-input::placeholder {
-		color: var(--text-muted);
+		color: var(--ui-subtle-foreground);
 	}
 
 	.search-input:focus {
-		border-color: var(--accent-blue);
+		outline: none;
+		border-color: var(--ui-ring);
 	}
 </style>

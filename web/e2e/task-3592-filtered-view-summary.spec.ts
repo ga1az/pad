@@ -8,6 +8,10 @@ import { authJson } from './lib/attachment-viewer';
  * counted every item, so a filtered view looked like the whole collection.
  * Now a summary line reads "N of M · <filters>" with a Clear, the heading
  * reads "N of M", and the view trigger names the active saved view.
+ *
+ * TASK-29 (Linear's tabs row): the heading is gone on desktop, its count kept
+ * for assistive tech (`.item-count`); each filter is a chip; the active view
+ * is the pressed pill tab, and the View menu is the round Display button.
  */
 async function seed(request: import('@playwright/test').APIRequestContext, fixture: { workspaceSlug: string }, stamp: string) {
 	for (const priority of ['high', 'low']) {
@@ -34,14 +38,14 @@ test('a filtered list shows "N of M", what is filtered and a Clear; Clear restor
 	await expect(summary).toContainText(`search: “${stamp}”`);
 	const isMobile = testInfo.project.name === 'mobile-chromium';
 	if (!isMobile) {
-		// The heading is hidden at phone width; the summary carries the count there.
-		await expect(page.locator('h1 .item-count')).toHaveText(/^1 of \d+$/);
+		// The count is not rendered at phone width; the summary carries it there.
+		await expect(page.locator('.view-toolbar .item-count')).toHaveText(/^1 of \d+$/);
 	}
 
 	await summary.getByRole('button', { name: 'Clear' }).click();
 	await expect(summary).toBeHidden();
 	await expect(page).not.toHaveURL(/priority=high/);
-	if (!isMobile) await expect(page.locator('h1 .item-count')).toHaveText(/^\d+$/);
+	if (!isMobile) await expect(page.locator('.view-toolbar .item-count')).toHaveText(/^\d+$/);
 	await expect(page.getByText(`T3592 low ${stamp}`)).toBeVisible();
 });
 
@@ -59,12 +63,13 @@ test('the view trigger names the active saved view; the summary shows once the p
 	await browserLogin(page);
 	await page.goto(`/${fixture.adminUsername}/${fixture.workspaceSlug}/tasks?view=list`);
 	const trigger = page.locator('button.view-dd-trigger');
-	await expect(trigger).toContainText('List');
+	const activeTab = page.locator('.view-tab[aria-pressed="true"]');
+	await expect(activeTab).toHaveText(/^All /);
 	await expect(page.locator('.filter-summary')).toHaveCount(0);
 
 	await trigger.click();
 	await page.getByRole('menuitem', { name: viewName }).click();
-	await expect(trigger).toContainText(viewName);
+	await expect(activeTab).toContainText(viewName);
 	// Applying a view opens the panel; the summary is for when it is closed.
 	await expect(page.locator('.filters-panel')).toBeVisible();
 	await expect(page.locator('.filter-summary')).toHaveCount(0);
@@ -72,6 +77,6 @@ test('the view trigger names the active saved view; the summary shows once the p
 	await expect(page.locator('.filter-summary')).toContainText('priority: high');
 
 	await page.locator('.filter-summary').getByRole('button', { name: 'Clear' }).click();
-	await expect(trigger).toContainText('List');
-	await expect(trigger).not.toContainText(viewName);
+	await expect(activeTab).toHaveText(/^All /);
+	await expect(activeTab).not.toContainText(viewName);
 });

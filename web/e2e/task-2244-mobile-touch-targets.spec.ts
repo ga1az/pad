@@ -18,7 +18,11 @@ function strip(page: Page) {
 	return page.locator('.header-actions');
 }
 
-/** Every interactive control the strip renders, by the name a user would see. */
+/**
+ * Every interactive control the strip renders, by the name a user would see.
+ * On desktop (TASK-29) the view control is the round Display button and there
+ * is no "+ New" in the strip: the panel header's "+ New <item>" is the one.
+ */
 function stripControls(page: Page, isMobile: boolean): Array<[string, Locator]> {
 	const s = strip(page);
 	return [
@@ -30,7 +34,7 @@ function stripControls(page: Page, isMobile: boolean): Array<[string, Locator]> 
 		['filters', s.getByRole('button', { name: 'Toggle filters' })],
 		['quick actions', s.locator('.quick-actions-menu > .trigger-btn')],
 		['collection menu', s.getByRole('button', { name: 'Collection menu' })],
-		['new', s.locator('button.new-btn')],
+		...(isMobile ? ([['new', s.locator('button.new-btn')]] as Array<[string, Locator]>) : []),
 	];
 }
 
@@ -125,20 +129,18 @@ for (const { width, view, withDot } of ONE_ROW) {
 }
 
 /**
- * Desktop is unchanged. Pinned: what the CSS fixes. Every strip control is 28px
- * tall, and sort, filters and the collection menu are 30px wide. A text-sized
- * width (the view label, "+ New Task", the ⚡ trigger) depends on the machine's
- * fonts: CI measured 77.6 / 101.1 / 34.4 where this box measured 75 / 93.8 / 41,
- * so those are not pinned. The height is the leak signal, since the phone rule
- * makes every control 44 tall.
+ * Desktop is unchanged by the phone rule. Pinned: what the CSS fixes. Since
+ * TASK-29 every strip control is one of Linear's round 28x28 icon buttons, the
+ * ⚡ trigger included, so the widths no longer depend on the machine's fonts.
+ * The height is the leak signal, since the phone rule makes every control 44
+ * tall.
  */
 const DESKTOP_FIXED: Record<string, { w?: number; h: number }> = {
-	view: { h: 28 },
-	sort: { w: 30, h: 28 },
-	filters: { w: 30, h: 28 },
-	'quick actions': { h: 28 },
-	'collection menu': { w: 30, h: 28 },
-	new: { h: 28 },
+	view: { w: 28, h: 28 },
+	sort: { w: 28, h: 28 },
+	filters: { w: 28, h: 28 },
+	'quick actions': { w: 28, h: 28 },
+	'collection menu': { w: 28, h: 28 },
 };
 
 for (const view of ['list', 'board'] as const) {

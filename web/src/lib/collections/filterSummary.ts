@@ -18,17 +18,31 @@ export interface FilterSummaryInput {
 	valueLabel: (key: string, value: string) => string;
 }
 
+/**
+ * One active filter, as the filter row's removable chip shows it (TASK-29):
+ * what it is, so the chip's × can clear exactly that one, and its text.
+ * `id` is unique within one summary.
+ */
+export type FilterSummaryEntry =
+	| { id: string; kind: 'field'; field: string; label: string }
+	| { id: string; kind: 'tags' | 'unparented' | 'search'; label: string };
+
+/** One entry per active filter, in the order the panel shows them. */
+export function filterSummaryEntries(input: FilterSummaryInput): FilterSummaryEntry[] {
+	const entries: FilterSummaryEntry[] = [];
+	for (const [key, value] of Object.entries(input.filters)) {
+		entries.push({ id: `field:${key}`, kind: 'field', field: key, label: `${input.fieldLabel(key).toLowerCase()}: ${input.valueLabel(key, value)}` });
+	}
+	if (input.tags.length > 0) entries.push({ id: 'tags', kind: 'tags', label: `tags: ${input.tags.join(', ')}` });
+	if (input.unparented) entries.push({ id: 'unparented', kind: 'unparented', label: 'unparented only' });
+	const q = input.search.trim();
+	if (q) entries.push({ id: 'search', kind: 'search', label: `search: “${q}”` });
+	return entries;
+}
+
 /** One part per active filter, in the order the panel shows them. */
 export function filterSummaryParts(input: FilterSummaryInput): string[] {
-	const parts: string[] = [];
-	for (const [key, value] of Object.entries(input.filters)) {
-		parts.push(`${input.fieldLabel(key).toLowerCase()}: ${input.valueLabel(key, value)}`);
-	}
-	if (input.tags.length > 0) parts.push(`tags: ${input.tags.join(', ')}`);
-	if (input.unparented) parts.push('unparented only');
-	const q = input.search.trim();
-	if (q) parts.push(`search: “${q}”`);
-	return parts;
+	return filterSummaryEntries(input).map((e) => e.label);
 }
 
 /** "12 of 84" when filtered; the plain total otherwise. */
