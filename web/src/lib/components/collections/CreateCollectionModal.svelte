@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Input } from '$lib/components/ui/input';
 	import Icon from '$lib/icons/Icon.svelte';
 	import { isRelationType } from '$lib/items/relationFieldTypes';
 	import { tick } from 'svelte';
@@ -509,20 +510,10 @@
 
 					<div class="name-row">
 						<EmojiPickerButton bind:value={selectedIcon} placeholder="+" size="md" />
-						<input aria-label="Collection name"
-							class="name-input"
-							type="text"
-							placeholder="Collection name"
-							bind:value={name}
-						/>
+						<Input aria-label="Collection name" class="name-input" type="text" placeholder="Collection name" bind:value={name} style="flex: 1" />
 					</div>
 
-					<input aria-label="Collection description"
-						class="desc-input"
-						type="text"
-						placeholder="Description (optional)"
-						bind:value={description}
-					/>
+					<Input aria-label="Collection description" type="text" placeholder="Description (optional)" bind:value={description} />
 
 					<div class="fields-section">
 						<span class="fields-label">Fields</span>
@@ -792,47 +783,7 @@
 		gap: var(--space-3);
 	}
 
-	.name-input {
-		flex: 1;
-		padding: var(--space-2) var(--space-3);
-		background: var(--bg-tertiary);
-		border: 1px solid transparent;
-		border-radius: var(--radius);
-		font-size: 1.05em;
-		color: var(--text-primary);
-	}
-
-	.name-input:hover {
-		border-color: var(--border);
-	}
-
-	.name-input:focus {
-		border-color: var(--accent-blue);
-	}
-
 	/* -- Description ------------------------------------------------------- */
-
-	.desc-input {
-		width: 100%;
-		padding: var(--space-2) var(--space-3);
-		background: var(--bg-tertiary);
-		border: 1px solid transparent;
-		border-radius: var(--radius);
-		font-size: 0.9em;
-		color: var(--text-primary);
-	}
-
-	.desc-input:hover {
-		border-color: var(--border);
-	}
-
-	.desc-input:focus {
-		border-color: var(--accent-blue);
-	}
-
-	.desc-input::placeholder {
-		color: var(--text-muted);
-	}
 
 	/* -- Fields builder ---------------------------------------------------- */
 

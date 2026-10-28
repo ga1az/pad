@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { autofocus } from './autofocus';
+import { autofocus, autofocusOn } from './autofocus';
 
 // TASK-2259: the action focuses on mount, never steals focus the person
 // already placed, and can be switched off so a page picks its first field.
@@ -31,6 +31,17 @@ describe('autofocus', () => {
 	it('does nothing when disabled', () => {
 		const el = input();
 		autofocus(el, false);
+		expect(document.activeElement).toBe(document.body);
+	});
+
+	// The attachment form a shadcn field takes (`{@attach autofocusOn(cond)}`).
+	it('autofocusOn() focuses like the action, and autofocusOn(false) does not', () => {
+		const a = input();
+		autofocusOn()(a);
+		expect(document.activeElement).toBe(a);
+		const b = input();
+		a.blur();
+		autofocusOn(false)(b);
 		expect(document.activeElement).toBe(document.body);
 	});
 });

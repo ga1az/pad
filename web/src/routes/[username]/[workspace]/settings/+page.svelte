@@ -1,4 +1,8 @@
 <script lang="ts">
+	import { Checkbox } from '$lib/components/ui/checkbox';
+	import { Input } from '$lib/components/ui/input';
+	import { NativeSelect } from '$lib/components/ui/native-select';
+	import { Textarea } from '$lib/components/ui/textarea';
 	import Icon from '$lib/icons/Icon.svelte';
 	import { page } from '$app/state';
 	import { titleStore } from '$lib/stores/title.svelte';
@@ -879,7 +883,6 @@
 		}
 	}
 
-
 	let confirmDelete = $state(false);
 	let deleting = $state(false);
 	let deleteInput = $state('');
@@ -1044,14 +1047,7 @@
 					<div class="field-row">
 						<label for="ws-name">Name</label>
 						<div class="inline-edit">
-							<input
-								id="ws-name"
-								type="text"
-								bind:value={wsName}
-								oninput={() => (nameEdited = true)}
-								readonly={!isOwner}
-								onkeydown={(e) => isOwner && e.key === 'Enter' && saveName()}
-							/>
+							<Input id="ws-name" type="text" bind:value={wsName} oninput={() => (nameEdited = true)} readonly={!isOwner} onkeydown={(e) => isOwner && e.key === 'Enter' && saveName()} />
 							{#if isOwner}
 								<Button variant="default" size="sm" onclick={saveName} disabled={savingName}>
 									{savingName ? 'Saving...' : 'Save'}
@@ -1119,15 +1115,7 @@
 						</div>
 					{/if}
 					<label class="context-label" for="workspace-context">Context JSON</label>
-					<textarea
-						id="workspace-context"
-						class="context-editor mono"
-						bind:value={contextEditor}
-						oninput={() => (contextEdited = true)}
-						spellcheck="false"
-						readonly={!isOwner}
-						rows="18"
-					></textarea>
+					<Textarea id="workspace-context" bind:value={contextEditor} oninput={() => (contextEdited = true)} spellcheck="false" readonly={!isOwner} rows={18} style="min-height: 320px; font-family: var(--font-mono)" />
 					<p class="context-help">Use a JSON object with keys like <code>repositories</code>, <code>paths</code>, <code>commands</code>, <code>stack</code>, <code>deployment</code>, and <code>assumptions</code>.</p>
 					{#if contextError}
 						<p class="context-error">{contextError}</p>
@@ -1189,15 +1177,11 @@
 											>
 												Manage access
 											</button>
-											<select aria-label="Role for {member.user_name}"
-												class="role-select"
-												value={member.role}
-												onchange={(e) => handleChangeRole(member.user_id, (e.target as HTMLSelectElement).value, e.target as HTMLSelectElement)}
-											>
+											<NativeSelect aria-label="Role for {member.user_name}" value={member.role} onchange={(e) => handleChangeRole(member.user_id, (e.target as HTMLSelectElement).value, e.target as HTMLSelectElement)}>
 												<option value="owner">Owner</option>
 												<option value="editor">Editor</option>
 												<option value="viewer">Viewer</option>
-											</select>
+											</NativeSelect>
 											<!-- TASK-2190: no Remove on your own row; the server refuses it. -->
 											{#if member.user_id !== sessionUserId}
 												<Button variant="destructive" size="sm" onclick={() => handleRemoveMember(member.user_id, member.user_name)}>
@@ -1216,36 +1200,23 @@
 										{:else}
 											<div class="access-mode-row">
 												<label class="access-mode-label" for="access-mode-{member.user_id}">Collection visibility</label>
-												<select
-													id="access-mode-{member.user_id}"
-													class="role-select"
-													value={accessMode}
-													onchange={(e) => { accessMode = (e.target as HTMLSelectElement).value as 'all' | 'specific'; }}
-												>
+												<NativeSelect id="access-mode-{member.user_id}" value={accessMode} onchange={(e) => { accessMode = (e.target as HTMLSelectElement).value as 'all' | 'specific'; }}>
 													<option value="all">All collections</option>
 													<option value="specific">Specific collections</option>
-												</select>
+												</NativeSelect>
 											</div>
 											{#if accessMode === 'specific'}
 												<div class="access-coll-list">
 													{#each nonSystemCollections as coll (coll.id)}
 														<label class="access-coll-item">
-															<input
-																type="checkbox"
-																checked={accessCollectionIds.includes(coll.id)}
-																onchange={() => toggleAccessCollection(coll.id)}
-															/>
+															<Checkbox checked={accessCollectionIds.includes(coll.id)} onCheckedChange={() => toggleAccessCollection(coll.id)} />
 															<span class="access-coll-icon"><Icon icon={coll.icon || '#'} /></span>
 															<span class="access-coll-name">{coll.name}</span>
 														</label>
 													{/each}
 													{#each systemCollections as coll (coll.id)}
 														<label class="access-coll-item access-coll-system">
-															<input
-																type="checkbox"
-																checked={accessCollectionIds.includes(coll.id)}
-																onchange={() => toggleAccessCollection(coll.id)}
-															/>
+															<Checkbox checked={accessCollectionIds.includes(coll.id)} onCheckedChange={() => toggleAccessCollection(coll.id)} />
 															<span class="access-coll-icon"><Icon icon={coll.icon || '#'} /></span>
 															<span class="access-coll-name">{coll.name}</span>
 															<Badge size="sm" color="var(--accent-gray)">system</Badge>
@@ -1322,18 +1293,12 @@
 					<div class="invite-form card">
 						<h3>Invite Member</h3>
 						<div class="invite-row">
-							<input aria-label="Email address to invite"
-								type="email"
-								placeholder="Email address"
-								bind:value={inviteEmail}
-								onkeydown={(e) => e.key === 'Enter' && handleInvite()}
-								disabled={inviting}
-							/>
-							<select aria-label="Role for the invitee" class="role-select" bind:value={inviteRole}>
+							<Input aria-label="Email address to invite" type="email" placeholder="Email address" bind:value={inviteEmail} onkeydown={(e) => e.key === 'Enter' && handleInvite()} disabled={inviting} />
+							<NativeSelect aria-label="Role for the invitee" bind:value={inviteRole}>
 								<option value="editor">Editor</option>
 								<option value="viewer">Viewer</option>
 								<option value="owner">Owner</option>
-							</select>
+							</NativeSelect>
 							<Button variant="default" size="sm" onclick={handleInvite} disabled={inviting || !inviteEmail.trim()}>
 								{inviting ? 'Inviting...' : 'Invite'}
 							</Button>
@@ -1481,13 +1446,7 @@
 							<p class="danger-warning">This will delete <strong>{wsName}</strong> and all its contents. It becomes inaccessible immediately and is permanently erased after 30 days. To confirm, type the workspace slug below:</p>
 							<div class="danger-input-row">
 								<code class="slug-hint">{wsSlug}</code>
-								<input aria-label="Workspace slug, to confirm deletion"
-									type="text"
-									class="danger-input"
-									bind:value={deleteInput}
-									placeholder="Type workspace slug to confirm"
-									onkeydown={(e) => e.key === 'Enter' && handleDeleteWorkspace()}
-								/>
+								<Input aria-label="Workspace slug, to confirm deletion" type="text" bind:value={deleteInput} placeholder="Type workspace slug to confirm" onkeydown={(e) => e.key === 'Enter' && handleDeleteWorkspace()} style="flex: 1; min-width: 180px; max-width: 300px; font-family: var(--font-mono)" />
 							</div>
 							<div class="danger-actions">
 								<Button variant="destructive" onclick={handleDeleteWorkspace} disabled={deleteInput !== wsSlug || deleting}>
@@ -1575,7 +1534,6 @@
 	.field-value { font-size: 0.9em; }
 	.mono { font-family: var(--font-mono); font-size: 0.85em; }
 	.inline-edit { display: flex; align-items: center; gap: var(--space-2); flex: 1; min-width: 0; flex-wrap: wrap; }
-	.inline-edit input { flex: 1; min-width: 120px; max-width: 300px; }
 	.status-saved { font-size: 0.8em; color: var(--accent-green); }
 	.status-error { font-size: 0.8em; color: var(--accent-orange); }
 	/* .btn/.btn-small retained for the remaining non-migrated controls: the
@@ -1609,8 +1567,7 @@
 	.context-chip-label { color: var(--text-muted); }
 	.context-chip-value { color: var(--text-primary); font-weight: 600; }
 	.context-label { font-size: 0.82em; color: var(--text-secondary); }
-	.context-editor { width: 100%; min-height: 320px; resize: vertical; padding: var(--space-3); background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-primary); line-height: 1.5; }
-	.context-editor:focus { border-color: var(--accent-blue); }
+
 	.context-help { margin: 0; font-size: 0.8em; color: var(--text-muted); }
 	.context-help code { font-family: var(--font-mono); font-size: 0.95em; }
 	.context-error { margin: 0; font-size: 0.82em; color: var(--accent-red); }
@@ -1624,7 +1581,7 @@
 	.member-name { font-weight: 500; font-size: 0.9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 	.member-email { font-size: 0.8em; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 	.member-actions { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
-	.role-select { background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-1) var(--space-2); font-size: 0.8em; color: var(--text-primary); cursor: pointer; }
+
 	/* ── Collection Access ──── */
 	.member-card-wrapper { display: flex; flex-direction: column; }
 	.member-card-wrapper + .member-card-wrapper { margin-top: var(--space-3); }
@@ -1640,8 +1597,7 @@
 	.access-coll-list { display: flex; flex-direction: column; gap: var(--space-1); max-height: 240px; overflow-y: auto; padding: var(--space-2); background: var(--bg-tertiary); border: 1px solid var(--border-subtle); border-radius: var(--radius); }
 	.access-coll-item { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); cursor: pointer; font-size: 0.85em; }
 	.access-coll-item:hover { background: var(--bg-hover); }
-	.access-coll-item input[type="checkbox"] { margin: 0; cursor: pointer; }
-	.access-coll-icon { font-size: 0.95em; }
+		.access-coll-icon { font-size: 0.95em; }
 	.access-coll-name { flex: 1; }
 	.access-coll-hint { margin: var(--space-1) var(--space-2) 0; font-size: 0.8em; color: var(--text-muted); }
 	.access-actions { display: flex; align-items: center; gap: var(--space-2); }
@@ -1655,7 +1611,6 @@
 	.invite-form { margin-top: var(--space-4); }
 	.invite-form h3 { font-size: 0.9em; color: var(--text-secondary); margin-bottom: var(--space-3); }
 	.invite-row { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
-	.invite-row input { flex: 1; min-width: 180px; max-width: 300px; }
 	.invite-result { font-size: 0.82em; margin-top: var(--space-2); }
 	.invite-success { color: var(--accent-green); }
 	.invite-error { color: var(--accent-red); }
@@ -1672,10 +1627,9 @@
 	.danger-warning strong { color: var(--accent-red); }
 	.danger-input-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 	.slug-hint { font-size: 0.82em; padding: var(--space-1) var(--space-2); background: var(--bg-tertiary); border-radius: var(--radius-sm); color: var(--text-muted); font-family: var(--font-mono); }
-	.danger-input { flex: 1; min-width: 180px; max-width: 300px; padding: var(--space-2); font-size: 0.88em; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-primary); font-family: var(--font-mono); }
-	.danger-input:focus { border-color: var(--accent-red); }
+
 	/* The global focus ring (app.css, TASK-2262) in this field's own red (TASK-3461). */
-	.danger-input:focus-visible { outline-color: var(--accent-red); }
+
 	.danger-actions { display: flex; gap: var(--space-2); }
 	.section-desc { font-size: 0.85em; color: var(--text-muted); margin-bottom: var(--space-3); }
 </style>

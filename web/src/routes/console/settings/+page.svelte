@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Input } from '$lib/components/ui/input';
 	import Icon from '$lib/icons/Icon.svelte';
 	import { Settings01Icon } from '@hugeicons/core-free-icons';
 	import { confirmSignOut, signOutLogout } from '$lib/stores/signOutGuard.svelte';
@@ -654,15 +655,15 @@
 			<div class="card-body">
 				<div class="field">
 					<label for="profile-name">Name</label>
-					<input id="profile-name" type="text" bind:value={profileName} disabled={profileSaving} />
+					<Input id="profile-name" type="text" bind:value={profileName} disabled={profileSaving} />
 				</div>
 				<div class="field">
 					<label for="profile-username">Username</label>
-					<input id="profile-username" type="text" bind:value={profileUsername} disabled={profileSaving} />
+					<Input id="profile-username" type="text" bind:value={profileUsername} disabled={profileSaving} />
 				</div>
 				<div class="field">
 					<label for="profile-email">Email</label>
-					<input id="profile-email" type="email" value={profile?.email ?? ''} disabled readonly />
+					<Input id="profile-email" type="email" value={profile?.email ?? ''} disabled readonly />
 				</div>
 				{#if profileError}
 					<p class="error">{profileError}</p>
@@ -728,24 +729,16 @@
 				{:else}
 					<div class="field">
 						<label for="current-pw">Current password</label>
-						<input id="current-pw" type="password" bind:value={currentPassword} disabled={passwordSaving} autocomplete="current-password" />
+						<Input id="current-pw" type="password" bind:value={currentPassword} disabled={passwordSaving} autocomplete="current-password" />
 					</div>
 					<div class="field">
 						<label for="new-pw">New password</label>
-						<input
-							id="new-pw"
-							type="password"
-							bind:value={newPassword}
-							disabled={passwordSaving}
-							autocomplete="new-password"
-							aria-describedby={passwordDescribedBy('new-pw', newPasswordError)}
-							aria-invalid={newPasswordError ? 'true' : undefined}
-						/>
+						<Input id="new-pw" type="password" bind:value={newPassword} disabled={passwordSaving} autocomplete="new-password" aria-describedby={passwordDescribedBy('new-pw', newPasswordError)} aria-invalid={newPasswordError ? 'true' : undefined} />
 						<PasswordRuleHint id="new-pw" error={newPasswordError} />
 					</div>
 					<div class="field">
 						<label for="confirm-pw">Confirm new password</label>
-						<input id="confirm-pw" type="password" bind:value={confirmPassword} disabled={passwordSaving} autocomplete="new-password" />
+						<Input id="confirm-pw" type="password" bind:value={confirmPassword} disabled={passwordSaving} autocomplete="new-password" />
 					</div>
 					{#if passwordError}
 						<p class="error">{passwordError}</p>
@@ -782,25 +775,12 @@
 									{#if hasNoPassword}
 										<p class="section-desc">This account has no password. Enter a code from your authenticator app, or one of your recovery codes, to disable 2FA.</p>
 										<div class="field">
-											<input
-												type="text"
-												placeholder="123456 or a recovery code"
-												bind:value={disablePassword}
-												disabled={totpSaving}
-												autocomplete="one-time-code"
-												aria-label="Authenticator code or recovery code"
-											/>
+											<Input type="text" placeholder="123456 or a recovery code" bind:value={disablePassword} disabled={totpSaving} autocomplete="one-time-code" aria-label="Authenticator code or recovery code" />
 										</div>
 									{:else}
 										<p class="section-desc">Enter your password to disable 2FA.</p>
 										<div class="field">
-											<input aria-label="Current password"
-												type="password"
-												placeholder="Current password"
-												bind:value={disablePassword}
-												disabled={totpSaving}
-												autocomplete="current-password"
-											/>
+											<Input aria-label="Current password" type="password" placeholder="Current password" bind:value={disablePassword} disabled={totpSaving} autocomplete="current-password" />
 										</div>
 									{/if}
 									{#if totpError}
@@ -850,17 +830,7 @@
 					{/if}
 					<div class="field">
 						<label for="totp-verify">Verification code</label>
-						<input
-							id="totp-verify"
-							type="text"
-							placeholder="Enter 6-digit code"
-							bind:value={totpCode}
-							disabled={totpSaving}
-							autocomplete="one-time-code"
-							inputmode="numeric"
-							maxlength="6"
-							onkeydown={(e) => { if (e.key === 'Enter') verifyTOTP(); }}
-						/>
+						<Input id="totp-verify" type="text" placeholder="Enter 6-digit code" bind:value={totpCode} disabled={totpSaving} autocomplete="one-time-code" inputmode="numeric" maxlength={6} onkeydown={(e) => { if (e.key === 'Enter') verifyTOTP(); }} />
 					</div>
 					{#if totpError}
 						<p class="error">{totpError}</p>
@@ -988,12 +958,7 @@
 				{/if}
 
 				<div class="token-create-row">
-					<input aria-label="Token name"
-						type="text"
-						placeholder="Token name"
-						bind:value={newTokenName}
-						disabled={tokenCreating}
-					/>
+					<Input aria-label="Token name" type="text" placeholder="Token name" bind:value={newTokenName} disabled={tokenCreating} />
 					<Button variant="default" onclick={createToken} disabled={tokenCreating || !newTokenName.trim()}>
 						{tokenCreating ? 'Creating...' : 'Create'}
 					</Button>
@@ -1110,51 +1075,21 @@
 						{#if usePasswordBranch}
 							<div class="field">
 								<label for="delete-password">Enter your password to confirm</label>
-								<input
-									id="delete-password"
-									type="password"
-									bind:value={deletePassword}
-									disabled={deleteSaving}
-									autocomplete="current-password"
-									aria-describedby="delete-warnings"
-									onkeydown={deleteKeydown}
-									use:autofocus
-								/>
+								<Input id="delete-password" type="password" bind:value={deletePassword} disabled={deleteSaving} autocomplete="current-password" aria-describedby="delete-warnings" onkeydown={deleteKeydown} {@attach autofocus} />
 							</div>
 						{:else}
 							<div class="field">
 								<label for="delete-confirm">
 									Type your email ({profile?.email ?? ''}) or the word <strong>DELETE</strong> to confirm
 								</label>
-								<input
-									id="delete-confirm"
-									type="text"
-									placeholder="DELETE"
-									bind:value={deleteConfirmText}
-									disabled={deleteSaving}
-									autocomplete="off"
-									aria-describedby="delete-warnings"
-									onkeydown={deleteKeydown}
-									use:autofocus
-								/>
+								<Input id="delete-confirm" type="text" placeholder="DELETE" bind:value={deleteConfirmText} disabled={deleteSaving} autocomplete="off" aria-describedby="delete-warnings" onkeydown={deleteKeydown} {@attach autofocus} />
 							</div>
 						{/if}
 
 						{#if profile?.totp_enabled}
 							<div class="field">
 								<label for="delete-totp">2FA code</label>
-								<input
-									id="delete-totp"
-									type="text"
-									placeholder="6-digit code"
-									bind:value={deleteTotpCode}
-									disabled={deleteSaving}
-									autocomplete="one-time-code"
-									inputmode="numeric"
-									maxlength="6"
-									aria-describedby="delete-warnings"
-									onkeydown={deleteKeydown}
-								/>
+								<Input id="delete-totp" type="text" placeholder="6-digit code" bind:value={deleteTotpCode} disabled={deleteSaving} autocomplete="one-time-code" inputmode="numeric" maxlength={6} aria-describedby="delete-warnings" onkeydown={deleteKeydown} />
 							</div>
 						{/if}
 
@@ -1311,11 +1246,6 @@
 
 	input:disabled {
 		opacity: 0.6;
-	}
-
-	input[readonly] {
-		color: var(--text-muted);
-		cursor: not-allowed;
 	}
 
 	.recovery-cmd {
@@ -1481,10 +1411,6 @@
 	.token-create-row {
 		display: flex;
 		gap: var(--space-2);
-	}
-
-	.token-create-row input {
-		flex: 1;
 	}
 
 	.token-list {

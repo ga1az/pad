@@ -96,6 +96,8 @@ could not read the presence registry to count it. Null means unknown, not zero
 always a broadcast that went out.
 -->
 <script lang="ts">
+	import { NativeSelect } from '$lib/components/ui/native-select';
+	import { Textarea } from '$lib/components/ui/textarea';
 	import { untrack } from 'svelte';
 	import AppDialog from '$lib/components/ui-adapters/AppDialog.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -696,30 +698,21 @@ always a broadcast that went out.
 				     a target would be offering a guaranteed miss. Broadcast, too,
 				     reaches only accepting sessions (the server filters), so its
 				     count is the accepting count, not the connected one. -->
-				<select id={targetId} class="target-picker" bind:value={selectedSessionId} disabled={sending}>
+				<NativeSelect id={targetId} bind:value={selectedSessionId} disabled={sending} wrapperStyle="width: 100%">
 					<option value=""
 						>All sessions ready to receive ({acceptingCount})</option
 					>
 					{#each acceptingSessions as session (session.id)}
 						<option value={session.id}>{sessionName(session)}</option>
 					{/each}
-				</select>
+				</NativeSelect>
 			</section>
 		{/if}
 
 		<!-- ── Message ───────────────────────────────────────────────────── -->
 		<section class="section">
 			<label class="field-label" for={textareaId}>Message</label>
-			<textarea
-				id={textareaId}
-				class="composer"
-				rows="4"
-				bind:value={message}
-				disabled={sending}
-				aria-invalid={tooLong ? 'true' : undefined}
-				aria-describedby="{counterId} {noteId}"
-				placeholder="What should the agent do with this item?"
-			></textarea>
+			<Textarea id={textareaId} rows={4} bind:value={message} disabled={sending} aria-invalid={tooLong ? 'true' : undefined} aria-describedby="{counterId} {noteId}" placeholder="What should the agent do with this item?" />
 
 			<div class="composer-meta">
 				<span id={counterId} class="counter" class:over={tooLong}>
@@ -847,18 +840,6 @@ always a broadcast that went out.
 	   `input, textarea, select` rule — only the box behaviour is local. */
 	/* Border / background / padding come from app.css's global
 	   `input, textarea, select` rule, same as .composer above. */
-	.target-picker {
-		width: 100%;
-		box-sizing: border-box;
-	}
-	.composer {
-		width: 100%;
-		box-sizing: border-box;
-		resize: vertical;
-	}
-	.composer:disabled {
-		opacity: 0.6;
-	}
 
 	.composer-meta {
 		display: flex;

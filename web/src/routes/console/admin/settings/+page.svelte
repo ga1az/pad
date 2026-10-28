@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { Input } from '$lib/components/ui/input';
+	import { NativeSelect } from '$lib/components/ui/native-select';
 	import { onMount } from 'svelte';
 	import {
 		adminFetch,
@@ -299,20 +301,10 @@
 									<tr>
 										<td class="feat-label">{feat.replace(/_/g, ' ')}</td>
 										<td>
-											<input
-												class="limit-input"
-												type="number"
-												value={limits.free[feat] ?? 0}
-												onchange={(e) => updateLimit('free', feat, e.currentTarget.value)}
-											/>
+											<Input type="number" value={limits.free[feat] ?? 0} onchange={(e) => updateLimit('free', feat, e.currentTarget.value)} style="width: 100px" />
 										</td>
 										<td>
-											<input
-												class="limit-input"
-												type="number"
-												value={limits.pro[feat] ?? 0}
-												onchange={(e) => updateLimit('pro', feat, e.currentTarget.value)}
-											/>
+											<Input type="number" value={limits.pro[feat] ?? 0} onchange={(e) => updateLimit('pro', feat, e.currentTarget.value)} style="width: 100px" />
 										</td>
 									</tr>
 								{/each}
@@ -341,61 +333,39 @@
 			<div class="email-card">
 				<div class="email-field">
 					<label for="email-provider">Provider</label>
-					<select
-						id="email-provider"
-						value={platformSettings.email_provider ?? ''}
-						onchange={(e) => {
+					<NativeSelect id="email-provider" value={platformSettings.email_provider ?? ''} onchange={(e) => {
 							platformSettings = { ...platformSettings, email_provider: e.currentTarget.value };
-						}}
-					>
+						}}>
 						<option value="">None (disabled)</option>
 						<option value="maileroo">Maileroo</option>
-					</select>
+					</NativeSelect>
 				</div>
 
 				{#if platformSettings.email_provider === 'maileroo'}
 					<div class="email-field">
 						<label for="email-api-key">API Key</label>
-						<input
-							id="email-api-key"
-							type="password"
-							value={platformSettings.maileroo_api_key ?? ''}
-							oninput={(e) => {
+						<Input id="email-api-key" type="password" value={platformSettings.maileroo_api_key ?? ''} oninput={(e) => {
 								apiKeyEdited = true;
 								platformSettings = {
 									...platformSettings,
 									maileroo_api_key: e.currentTarget.value
 								};
-							}}
-							placeholder="Maileroo sending key"
-						/>
+							}} placeholder="Maileroo sending key" />
 					</div>
 				{/if}
 
 				<div class="email-field">
 					<label for="email-from">From Address</label>
-					<input
-						id="email-from"
-						type="email"
-						value={platformSettings.email_from ?? ''}
-						oninput={(e) => {
+					<Input id="email-from" type="email" value={platformSettings.email_from ?? ''} oninput={(e) => {
 							platformSettings = { ...platformSettings, email_from: e.currentTarget.value };
-						}}
-						placeholder="noreply@yourdomain.com"
-					/>
+						}} placeholder="noreply@yourdomain.com" />
 				</div>
 
 				<div class="email-field">
 					<label for="email-from-name">From Name</label>
-					<input
-						id="email-from-name"
-						type="text"
-						value={platformSettings.email_from_name ?? ''}
-						oninput={(e) => {
+					<Input id="email-from-name" type="text" value={platformSettings.email_from_name ?? ''} oninput={(e) => {
 							platformSettings = { ...platformSettings, email_from_name: e.currentTarget.value };
-						}}
-						placeholder="Pad"
-					/>
+						}} placeholder="Pad" />
 				</div>
 
 				<div class="edit-actions">
@@ -456,15 +426,10 @@
 							Provider
 							{#if decision.env.provider}<span class="env-note">set by environment</span>{/if}
 						</label>
-						<select
-							id="decision-provider"
-							value={decisionProvider}
-							disabled={decision.env.provider}
-							onchange={(e) => (decisionProvider = e.currentTarget.value as 'typesafe' | 'none')}
-						>
+						<NativeSelect id="decision-provider" value={decisionProvider} disabled={decision.env.provider} onchange={(e) => (decisionProvider = e.currentTarget.value as 'typesafe' | 'none')}>
 							<option value="none">None (disabled)</option>
 							<option value="typesafe">typesafe</option>
-						</select>
+						</NativeSelect>
 					</div>
 
 					<label class="toggle-row">
@@ -484,20 +449,12 @@
 							API key
 							{#if decision.env.api_key}<span class="env-note">set by environment</span>{/if}
 						</label>
-						<input
-							id="decision-api-key"
-							type="password"
-							autocomplete="off"
-							disabled={decision.env.api_key}
-							value={decisionKey}
-							oninput={(e) => {
+						<Input id="decision-api-key" type="password" autocomplete="off" disabled={decision.env.api_key} value={decisionKey} oninput={(e) => {
 								decisionKey = e.currentTarget.value;
 								if (decisionKey) decisionClearKey = false;
-							}}
-							placeholder={decision.stored.api_key_set
+							}} placeholder={decision.stored.api_key_set
 								? 'A key is saved — type to replace it'
-								: 'typesafe API key'}
-						/>
+								: 'typesafe API key'} />
 						{#if decision.stored_key_error}
 							<span class="save-msg error-msg" data-testid="decision-stored-key-error"
 								>{decision.stored_key_error}</span
@@ -521,14 +478,7 @@
 							Model
 							{#if decision.env.model}<span class="env-note">set by environment</span>{/if}
 						</label>
-						<input
-							id="decision-model"
-							type="text"
-							disabled={decision.env.model}
-							value={decisionModel}
-							oninput={(e) => (decisionModel = e.currentTarget.value)}
-							placeholder="jev-1.13.0 (default)"
-						/>
+						<Input id="decision-model" type="text" disabled={decision.env.model} value={decisionModel} oninput={(e) => (decisionModel = e.currentTarget.value)} placeholder="jev-1.13.0 (default)" />
 					</div>
 
 					<div class="edit-actions">
@@ -841,19 +791,7 @@
 		text-transform: capitalize;
 		color: var(--text-primary);
 	}
-	.limit-input {
-		width: 100px;
-		padding: var(--space-1) var(--space-2);
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		color: var(--text-primary);
-		font-size: 0.85rem;
-		outline: none;
-	}
-	.limit-input:focus {
-		border-color: var(--accent-blue);
-	}
+
 	.edit-actions {
 		display: flex;
 		align-items: center;
@@ -886,7 +824,6 @@
 		color: var(--text-muted);
 		font-weight: 500;
 	}
-	.email-field select,
 	.email-field input {
 		padding: var(--space-2) var(--space-3);
 		background: var(--bg-tertiary);
@@ -896,7 +833,6 @@
 		font-size: 0.85rem;
 		max-width: 400px;
 	}
-	.email-field select:focus,
 	.email-field input:focus {
 		border-color: var(--accent-blue);
 	}

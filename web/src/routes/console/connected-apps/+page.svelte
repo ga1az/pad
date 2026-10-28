@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { Input } from '$lib/components/ui/input';
+	import { NativeSelect } from '$lib/components/ui/native-select';
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api/client';
 	import AppDialog from '$lib/components/ui-adapters/AppDialog.svelte';
@@ -466,15 +468,7 @@
 								<div class="edit-field">
 									<label class="edit-label" for="name-{app.id}">Connection name</label>
 									<div class="edit-row">
-										<input
-											id="name-{app.id}"
-											class="edit-input"
-											type="text"
-											maxlength="120"
-											placeholder="e.g. Cursor on MacBook"
-											bind:value={nameDrafts[app.id]}
-											disabled={!!savingFlag[app.id]}
-										/>
+										<Input id="name-{app.id}" type="text" maxlength={120} placeholder="e.g. Cursor on MacBook" bind:value={nameDrafts[app.id]} disabled={!!savingFlag[app.id]} style="flex: 1 1 auto; min-width: 0" />
 										<Button
 											variant="default"
 											onclick={() => saveName(app)}
@@ -586,16 +580,12 @@
 										</p>
 									{/if}
 									<div class="edit-row add-row">
-										<select aria-label="Add a workspace to {app.client_name ?? 'this connection'}"
-											class="edit-input"
-											bind:value={addPickerSlug[app.id]}
-											disabled={!!savingFlag[app.id]}
-										>
+										<NativeSelect aria-label="Add a workspace to {app.client_name ?? 'this connection'}" bind:value={addPickerSlug[app.id]} disabled={!!savingFlag[app.id]} wrapperStyle="flex: 1 1 auto; min-width: 0">
 											<option value="">Add a workspace…</option>
 											{#each pickable as ws (ws.slug)}
 												<option value={ws.slug}>{ws.name}</option>
 											{/each}
-										</select>
+										</NativeSelect>
 										<Button
 											variant="default"
 											onclick={() => addWorkspaceToApp(app)}
@@ -1063,16 +1053,6 @@
 		align-items: center;
 	}
 
-	.edit-input {
-		flex: 1 1 auto;
-		padding: 0.45rem 0.65rem;
-		font-size: 0.9rem;
-		border: 1px solid var(--border);
-		border-radius: 6px;
-		background: var(--bg-input, var(--bg));
-		color: inherit;
-	}
-
 	.edit-toggle {
 		display: flex;
 		gap: 0.5rem;
@@ -1140,7 +1120,4 @@
 		margin-top: 0.5rem;
 	}
 
-	.add-row .edit-input {
-		min-width: 0;
-	}
 </style>

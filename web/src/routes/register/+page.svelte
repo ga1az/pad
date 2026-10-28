@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Input } from '$lib/components/ui/input';
 	import PasswordRuleHint from '$lib/components/auth/PasswordRuleHint.svelte';
 	import { isPasswordRuleError, localPasswordProblem, passwordDescribedBy } from '$lib/auth/passwordRule';
 	import { onMount, tick } from 'svelte';
@@ -16,7 +17,7 @@
 		type AuthMethod
 	} from '$lib/auth/lastMethod';
 	import { navigateToRedirectTarget, postSignupTarget, redirectQueryFragment, validateRedirect } from '$lib/auth/redirect';
-	import { autofocus } from '$lib/a11y/autofocus';
+	import { autofocusOn } from '$lib/a11y/autofocus';
 
 	let name = $state('');
 	let username = $state('');
@@ -305,17 +306,7 @@
 
 			<form class="form" method="post" novalidate onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
 				<label class="field-label" for="register-name">Name</label>
-				<input
-					id="register-name"
-					name="name"
-					use:autofocus
-					type="text"
-					placeholder="Ada Lovelace"
-					bind:value={name}
-					oninput={handleNameInput}
-					disabled={loading}
-					autocomplete="name"
-				/>
+				<Input id="register-name" name="name" {@attach autofocusOn()} type="text" placeholder="Ada Lovelace" bind:value={name} oninput={handleNameInput} disabled={loading} autocomplete="name" />
 
 				<!-- TASK-3595: the username is generated from the name; changing it is
 				     an option, not a decision every signup has to make. The field
@@ -330,17 +321,7 @@
 				{:else}
 				<div class="username-field">
 					<label class="field-label" for="register-username">Username</label>
-					<input
-						id="register-username"
-						name="username"
-						aria-describedby="register-username-status"
-						type="text"
-						placeholder="ada"
-						bind:value={username}
-						oninput={handleUsernameInput}
-						disabled={loading}
-						autocomplete="username"
-					/>
+					<Input id="register-username" name="username" aria-describedby="register-username-status" type="text" placeholder="ada" bind:value={username} oninput={handleUsernameInput} disabled={loading} autocomplete="username" />
 					<span id="register-username-status" aria-live="polite">
 						{#if usernameChecking}
 							<span class="username-status checking">checking...</span>
@@ -354,38 +335,14 @@
 				{/if}
 
 				<label class="field-label" for="register-email">Email</label>
-				<input
-					id="register-email"
-					name="email"
-					type="email"
-					placeholder="you@example.com"
-					bind:value={email}
-					disabled={loading}
-					autocomplete="email"
-				/>
+				<Input id="register-email" name="email" type="email" placeholder="you@example.com" bind:value={email} disabled={loading} autocomplete="email" />
 
 				<label class="field-label" for="register-password">Password</label>
-				<input
-					id="register-password"
-					name="password"
-					type="password"
-					bind:value={password}
-					disabled={loading}
-					autocomplete="new-password"
-					aria-describedby={passwordDescribedBy('register-password', passwordError)}
-					aria-invalid={passwordError ? 'true' : undefined}
-				/>
+				<Input id="register-password" name="password" type="password" bind:value={password} disabled={loading} autocomplete="new-password" aria-describedby={passwordDescribedBy('register-password', passwordError)} aria-invalid={passwordError ? 'true' : undefined} />
 				<PasswordRuleHint id="register-password" error={passwordError} />
 
 				<label class="field-label" for="register-confirm-password">Confirm password</label>
-				<input
-					id="register-confirm-password"
-					name="confirm-password"
-					type="password"
-					bind:value={confirmPassword}
-					disabled={loading}
-					autocomplete="new-password"
-				/>
+				<Input id="register-confirm-password" name="confirm-password" type="password" bind:value={confirmPassword} disabled={loading} autocomplete="new-password" />
 
 				{#if error}
 					<p class="error" role="alert">{error}</p>
@@ -463,30 +420,9 @@
 		gap: var(--space-4);
 	}
 
-	input {
-		width: 100%;
-		padding: var(--space-3) var(--space-4);
-		background: var(--bg-tertiary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		color: var(--text-primary);
-		font-size: 0.95rem;
-		font-family: var(--font-ui);
-		outline: none;
-		transition: border-color 0.15s;
-	}
 
-	input::placeholder {
-		color: var(--text-muted);
-	}
 
-	input:focus {
-		border-color: var(--accent-blue);
-	}
 
-	input:disabled {
-		opacity: 0.6;
-	}
 
 	.error {
 		color: var(--accent-red);

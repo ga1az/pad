@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Input } from '$lib/components/ui/input';
 	import { onMount } from 'svelte';
 	import { api, PadApiError } from '$lib/api/client';
 	import { authStore } from '$lib/stores/auth.svelte';
@@ -123,16 +124,7 @@
 			<label for="app-base-url">App URL</label>
 			<p class="hint">The address the app is published at. Pad fetches its manifest and shows you everything before anything is installed.</p>
 			<div class="row">
-				<input
-					id="app-base-url"
-					bind:this={urlInput}
-					type="url"
-					placeholder="https://portal.example.com"
-					bind:value={baseUrl}
-					required
-					disabled={busy}
-					autocomplete="off"
-				/>
+				<Input id="app-base-url" bind:ref={urlInput} type="url" placeholder="https://portal.example.com" bind:value={baseUrl} required disabled={busy} autocomplete="off" />
 				<Button type="submit" variant="default" size="sm" disabled={busy || !baseUrl.trim()}>
 					{busy ? 'Fetching…' : 'Review'}
 				</Button>
@@ -229,15 +221,6 @@
 	label {
 		font-weight: 600;
 		font-size: 0.9em;
-	}
-	input {
-		flex: 1 1 16rem;
-		min-width: 0;
-		padding: var(--space-2) var(--space-3);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		background: var(--bg-primary);
-		color: var(--text-primary);
 	}
 	.row {
 		display: flex;

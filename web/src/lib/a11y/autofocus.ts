@@ -21,3 +21,13 @@ export function autofocus(node: HTMLElement, enabled: boolean = true): void {
 	if (active && active !== document.body && active !== node) return;
 	node.focus();
 }
+
+/**
+ * The same focus-on-mount as an attachment, for a shadcn field: a component
+ * cannot take `use:` actions, but it forwards `{@attach ...}` to its element.
+ * `{@attach autofocusOn()}` or `{@attach autofocusOn(cond)}`.
+ */
+export const autofocusOn =
+	(enabled: boolean = true) =>
+	(node: HTMLElement): void =>
+		autofocus(node, enabled);

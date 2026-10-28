@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Input } from '$lib/components/ui/input';
 	import { onMount } from 'svelte';
 	import { BotIcon, Copy01Icon, Delete02Icon, Link01Icon } from '@hugeicons/core-free-icons';
 	import Icon from '$lib/icons/Icon.svelte';
@@ -162,14 +163,7 @@
 
 		<h3>Join links</h3>
 		<form class="create" onsubmit={createLink}>
-			<input
-				type="text"
-				aria-label="Link label"
-				placeholder="Label (optional)"
-				maxlength={LABEL_MAX}
-				bind:value={label}
-				disabled={creating}
-			/>
+			<Input type="text" aria-label="Link label" placeholder="Label (optional)" maxlength={LABEL_MAX} bind:value={label} disabled={creating} />
 			<Button variant="default" size="sm" type="submit" disabled={creating}>
 				<Icon icon={Link01Icon} />
 				{creating ? 'Creating…' : 'Create link'}
@@ -181,7 +175,7 @@
 				<strong>{linkName(minted)}</strong>
 				<p class="warn">Copy this link now. It cannot be shown again.</p>
 				<div class="url-row">
-					<input type="text" readonly aria-label="Join link URL" value={minted.url} onfocus={(e) => e.currentTarget.select()} />
+					<Input type="text" readonly aria-label="Join link URL" value={minted.url} onfocus={(e) => e.currentTarget.select()} />
 					<Button variant="ghost" size="sm" onclick={copyMinted}><Icon icon={Copy01Icon} /> Copy</Button>
 					<Button size="sm" variant="default" onclick={() => (minted = null)}>Done</Button>
 				</div>
@@ -276,21 +270,6 @@
 		gap: var(--space-2);
 		align-items: center;
 		width: 100%;
-	}
-	.create input,
-	.url-row input {
-		flex: 1;
-		min-width: 0;
-		padding: var(--space-1) var(--space-2);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		background: var(--bg-primary);
-		color: var(--text-primary);
-		font: inherit;
-		font-size: 0.9em;
-	}
-	.url-row input {
-		font-family: var(--font-mono, monospace);
 	}
 	.minted {
 		width: 100%;

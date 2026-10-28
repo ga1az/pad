@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { Checkbox } from '$lib/components/ui/checkbox';
+	import { Input } from '$lib/components/ui/input';
 	import { tick } from 'svelte';
 	import { localIndex } from '$lib/stores/localIndex.svelte';
 	import { isRelationType } from '$lib/items/relationFieldTypes';
@@ -963,23 +965,12 @@
 					<div class="tab-content">
 						<div class="name-row">
 							<EmojiPickerButton bind:value={selectedIcon} placeholder="+" size="md" />
-							<input aria-label="Collection name"
-								class="name-input"
-								type="text"
-								placeholder="Collection name"
-								bind:value={name}
-							/>
+							<Input aria-label="Collection name" class="name-input" type="text" placeholder="Collection name" bind:value={name} style="flex: 1" />
 						</div>
 
 						<div class="form-group">
 							<label class="form-label" for="edit-desc">Description</label>
-							<input
-								id="edit-desc"
-								class="form-input"
-								type="text"
-								placeholder="What is this collection for?"
-								bind:value={description}
-							/>
+							<Input id="edit-desc" type="text" placeholder="What is this collection for?" bind:value={description} />
 						</div>
 
 						{#if collection.prefix}
@@ -1012,13 +1003,7 @@
 										{#if archiveNeedsTyping}
 											<label class="danger-zone-typed">
 												Type <strong>{collection.name}</strong> to confirm
-												<input
-													type="text"
-													bind:value={archiveTyped}
-													autocomplete="off"
-													spellcheck="false"
-													aria-label={`Type ${collection.name} to confirm archiving`}
-												/>
+												<Input type="text" bind:value={archiveTyped} autocomplete="off" spellcheck="false" aria-label={`Type ${collection.name} to confirm archiving`} />
 											</label>
 										{/if}
 										<div class="danger-zone-confirm-actions">
@@ -1138,7 +1123,7 @@
 						/>
 						<div class="form-group">
 							<label class="setting-toggle">
-								<input type="checkbox" bind:checked={tracksWork} />
+								<Checkbox bind:checked={tracksWork} />
 								<span>Track as work</span>
 							</label>
 							<p class="form-hint">
@@ -1148,7 +1133,7 @@
 						</div>
 						<div class="form-group">
 							<label class="setting-toggle">
-								<input type="checkbox" bind:checked={awaitsHuman} />
+								<Checkbox bind:checked={awaitsHuman} />
 								<span>Items are asks of a person</span>
 							</label>
 							<p class="form-hint">
@@ -1176,12 +1161,7 @@
 					{#if impactNeedsTyping}
 						<label class="impact-confirm-typed">
 							Type <strong>{seededCollectionName}</strong> to confirm
-							<input
-								type="text"
-								bind:value={impactTyped}
-								autocomplete="off"
-								aria-label={`Type ${seededCollectionName} to confirm these changes`}
-							/>
+							<Input type="text" bind:value={impactTyped} autocomplete="off" aria-label={`Type ${seededCollectionName} to confirm these changes`} />
 						</label>
 					{/if}
 					<div class="impact-confirm-actions">
@@ -1387,24 +1367,6 @@
 		gap: var(--space-3);
 	}
 
-	.name-input {
-		flex: 1;
-		padding: var(--space-2) var(--space-3);
-		background: var(--bg-tertiary);
-		border: 1px solid transparent;
-		border-radius: var(--radius);
-		font-size: 1.05em;
-		color: var(--text-primary);
-	}
-
-	.name-input:hover {
-		border-color: var(--border);
-	}
-
-	.name-input:focus {
-		border-color: var(--accent-blue);
-	}
-
 	.form-group {
 		display: flex;
 		flex-direction: column;
@@ -1428,28 +1390,6 @@
 		color: var(--text-muted);
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
-	}
-
-	.form-input {
-		width: 100%;
-		padding: var(--space-2) var(--space-3);
-		background: var(--bg-tertiary);
-		border: 1px solid transparent;
-		border-radius: var(--radius);
-		font-size: 0.9em;
-		color: var(--text-primary);
-	}
-
-	.form-input:hover {
-		border-color: var(--border);
-	}
-
-	.form-input:focus {
-		border-color: var(--accent-blue);
-	}
-
-	.form-input::placeholder {
-		color: var(--text-muted);
 	}
 
 	.prefix-display {
@@ -1634,14 +1574,6 @@
 		gap: var(--space-1);
 		font-size: 0.85em;
 		color: var(--text-secondary);
-	}
-	.danger-zone-typed input {
-		padding: var(--space-1) var(--space-2);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-sm, 6px);
-		background: var(--bg-primary);
-		color: var(--text-primary);
-		font: inherit;
 	}
 	.danger-zone-confirm-msg {
 		margin: 0;

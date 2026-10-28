@@ -64,13 +64,16 @@ function collectionWith(settings: Record<string, unknown>): Collection {
 	} as unknown as Collection;
 }
 
-function toggle(): HTMLInputElement {
+// The shadcn Checkbox is a role=checkbox button, so its state is aria-checked.
+function toggle(): HTMLElement {
 	const label = [...document.querySelectorAll<HTMLLabelElement>('label.setting-toggle')].find((l) =>
 		/asks of a person/i.test(l.textContent ?? '')
 	);
 	expect(label, 'the awaits_human toggle').toBeTruthy();
-	return label!.querySelector('input[type="checkbox"]')!;
+	return label!.querySelector('[role="checkbox"]')!;
 }
+
+const isChecked = (el: HTMLElement) => el.getAttribute('aria-checked') === 'true';
 
 async function saveAndReadSettings(): Promise<Record<string, unknown>> {
 	const save = [...document.querySelectorAll<HTMLButtonElement>('button')].find((b) =>
@@ -93,7 +96,7 @@ describe('EditCollectionModal awaits_human toggle (TASK-3919)', () => {
 		await settle();
 
 		const box = toggle();
-		expect(box.checked).toBe(false);
+		expect(isChecked(box)).toBe(false);
 		box.click();
 		await settle();
 
@@ -108,7 +111,7 @@ describe('EditCollectionModal awaits_human toggle (TASK-3919)', () => {
 		await settle();
 
 		const box = toggle();
-		expect(box.checked).toBe(true);
+		expect(isChecked(box)).toBe(true);
 		box.click();
 		await settle();
 

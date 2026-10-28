@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Input } from '$lib/components/ui/input';
 	import Icon from '$lib/icons/Icon.svelte';
 	import { WavingHand01Icon } from '@hugeicons/core-free-icons';
 	import { onMount } from 'svelte';
@@ -17,7 +18,7 @@
 	} from '$lib/auth/lastMethod';
 	import { navigateToRedirectTarget, redirectQueryFragment, validateRedirect } from '$lib/auth/redirect';
 	import { readChallengeFragment } from '$lib/auth/challengeFragment';
-	import { autofocus } from '$lib/a11y/autofocus';
+	import { autofocusOn } from '$lib/a11y/autofocus';
 
 	let email = $state('');
 	let password = $state('');
@@ -379,18 +380,7 @@
 				<p class="hint" id="login-totp-hint">Enter the 6-digit code from your authenticator app, or a recovery code.</p>
 
 				<label class="field-label" for="login-totp">Authentication code</label>
-				<input
-					id="login-totp"
-					name="totp"
-					type="text"
-					placeholder="123456"
-					bind:value={totpCode}
-					disabled={loading}
-					autocomplete="one-time-code"
-					inputmode="numeric"
-					aria-describedby="login-totp-hint"
-					use:autofocus
-				/>
+				<Input id="login-totp" name="totp" type="text" placeholder="123456" bind:value={totpCode} disabled={loading} autocomplete="one-time-code" inputmode="numeric" aria-describedby="login-totp-hint" {@attach autofocusOn()} />
 
 				{#if error}
 					<p class="error" role="alert">{error}</p>
@@ -415,26 +405,10 @@
 
 			<form class="form" method="post" novalidate onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
 				<label class="field-label" for="login-email">Email</label>
-				<input
-					id="login-email"
-					name="email"
-					type="email"
-					placeholder="you@example.com"
-					bind:value={email}
-					disabled={loading}
-					autocomplete="username"
-					use:autofocus
-				/>
+				<Input id="login-email" name="email" type="email" placeholder="you@example.com" bind:value={email} disabled={loading} autocomplete="username" {@attach autofocusOn()} />
 
 				<label class="field-label" for="login-password">Password</label>
-				<input
-					id="login-password"
-					name="password"
-					type="password"
-					bind:value={password}
-					disabled={loading}
-					autocomplete="current-password"
-				/>
+				<Input id="login-password" name="password" type="password" bind:value={password} disabled={loading} autocomplete="current-password" />
 
 				{#if error}
 					<p class="error" role="alert">{error}</p>
@@ -530,30 +504,9 @@
 		line-height: 1.4;
 	}
 
-	input {
-		width: 100%;
-		padding: var(--space-3) var(--space-4);
-		background: var(--bg-tertiary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		color: var(--text-primary);
-		font-size: 0.95rem;
-		font-family: var(--font-ui);
-		outline: none;
-		transition: border-color 0.15s;
-	}
 
-	input::placeholder {
-		color: var(--text-muted);
-	}
 
-	input:focus {
-		border-color: var(--accent-blue);
-	}
 
-	input:disabled {
-		opacity: 0.6;
-	}
 
 	.error {
 		color: var(--accent-red);

@@ -132,6 +132,13 @@ body:has(.auth-header) :is(.login-page, .register-page, .setup-page, .join-page,
 	padding-top: 6rem;
 	justify-content: flex-start;
 }
+/* The auth forms' fields are the roomy size (Linear's sign-in is 40px, not the
+   32px of an in-app field). Keyed on the same shell, above a utility's
+   specificity. */
+body:has(.auth-header) input[data-slot="input"] {
+	height: 40px;
+	font-size: 14px;
+}
 body:has(.auth-header) h1.logo {
 	display: none;
 }
@@ -213,7 +220,10 @@ input, textarea, select {
 	padding: var(--space-2) var(--space-3);
 	outline: none;
 }
-input:focus, textarea:focus, select:focus {
+/* `:where(:not([data-slot]))` keeps the shadcn fields (ui/input, textarea,
+   native-select, which all set data-slot) out of the two focus rules below
+   without adding specificity: they draw their own ring from --ui-ring. */
+:is(input, textarea, select):where(:not([data-slot])):focus {
 	border-color: var(--accent-blue);
 }
 /* TASK-2262 (audit C10): a keyboard user must SEE where focus is. The rule
@@ -226,7 +236,7 @@ input:focus, textarea:focus, select:focus {
    rule's and wins by loading later. Doubling it gives (0,2,1), which beats a
    plain reset while a component's own deliberate `.x:focus` styling (0,3,0
    with Svelte's hash) still wins. */
-:is(input, textarea, select):focus-visible:focus-visible {
+:is(input, textarea, select):where(:not([data-slot])):focus-visible:focus-visible {
 	outline: 2px solid var(--accent-blue);
 	outline-offset: 1px;
 }
