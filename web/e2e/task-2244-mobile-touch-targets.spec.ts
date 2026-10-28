@@ -347,7 +347,10 @@ for (const view of ['list', 'board'] as const) {
 			await expect(c.locator(sel), `${sel} is rendered on desktop`).toHaveCount(1);
 		}
 		const copy = (await c.locator('.copy-ref-btn').boundingBox())!;
-		expect({ w: copy.width, h: copy.height }, 'copy button').toEqual({ w: 22, h: 22 });
+		// Pinned so the phone rule cannot leak onto desktop. It was 22x22;
+		// TASK-28 (SPEC-24) made it 20x20 on purpose, to sit in Linear's 20px
+		// top row. On a phone the copy lives in the 44x44 ⋯ menu instead.
+		expect({ w: copy.width, h: copy.height }, 'copy button').toEqual({ w: 20, h: 20 });
 		for (const sel of ['.star-btn', '.iam-trigger']) {
 			const b = (await c.locator(sel).boundingBox())!;
 			expect.soft(b.width, `${sel} width stays small`).toBeLessThan(MIN);

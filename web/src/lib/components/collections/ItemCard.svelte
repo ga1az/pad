@@ -162,8 +162,13 @@
 	let priorityOptions = $derived(
 		priorityField?.type === 'select' && Array.isArray(priorityField.options) ? priorityField.options : []
 	);
+	// An UNSET priority (absent, null or '') is settable too (TASK-28): the
+	// desktop card draws Linear's "no priority" box, and on a writable card
+	// that box is the way to set one. Any other non-string value stays
+	// static (BUG-3041: a retyped field can hold an array).
+	let priorityUnset = $derived(fields.priority === undefined || fields.priority === null || fields.priority === '');
 	let prioritySettable = $derived(
-		statusWritable && !!writePriority && priorityOptions.length > 1 && typeof fields.priority === 'string' && !!fields.priority
+		statusWritable && !!writePriority && priorityOptions.length > 1 && (priorityUnset || typeof fields.priority === 'string')
 	);
 
 	let pullRequest = $derived(item.code_context?.pull_request);
@@ -283,11 +288,11 @@
 {/snippet}
 
 {#snippet priorityIcon()}
-	{#if prioritySettable && writePriority && typeof fields.priority === 'string'}
+	{#if prioritySettable && writePriority}
 		<span class="card-chip card-priority">
 			<StatusPicker
 				kind="priority"
-				value={fields.priority}
+				value={typeof fields.priority === 'string' ? fields.priority : ''}
 				options={priorityOptions}
 				appearance="icon"
 				onselect={(next) => writePriority(item, next)}
@@ -350,7 +355,7 @@
 	-->
 	<div class="item-card row" data-item-key={itemUrlId(item)} data-item-slug={item.slug} class:focused class:has-pr={!!pullRequest}>
 		<span class="row-priority">
-			{#if priorityField}{@render priorityIcon()}{/if}
+			{#if priorityField && (priorityUnset || typeof fields.priority === 'string')}{@render priorityIcon()}{/if}
 		</span>
 		<span class="row-ref item-ref-wrap">
 			{#if itemRef}<span class="item-ref">{itemRef}</span>{/if}
@@ -560,7 +565,9 @@
 						</Badge>
 					{/if}
 				{/if}
-			{:else if priorityField}
+			{:else if priorityField && (priorityUnset || typeof fields.priority === 'string')}
+				<!-- String-shaped or unset only (BUG-3041): an array in a retyped
+				     field is neither a priority nor "no priority". -->
 				{@render priorityIcon()}
 			{/if}
 			{@render propertyChips()}
@@ -593,7 +600,6 @@
 		background: var(--ui-card);
 		border: 1px solid var(--ui-border);
 		border-radius: 6px;
-		box-shadow: 0 0 0 1px color-mix(in oklch, var(--ui-card), black 25%);
 		padding: 6px 12px 11px;
 		text-decoration: none;
 		color: var(--ui-card-foreground);
@@ -606,8 +612,25 @@
 		min-width: 0;
 	}
 
+	/* Linear's hairline darker edge outside the border, dark theme only: on
+	   a white card it read as a gray ring. Not on a list row (TASK-29),
+	   which has no edge at all. The theme test is ui.css's `dark:`
+	   variant written out (scoped styles do not go through Tailwind): an
+	   explicit dark theme, or no explicit light one while the OS is not light. */
+	@media not print {
+		:global([data-theme='dark']) .item-card:not(.focused):not(.row) {
+			box-shadow: 0 0 0 1px color-mix(in oklch, var(--ui-card), black 25%);
+		}
+		@media not all and (prefers-color-scheme: light) {
+			:global(:root:not([data-theme='light'])) .item-card:not(.focused):not(.row) {
+				box-shadow: 0 0 0 1px color-mix(in oklch, var(--ui-card), black 25%);
+			}
+		}
+	}
+
+	/* Toward the text colour, so it lightens in dark and darkens in light. */
 	.item-card:hover {
-		background: color-mix(in oklch, var(--ui-card), white 3%);
+		background: color-mix(in oklch, var(--ui-card), var(--ui-foreground) 3%);
 		text-decoration: none;
 	}
 
@@ -682,8 +705,12 @@
 		display: contents;
 	}
 	@media (max-width: 768px) {
+		/* `overflow: visible`: the shadcn Badge (TASK-26) is overflow-hidden,
+		   which clipped this extender to the chip and lost the 44x44 target
+		   (the TASK-2244 e2e leg failed from TASK-26 on; found in TASK-28). */
 		.status-hit :global(button) {
 			position: relative;
+			overflow: visible;
 		}
 		.status-hit :global(button)::after {
 			content: '';
@@ -766,7 +793,20 @@
 		color: var(--ui-status-review);
 	}
 
+	/* app.css strips button outlines; put a ring back for the keyboard. */
+	.copy-ref-btn:focus-visible,
+	.star-btn:focus-visible,
+	button.card-chip:focus-visible {
+		outline: 2px solid var(--ui-ring);
+		outline-offset: 1px;
+	}
+
+	/* Raised like the controls it holds: its opacity makes it a stacking
+	   context, which would otherwise trap the ⋮'s z-index inside it and leave
+	   the title link's card-wide ::after on top, taking the ⋮'s clicks. */
 	.hover-action {
+		position: relative;
+		z-index: 1;
 		display: inline-flex;
 		opacity: 0;
 		transition: opacity 0.15s;

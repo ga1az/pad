@@ -177,7 +177,10 @@ test('TASK-3311: desktop lane buttons, archive button and tags are unchanged', a
 	const { collSlug, titles } = await seed(request, fixture, 'desktop');
 	await open(page, fixture, collSlug, 'board');
 	const lane = (await page.locator('.lane-add-btn').first().boundingBox())!;
-	expect(lane.height, 'desktop lane + stays 28 tall').toBe(28);
+	// The desktop size is pinned so a phone rule cannot leak onto it. It was
+	// 28; TASK-28 (SPEC-24) made the lane buttons Linear's bare 24px ones on
+	// purpose. The phone legs above keep the 44x44 target.
+	expect(lane.height, 'desktop lane + stays 24 tall').toBe(24);
 	const tag = (await page.locator('.item-card').filter({ has: page.locator('.card-title', { hasText: titles[0] }) }).locator('.card-tag').first().boundingBox())!;
 	expect(tag.height, 'desktop tag keeps its pill height').toBeLessThan(28);
 

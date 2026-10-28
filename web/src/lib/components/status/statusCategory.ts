@@ -21,20 +21,52 @@ function declared(list: unknown): string[] | null {
 }
 
 // Open values by NAME. Terminal values never reach this map: the schema (or
-// the default terminal list) decides those.
+// the default terminal list) decides those. The names are the templates'
+// open workflow values (internal/collections/templates*.go), grouped as
+// fieldColors.ts groups them where it names them: its "underway" values
+// (exploring, fixing, drafting, confirmed, in review) are in progress or
+// in review here, its "not started" values backlog or planned.
 const OPEN_BY_NAME: Record<string, StatusCategory> = {
+	// Decided or triaged, not started: the next thing to pick up.
 	approved: 'planned',
 	planned: 'planned',
-	ready: 'planned',
+	planning: 'planned', // plans: planning, active, completed
+	ready: 'planned', // scrum backlog: new, ready, in_sprint
+	triaged: 'planned', // bugs: new, triaged, fixing
+	reviewed: 'planned', // feedback: new, reviewed, planned (triage, not a review stage)
+	applied: 'planned', // hiring and interviewing: in the funnel, nothing scheduled yet
+	// Being worked on.
 	'in-progress': 'progress',
 	exploring: 'progress',
 	doing: 'progress',
 	active: 'progress',
 	started: 'progress',
+	fixing: 'progress',
+	building: 'progress',
+	researching: 'progress',
+	drafting: 'progress',
+	confirmed: 'progress',
+	'in-sprint': 'progress',
+	// Content that is live but not archived is ongoing, as `active` is
+	// (fieldColors puts both with the finished greens; it is not terminal).
+	published: 'progress',
+	screen: 'progress',
+	interviewing: 'progress',
+	onsite: 'progress',
+	// Waiting on a decision about finished work.
 	review: 'review',
 	'in-review': 'review',
 	reviewing: 'review',
+	offer: 'review', // the last step before accepted/hired
 };
+
+// Negative terminal names the icon also treats as abandoned when a field
+// declares no abandoned_options. NOT added to NEGATIVE_TERMINALS in
+// types/index.ts: that list is pinned to Go's NegativeTerminals by
+// TestNegativeTerminalsMatchTheWebCopy, and the server's counts follow it.
+// The hiring template's loop `result` declares `reject` terminal with no
+// abandoned_options, so without this it drew as done (TASK-28 review).
+const ICON_NEGATIVE = new Set(['reject', 'cancel', 'decline', 'withdraw', 'withdrawn', 'abandon', 'dropped', 'lost']);
 
 /**
  * The icon category of a status value.
@@ -58,7 +90,9 @@ export function statusCategory(
 	const closed = terminal ? terminal.includes(v) : isTerminalStatusDefault(raw) || isTerminalStatusDefault(v);
 	if (closed) {
 		const abandoned = declared(field?.abandoned_options);
-		const isAbandoned = abandoned ? abandoned.includes(v) : isNegativeTerminal(raw) || isNegativeTerminal(v);
+		const isAbandoned = abandoned
+			? abandoned.includes(v)
+			: isNegativeTerminal(raw) || isNegativeTerminal(v) || ICON_NEGATIVE.has(v);
 		return isAbandoned ? 'cancelled' : 'done';
 	}
 	return Object.hasOwn(OPEN_BY_NAME, v) ? OPEN_BY_NAME[v] : 'backlog';
@@ -82,6 +116,15 @@ export function priorityLevel(value: unknown): PriorityLevel {
 		case 'low':
 		case 'lowest':
 		case 'p3':
+			return 'low';
+		// The conventions collection's must / should / nice-to-have. Three
+		// levels onto the three bars; `must` is a hard rule, not an emergency,
+		// so it is not urgent's exclamation.
+		case 'must':
+			return 'high';
+		case 'should':
+			return 'medium';
+		case 'nice-to-have':
 			return 'low';
 		default:
 			return 'none';

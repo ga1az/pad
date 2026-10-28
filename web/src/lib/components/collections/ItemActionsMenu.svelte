@@ -229,7 +229,7 @@
 
 	.iam-trigger:focus-visible {
 		opacity: 1;
-		outline: 2px solid var(--accent-blue);
+		outline: 2px solid var(--ui-ring);
 		outline-offset: 1px;
 	}
 </style>

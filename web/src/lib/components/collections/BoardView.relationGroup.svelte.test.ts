@@ -878,8 +878,13 @@ describe('a REFUSED grouping must not write a group value (U4, codex round 1 P5)
 		// describes nothing. Both keys are covered, since `priority` reaches the
 		// same helpers by a different branch.
 		expect(screen.container.querySelectorAll('.item-card [data-slot="badge"]')).toHaveLength(0);
+		// Since TASK-28 the desktop card draws no badges at all, so the line
+		// above cannot fail there. The desktop shapes are the status icon and the
+		// priority box: neither may render for a list value, not even as the
+		// "no priority" dashes, which would also describe nothing.
+		expect(screen.container.querySelectorAll('.item-card .card-status, .item-card .card-priority')).toHaveLength(0);
 		// The raw ids must not leak out through a stringified array either.
-		expect(screen.container.textContent).not.toContain('id-red');
+		for (const id of ['id-red', 'id-blue', 'id-green']) expect(screen.container.textContent).not.toContain(id);
 	});
 
 	it('CONTROL: ordinary string status AND priority still render their chips', () => {
