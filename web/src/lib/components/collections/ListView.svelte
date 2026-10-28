@@ -225,9 +225,12 @@
 	// The rows' ref column is as wide as the longest ref in the list, so every
 	// title starts at the same x (Linear's list). Refs are short ASCII, and at
 	// 12px tabular figures a character is about 0.62em.
-	let refWidth = $derived(
-		`${Math.max(4, ...items.map((i) => formatItemRef(i)?.length ?? 0)) * 7.4 + 2}px`,
-	);
+	let refWidth = $derived.by(() => {
+		// A loop, not `Math.max(...)`: spreading thousands of rows overflows the stack.
+		let longest = 4;
+		for (const i of items) longest = Math.max(longest, formatItemRef(i)?.length ?? 0);
+		return `${longest * 7.4 + 2}px`;
+	});
 	/**
 	 * Why grouping is refused for this field, or null (U4).
 	 *
@@ -1100,14 +1103,15 @@
 		flex-shrink: 0;
 	}
 
-	.group-header:hover .archive-group-btn {
+	.group-header:hover .archive-group-btn,
+	.group-header:focus-within .archive-group-btn {
 		opacity: 1;
 	}
 
 	.archive-group-btn {
 		background: none;
 		border: none;
-		color: var(--text-muted);
+		color: var(--ui-muted-foreground);
 		font-size: 0.8em;
 		cursor: pointer;
 		padding: 2px 4px;
@@ -1148,8 +1152,8 @@
 	}
 
 	.archive-group-btn:hover {
-		color: var(--text-primary);
-		background: var(--bg-hover);
+		color: var(--ui-foreground);
+		background: color-mix(in oklch, var(--ui-foreground) 6%, transparent);
 	}
 
 	.archive-confirm {
