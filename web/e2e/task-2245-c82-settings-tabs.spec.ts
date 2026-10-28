@@ -86,10 +86,10 @@ async function probeTabBar(page: Page): Promise<BarProbe> {
 
 async function openSettings(page: Page, username: string, workspace: string) {
 	await page.goto(`/${username}/${workspace}/settings`);
-	// Apps and Danger Zone are owner-only and arrive with /me, so waiting on
-	// the sixth tab is what makes the measurement one of the FULL bar (Apps
-	// joined in TASK-3413).
-	await expect(page.locator('.tab-bar .tab')).toHaveCount(6);
+	// Apps, Agents and Danger Zone are owner-only and arrive with /me, so
+	// waiting on the seventh tab is what makes the measurement one of the FULL
+	// bar (Apps joined in TASK-3413, Agents in SPEC-15 / TASK-20).
+	await expect(page.locator('.tab-bar .tab')).toHaveCount(7);
 }
 
 test('TASK-2245 C82: no settings tab is clipped at phone width', async ({ page, fixture }, testInfo) => {

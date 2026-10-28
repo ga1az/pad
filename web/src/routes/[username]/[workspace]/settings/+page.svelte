@@ -1293,7 +1293,7 @@
 					<div class="invite-form card">
 						<h3>Invite Member</h3>
 						<div class="invite-row">
-							<Input aria-label="Email address to invite" type="email" placeholder="Email address" bind:value={inviteEmail} onkeydown={(e) => e.key === 'Enter' && handleInvite()} disabled={inviting} />
+							<Input aria-label="Email address to invite" type="email" placeholder="Email address" bind:value={inviteEmail} onkeydown={(e) => e.key === 'Enter' && handleInvite()} disabled={inviting} style="flex: 1; min-width: 180px; max-width: 300px" />
 							<NativeSelect aria-label="Role for the invitee" bind:value={inviteRole}>
 								<option value="editor">Editor</option>
 								<option value="viewer">Viewer</option>
@@ -1446,7 +1446,7 @@
 							<p class="danger-warning">This will delete <strong>{wsName}</strong> and all its contents. It becomes inaccessible immediately and is permanently erased after 30 days. To confirm, type the workspace slug below:</p>
 							<div class="danger-input-row">
 								<code class="slug-hint">{wsSlug}</code>
-								<Input aria-label="Workspace slug, to confirm deletion" type="text" bind:value={deleteInput} placeholder="Type workspace slug to confirm" onkeydown={(e) => e.key === 'Enter' && handleDeleteWorkspace()} style="flex: 1; min-width: 180px; max-width: 300px; font-family: var(--font-mono)" />
+								<Input class="danger-input" aria-label="Workspace slug, to confirm deletion" type="text" bind:value={deleteInput} placeholder="Type workspace slug to confirm" onkeydown={(e) => e.key === 'Enter' && handleDeleteWorkspace()} style="flex: 1; min-width: 180px; max-width: 300px; font-family: var(--font-mono)" />
 							</div>
 							<div class="danger-actions">
 								<Button variant="destructive" onclick={handleDeleteWorkspace} disabled={deleteInput !== wsSlug || deleting}>
@@ -1481,7 +1481,10 @@
 	.role-legend { list-style: none; padding: 0; margin: var(--space-2) 0 0; font-size: 0.82em; color: var(--text-secondary); }
 	.role-legend li + li { margin-top: 2px; }
 	/* ── Tab bar ──── */
-	/* C82 (TASK-2245): the five owner tabs are 562px intrinsic while the bar's
+	/* Seven owner tabs (Apps, Agents and Danger Zone are owner-only) must fit one
+	   row inside the 720px column minus its padding at desktop widths, so the tab
+	   is 10px/6px tight and the bar's gap 2px (TASK-31).
+	   C82 (TASK-2245): the five owner tabs were 562px intrinsic while the bar's
 	   box is viewport minus the page's 48px of padding, so below ~610px the row
 	   overflowed — and with the scrollbar hidden it overflowed INVISIBLY. Measured
 	   at 390x844 before the fix: Storage 9.3% visible, Danger Zone 0%, i.e. workspace
@@ -1496,12 +1499,12 @@
 	.tab-bar {
 		display: flex;
 		flex-wrap: wrap;
-		gap: var(--space-1);
+		gap: 2px;
 		border-bottom: 1px solid var(--border);
 		margin-bottom: var(--space-6);
 	}
 	.tab {
-		padding: var(--space-2) var(--space-3);
+		padding: var(--space-2) 10px;
 		font-size: 13px;
 		color: var(--text-secondary);
 		cursor: pointer;
@@ -1512,7 +1515,7 @@
 		transition: color 0.15s, border-color 0.15s;
 		display: flex;
 		align-items: center;
-		gap: var(--space-2);
+		gap: 6px;
 	}
 	.tab:hover { color: var(--text-primary); }
 	.tab.active {
@@ -1633,7 +1636,10 @@
 	.danger-input-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 	.slug-hint { font-size: 0.82em; padding: var(--space-1) var(--space-2); background: var(--bg-tertiary); border-radius: var(--radius-sm); color: var(--text-muted); font-family: var(--font-mono); }
 
-	/* The global focus ring (app.css, TASK-2262) in this field's own red (TASK-3461). */
+	/* The field's focus ring (the border and the outline, both --ui-ring on a
+	   ui/input) in this field's own red (TASK-3461). :global because the
+	   element belongs to the Input component. */
+	.danger-input-row :global(.danger-input:focus-visible) { border-color: var(--accent-red); outline-color: var(--accent-red); }
 
 	.danger-actions { display: flex; gap: var(--space-2); }
 	.section-desc { font-size: 13px; color: var(--text-secondary); margin-bottom: var(--space-3); }

@@ -47,10 +47,11 @@ const SETTLE_MS = 2500;
 
 async function openSettings(page: Page, username: string, workspace: string, hash: string) {
 	await page.goto(`/${username}/${workspace}/settings${hash}`);
-	// The owner-only tabs (Apps, Danger Zone) arrive with `/me`; waiting for the full set is what
-	// makes this a measurement of the settled tab bar rather than of the
+	// The owner-only tabs (Apps, Agents, Danger Zone) arrive with `/me`; waiting
+	// for the full set (four for every member, seven for an owner) is what makes
+	// this a measurement of the settled tab bar rather than of the
 	// pre-permission one.
-	await expect(page.locator('.tab-bar .tab')).toHaveCount(6);
+	await expect(page.locator('.tab-bar .tab')).toHaveCount(7);
 	await page.waitForTimeout(SETTLE_MS);
 }
 

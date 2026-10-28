@@ -68,6 +68,21 @@ describe('shadcn form controls', () => {
 	});
 });
 
+describe('a read-only field', () => {
+	it.each([
+		['input/input.svelte', Input],
+		['textarea/textarea.svelte', Textarea]
+	])('%s looks read-only: muted text and the default cursor', (file, Component) => {
+		const src = readFileSync(resolve(__dirname, file), 'utf8');
+		expect(src).toContain('[&[readonly]]:text-muted-foreground');
+		expect(src).toContain('[&[readonly]]:cursor-default');
+		// ...and it is the real attribute those selectors key on.
+		mountInto(Component, { readonly: true, value: 'owner only' });
+		const field = host.querySelector<HTMLInputElement | HTMLTextAreaElement>('[data-slot]')!;
+		expect(field.hasAttribute('readonly')).toBe(true);
+	});
+});
+
 describe('the legacy field rules leave shadcn fields alone', () => {
 	const css = readFileSync(resolve(__dirname, '../../../app.css'), 'utf8');
 
@@ -80,6 +95,9 @@ describe('the legacy field rules leave shadcn fields alone', () => {
 		for (const f of ['input/input.svelte', 'textarea/textarea.svelte', 'native-select/native-select.svelte']) {
 			const src = readFileSync(resolve(__dirname, f), 'utf8');
 			expect(src, f).toContain('focus-visible:border-ring');
+			// A solid outline: the 40% one measured 1.6:1 on a dialog's raised surface.
+			expect(src, f).toContain('focus-visible:outline-ring ');
+			expect(src, f).not.toContain('outline-ring/');
 			expect(src, f).not.toMatch(/accent-blue|accent-primary/);
 		}
 	});

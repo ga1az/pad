@@ -108,7 +108,7 @@
 	--ui-destructive: oklch(0.704 0.191 22.216); /* shadcn neutral dark */
 	--ui-border: oklch(0.298 0.004 286.2); /* #2d2d2f card border */
 	--ui-input: oklch(0.345 0.007 274.8); /* #38393d field border: visible on the panel and on a dialog */
-	--ui-ring: oklch(0.567 0.159 275.2);
+	--ui-ring: oklch(0.62 0.159 275.2); /* #6c7ae4: a lighter step of the brand indigo, 3.5:1 on a raised surface */
 	--ui-chart-1: oklch(0.87 0 0);
 	--ui-chart-2: oklch(0.556 0 0);
 	--ui-chart-3: oklch(0.439 0 0);
@@ -120,7 +120,7 @@
 	--ui-sidebar-accent: oklch(0.325 0.008 264.5); /* #323438 active sidebar item */
 	--ui-sidebar-accent-foreground: oklch(0.925 0.001 286.4);
 	--ui-sidebar-border: oklch(0.298 0.004 286.2);
-	--ui-sidebar-ring: oklch(0.567 0.159 275.2);
+	--ui-sidebar-ring: oklch(0.62 0.159 275.2); /* #6c7ae4: a lighter step of the brand indigo, 3.5:1 on a raised surface */
 
 	/* Item status colors, the same in both themes. */
 	--ui-status-backlog: oklch(0.715 0.008 260.7); /* #a0a3a8 backlog / todo */

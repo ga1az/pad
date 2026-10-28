@@ -196,6 +196,6 @@
 		line-height: 1.5;
 		white-space: nowrap;
 		background: color-mix(in srgb, var(--chip-c, var(--accent-gray)) var(--chip-alpha, 16%), transparent);
-		color: color-mix(in srgb, var(--chip-c, var(--accent-gray)) var(--chip-text-mix, 100%), #000);
+		color: color-mix(in srgb, var(--chip-c, var(--accent-gray)) var(--chip-text-mix, 100%), var(--chip-text-toward, #000));
 	}
 </style>

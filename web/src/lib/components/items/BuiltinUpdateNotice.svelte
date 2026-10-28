@@ -389,7 +389,7 @@
 		cursor: pointer;
 	}
 	.btn.primary {
-		background: var(--accent-blue, #2563eb);
+		background: var(--accent-primary-strong, #5e6ad2);
 		border-color: transparent;
 		color: #fff;
 	}

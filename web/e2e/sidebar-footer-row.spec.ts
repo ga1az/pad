@@ -30,21 +30,36 @@ const DESKTOP = { width: 1280, height: 900 };
 const MOBILE = { width: 700, height: 900 };
 
 /**
- * Counts the line boxes the Settings label occupies.
+ * Counts the line boxes the Settings LABEL occupies.
  *
  * Distinct `top` values rather than rect count: a single line can yield
  * several rects when the content has multiple text nodes or inline children,
  * and counting those would report a wrap that is not there.
+ *
+ * The range covers the label's TEXT nodes, not the whole button. The button is
+ * an icon + label flex row (Hugeicons replaced the emoji in TASK-14), so
+ * `selectNodeContents(button)` also returns the svg's box, which is shorter than
+ * the text's line box and, centred in the row, starts at a different `top` on a
+ * single line: 876.5 against 873.5 on desktop. That read as two line boxes
+ * (Received: 2) with nothing wrapped. The icon is a separate flex item and
+ * cannot be what wraps; the text is.
  */
 async function settingsLineBoxes(page: Page): Promise<number> {
 	return page.evaluate(() => {
 		const settings = document.querySelector('.sidebar-footer .footer-row .settings-btn');
 		if (!settings) return -1;
-		const range = document.createRange();
-		range.selectNodeContents(settings);
-		const tops = [...range.getClientRects()]
-			.filter((r) => r.width > 0 && r.height > 0)
-			.map((r) => Math.round(r.top));
+		const tops: number[] = [];
+		const walker = document.createTreeWalker(settings, NodeFilter.SHOW_TEXT);
+		for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+			if (!n.textContent?.trim()) continue;
+			const range = document.createRange();
+			range.selectNodeContents(n);
+			for (const r of range.getClientRects()) {
+				if (r.width > 0 && r.height > 0) tops.push(Math.round(r.top));
+			}
+		}
+		// PREMISE: there is a label to measure; no rects would be a vacuous "0 lines".
+		if (tops.length === 0) return -2;
 		return new Set(tops).size;
 	});
 }
